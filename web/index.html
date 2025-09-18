@@ -11,7 +11,7 @@
   <body>
     <div id="app">
         <el-row>
-            <el-col :span="24">
+            <el-col :span="24" style="height:80px;display: block;">
               <el-affix :offset="10">
               <div style="width: 100%;display: block;background-color: #FFFFFF;padding-top: 10px;">
                 <div style="display: inline-block;width: 180px;height: 60px;float: left;">
@@ -21,7 +21,7 @@
                 <div style="display: inline-block;width: calc(100% - 200px);height: 80px;">
                   <el-input
                       v-model="prompt_textarea"
-                      style="display: inline-block;width: 100%;"
+                      style="display: inline-block;width: 100%;min-width: 600px"
                       :rows="3"
                       type="textarea"
                       placeholder="点选或者输入关键词"
