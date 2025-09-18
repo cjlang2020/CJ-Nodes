@@ -1,0 +1,143 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <script src="global.js"></script>
+    <link rel="stylesheet" href="index.css">
+    <script src="index.full.js"></script>
+    <script src="data.js"></script>
+    <title>提示词工具</title>
+  </head>
+  <body>
+    <div id="app">
+        <el-row>
+            <el-col :span="24">
+              <el-affix :offset="10">
+              <div style="width: 100%;display: block;background-color: #FFFFFF;padding-top: 10px;">
+                <div style="display: inline-block;width: 180px;height: 60px;float: left;">
+                  <el-button type="primary" plain class="btn" @click="sendMessageToParent">获取提示词</el-button>
+                  <el-button plain class="btn" @click="cleanPrompt">清空</el-button>
+                </div>
+                <div style="display: inline-block;width: calc(100% - 200px);height: 80px;">
+                  <el-input
+                      v-model="prompt_textarea"
+                      style="display: inline-block;width: 100%;"
+                      :rows="3"
+                      type="textarea"
+                      placeholder="点选或者输入关键词"
+                  />
+                </div>
+              </div>
+              </el-affix>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col :span="24">
+                <el-collapse v-model="activeNames2" >
+                    <el-collapse-item :title="'》'+item.name+'《'" v-for="(item,index) in prompt_Data" :key="index" :name="index">
+                        <div v-for="(item2,index2) in item.child" class="image-block">
+                            <div><el-image style="width: 80px; height: 80px" :src="item2.value" fit="fill" @click="selectWord(item2.name)" /></div>
+                            <div style="padding-top: 5px;"><el-tag type="primary" v-text="item2.name"></el-tag></div>
+                        </div>
+                    </el-collapse-item>
+                </el-collapse>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col :span="24">
+                <el-collapse v-model="activeNames3" >
+                    <el-collapse-item :title="'【'+item.name+'】'" v-for="(item,index) in pic_Style" :key="index" :name="index">
+                        <div v-for="(item2,index2) in item.child" class="image-hf">
+                            <div><el-image style="width: 400px; height: 400px" :src="item2.value" fit="scale-down" @click="selectWord(item2.name)" /></div>
+                            <div style="padding-top: 5px;"><el-tag type="primary" v-text="item2.name" style="width: 400px;display: block;white-space: nowrap; overflow: hidden;text-overflow: ellipsis;"></el-tag></div>
+                        </div>
+                    </el-collapse-item>
+                </el-collapse>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col :span="24">
+              <el-collapse v-model="activeNames1">
+                <el-collapse-item  :title="'#'+item.name" v-for="(item,index) in keys_Word" :key="index" :name="index">
+                    <el-collapse v-model="activeNames11" >
+                        <el-collapse-item :title="'————'+item1.name" v-for="(item1,index1) in item.child" :key="index1" :name="(index*100+index1*100)">
+                            <el-tag class="single-word" type="success" effect="plain" v-text="item2.word" v-for="(item2,index2) in item1.child" @click="selectWord(item2.word)" style="margin: 3px 5px;"></el-tag>
+                        </el-collapse-item>
+                    </el-collapse>
+                </el-collapse-item>
+              </el-collapse>
+            </el-col>
+        </el-row>
+    </div>
+  </body>
+    <script>
+      const App = {
+        data() {
+          return {
+            activeNames1:['1'],
+            activeNames11:['1'],
+            activeNames2:['1'],
+            activeNames3:['1'],
+            prompt_textarea:"8K高清",
+            prompt_Data:promptData,
+            pic_Style:picStyle,
+            keys_Word:keysWord
+          };
+        },
+        methods: {
+            selectWord(name){
+               this.prompt_textarea+=','+name;
+            },
+            sendMessageToParent() {
+                window.parent.postMessage({Id: 0,msg: this.prompt_textarea}, '*');
+            },
+            cleanPrompt(){
+                this.prompt_textarea='8K高清';
+            }
+        },
+      };
+      const app = Vue.createApp(App);
+      app.use(ElementPlus);
+      app.mount("#app");
+
+    </script>
+  <style>
+    .image-block {
+        padding: 5px 10px;
+        text-align: center;
+        border-right: solid 1px var(--el-border-color);
+        display: inline-block;
+        min-width: 50px;
+        box-sizing: border-box;
+        vertical-align: top;
+    }
+    .image-hf {
+        padding: 5px 10px;
+        text-align: center;
+        border-right: solid 1px var(--el-border-color);
+        display: inline-block;
+        min-width: 50px;
+        box-sizing: border-box;
+        vertical-align: top;
+    }
+    .image-words{
+        padding: 5px 10px;
+        text-align: center;
+        border-right: solid 1px var(--el-border-color);
+        display: inline-block;
+        min-width: 50px;
+        box-sizing: border-box;
+        vertical-align: top;
+    }
+    .btn{
+      height: 68px;
+      display: inline-block;
+    }
+    .single-word:hover{
+      cursor: pointer;
+      background-color: #409EFF;
+      color: #FFFFFF;
+      font-size: large;
+    }
+  </style>
+</html>
