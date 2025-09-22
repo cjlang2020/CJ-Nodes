@@ -33,20 +33,40 @@
         </el-row>
         <el-row>
             <el-col :span="24">
-                <el-collapse v-model="activeNames2" >
-                    <el-collapse-item :title="'》'+item.name+'《'" v-for="(item,index) in prompt_Data" :key="index" :name="index">
+              <el-collapse v-model="jm">
+                  <el-collapse-item title="既梦4.0手册" name="1">
+                    <el-tabs type="border-card" v-model="tab1ActiveName">
+                      <el-tab-pane :label="'【'+item.name+'】'" v-for="(item,index) in prompt_Data" :key="index" :name="'JM'+index">
                         <div v-for="(item2,index2) in item.child" class="image-block">
                             <div><el-image style="width: 80px; height: 80px" :src="item2.value" fit="fill" @click="selectWord(item2.name)" /></div>
                             <div style="padding-top: 5px;"><el-tag type="primary" v-text="item2.name"></el-tag></div>
                         </div>
-                    </el-collapse-item>
-                </el-collapse>
+                      </el-tab-pane>
+                    </el-tabs>
+                  </el-collapse-item>
+              </el-collapse>
             </el-col>
         </el-row>
         <el-row>
             <el-col :span="24">
-                <el-collapse v-model="activeNames3" >
-                    <el-collapse-item :title="'【'+item.name+'】'" v-for="(item,index) in pic_Style" :key="index" :name="index">
+              <el-collapse v-model="gjz">
+                  <el-collapse-item title="提示词大全"  name="1">
+                    <el-tabs type="border-card"  v-model="tab2ActiveName">
+                      <el-tab-pane :label="'#'+item.name" v-for="(item,index) in keys_Word" :key="index" :name="'TS'+index">
+                        <div v-for="(item1,index1) in item.child" :key="index1">
+                          <el-divider content-position="left"><el-tag v-text="item1.name"></el-tag></el-divider>
+                          <el-tag class="single-word" type="success" effect="plain" v-text="item2.word" v-for="(item2,index2) in item1.child" @click="selectWord(item2.word)" style="margin: 3px 5px;"></el-tag>
+                        </div>
+                      </el-tab-pane>
+                    </el-tabs>
+                  </el-collapse-item>
+              </el-collapse>
+            </el-col>
+        </el-row>
+        <el-row>
+            <el-col :span="24">
+                <el-collapse v-model="ts" >
+                    <el-collapse-item :title="'提示词-'+item.name" v-for="(item,index) in pic_Style" :key="index" :name="index">
                         <div v-for="(item2,index2) in item.child" class="image-hf">
                             <div><el-image style="width: 400px; height: 400px" :src="item2.value" fit="scale-down" @click="selectWord(item2.name)" /></div>
                             <div style="padding-top: 5px;"><el-tag type="primary" v-text="item2.name" style="width: 400px;display: block;white-space: nowrap; overflow: hidden;text-overflow: ellipsis;"></el-tag></div>
@@ -55,29 +75,17 @@
                 </el-collapse>
             </el-col>
         </el-row>
-        <el-row>
-            <el-col :span="24">
-              <el-collapse v-model="activeNames1">
-                <el-collapse-item  :title="'#'+item.name" v-for="(item,index) in keys_Word" :key="index" :name="index">
-                    <el-collapse v-model="activeNames11" >
-                        <el-collapse-item :title="'————'+item1.name" v-for="(item1,index1) in item.child" :key="index1" :name="(index*100+index1*100)">
-                            <el-tag class="single-word" type="success" effect="plain" v-text="item2.word" v-for="(item2,index2) in item1.child" @click="selectWord(item2.word)" style="margin: 3px 5px;"></el-tag>
-                        </el-collapse-item>
-                    </el-collapse>
-                </el-collapse-item>
-              </el-collapse>
-            </el-col>
-        </el-row>
     </div>
   </body>
     <script>
       const App = {
         data() {
           return {
-            activeNames1:['1'],
-            activeNames11:['1'],
-            activeNames2:['1'],
-            activeNames3:['1'],
+            jm:['1'],
+            gjz:['1'],
+            ts:['1'],
+            tab1ActiveName : "JM0",
+            tab2ActiveName : "TS0",
             prompt_textarea:"8K高清",
             prompt_Data:promptData,
             pic_Style:picStyle,
