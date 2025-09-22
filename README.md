@@ -9,9 +9,18 @@ https://hf-mirror.com/Qwen/Qwen3-0.6B-FP8
 https://hf-mirror.com/Qwen/Qwen3-4B-Instruct-2507
 https://hf-mirror.com/Qwen/Qwen3-4B-Instruct-2507-FP8
 
+https://hf-mirror.com/apple/FastVLM-1.5B
 
 ![示例图片](doc/1.png)
 
+提示词选择
+
 ![示例图片](doc/2.png)
 
+大语言模型：翻译，扩写
+
 ![示例图片](doc/3.png)
+
+反推识别
+
+![示例图片](doc/4.png)
