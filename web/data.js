@@ -227,17 +227,6 @@ const keysWord = [
                     { word: "arms up, armpits 举手露腋" },
                     { word: "tiamat (fate) 提亚马特" }
                 ]
-            },
-            {
-                name: "R18Tag",
-                child: [
-                    { word: "surrounded, multiple others, exhibitionism, audience, background characters, crowd, public humiliation 露出" },
-                    { word: "partially unbuttoned 解开一部分扣子" },
-                    { word: "show foot 展示足" },
-                    { word: "pubic tattoo on underbelly 淫纹在小腹" },
-                    { word: "spread pussy 掰开 XX" },
-                    { word: "ass_visible_through_thighs 透过大腿可见屁股" }
-                ]
             }
         ]
     }, {
@@ -722,16 +711,6 @@ const keysWord = [
                     { word: ":t 不耐烦" },
                     { word: ":d 杯型笑脸" }
                 ]
-            },
-            {
-                name: "R18",
-                child: [
-                    { word: "naughty_face 下流的表情" },
-                    { word: "endured_face 忍耐的表情" },
-                    { word: "ahegao 阿黑颜" },
-                    { word: "blood on face 血在脸上" },
-                    { word: "saliva 唾液" }
-                ]
             }
 
         ]
@@ -817,13 +796,6 @@ const keysWord = [
                     { word: "breasts apart 胸部分开" },
                     { word: "hanging breasts 晃来晃去" },
                     { word: "bouncing breasts 弹来弹去" }
-                ]
-            },
-            {
-                name: "R18",
-                child: [
-                    { word: "breasts out 露出胸部" },
-                    { word: "one breast out 露出一边" }
                 ]
             }
         ]
@@ -915,29 +887,6 @@ const keysWord = [
                     { word: "one-piece swimsuit 连体泳衣" },
                     { word: "competition swimsuit 竞技泳衣" },
                     { word: "Sukumizu 死库水" }
-                ]
-            }, {
-                name: "R18",
-                child: [
-                    { word: "no bra 没胸罩" },
-                    { word: "bra 胸罩" },
-                    { word: "victorian bra 褶边文胸" },
-                    { word: "frilled bra 褶边文胸" },
-                    { word: "sexy lingerie 情趣内衣" },
-                    { word: "transparent underwear 透明内衣" },
-                    { word: "sarasah 胸贴布" },
-                    { word: "bustier 胸衣" },
-                    { word: "chemise 吊带胸衣" },
-                    { word: "underwear 内衣" },
-                    { word: "panties 内裤（前加颜色）" },
-                    { word: "striped panties 条纹内裤" },
-                    { word: "no panties 没内裤" },
-                    { word: "lowleg panties/low_leg panties 低腰式内裤" },
-                    { word: "side-tie panties 侧系带内裤" },
-                    { word: "string panties 高腰内裤" },
-                    { word: "thong 丁字裤" },
-                    { word: "fundoshi 日式丁字裤" },
-                    { word: "lingerie 女用贴身内衣裤" }
                 ]
             }
         ]
@@ -1071,13 +1020,6 @@ const keysWord = [
                     { word: "legwear garter 裤袜吊袜带" },
                     { word: "two-tone legwear 双色裤袜" },
                     { word: "latex legwear 乳胶裤袜" }
-                ]
-            },
-            {
-                name: "R18",
-                child: [
-                    { word: "vibrator in thighhighs 长筒袜里塞跳蛋" },
-                    { word: "tom pantyhose 撕裂的连裤袜" }
                 ]
             }
         ]
@@ -1281,26 +1223,7 @@ const keysWord = [
                     { word: "brushing hair 梳头" },
                     { word: "washing hair 洗头" }
                 ]
-            }, {
-                name: "R18",
-                child: [
-                    { word: "all fours 四肢趴地" },
-                    { word: "symmetrical_docking2 女胸部贴在一起" },
-                    { word: "undressing 脱衣服" },
-                    { word: "skirt lift 掀起裙子" },
-                    { word: "shirt lift 掀起上衣" },
-                    { word: "adjusting_thighhigh 调整过膝袜" }
-                ]
             }
         ]
-    }, {
-        name: 'R18',
-        child: [
-            {
-                name: "R18",
-                child: [
-                    { word: "tentacle触手" }, { word: "hairjob发交" }, { word: "oral/fellatio口交" }, { word: "deepthroat深喉" }, { word: "gokkun吃精" }, { word: "gag口塞" }, { word: "ballgag球塞" }, { word: "bitgag棍塞" }, { word: "ring_gag扩口器" }, { word: "cleave_gag用布勒住嘴" }, { word: "panty_gag用内裤塞口" }, { word: "tapegag胶带封口" }, { word: "facial颜射" }, { word: "leash宠物链" }, { word: "handjob用手做" }, { word: "groping摸索" }, { word: "areolae乳晕" }, { word: "nipples乳头" }, { word: "puffy_nipples大乳头" }, { word: "small_nipples小乳头" }, { word: "nipple_pull啦乳头" }, { word: "nipple_torture虐乳头" }, { word: "nipple_tweak捏乳头" }, { word: "nipple_piercing乳头穿孔" }, { word: "breast_grab摸乳" }, { word: "lactation哺乳（大范围）" }, { word: "breast_sucking/nipple_suck吸乳（中）" }, { word: "breast_feeding喂奶(小)" }, { word: "paizuri乳交" }, { word: "multiple_paizuri多P乳交" }, { word: "breast_smother把头塞入胸" }, { word: "piercing穿孔" }, { word: "navel_piercing肚脐穿孔" }, { word: "thigh_sex腿交" }, { word: "footjob足交" }, { word: "mound_of_venus腹部三角带" }, { word: "wide_hips宽盆骨" }, { word: "masturbation自慰" }, { word: "clothed_masturbation隔着衣服自慰" }, { word: "penis阳具/屌" }, { word: "testicles睾丸/蛋蛋" }, { word: "ejaculation射出" }, { word: "cum射精" }, { word: "cum_inside内射" }, { word: "cum_on_breast射在胸上" }, { word: "cum_on_hair射在头发上" }, { word: "cum_on_food射在食物上" }, { word: "tamakeri蛋疼" }, { word: "pussy/vaginal阴户（前者图片远大于后者）" }, { word: "pubic_hair阴毛" }, { word: "shaved_pussy剃过阴毛的（无毛B）" }, { word: "no_pussy没逼的" }, { word: "clitoris阴蒂" }, { word: "fat_mons肥逼" }, { word: "cameltoe骆驼脚趾逼（俗称馒头逼）" }, { word: "pussy_juice爱液" }, { word: "female_ejaculation潮吹" }, { word: "grinding性器摩擦" }, { word: "crotch_rub胯部摩擦" }, { word: "facesitting坐在脸上" }, { word: "cervix子宫口" }, { word: "cunnilingus舔阴" }, { word: "insertion插入物" }, { word: "anal_insertion菊花插入物" }, { word: "fruit_insertion用水果蔬菜" }, { word: "large_insertion巨大插入" }, { word: "penetration异物插入" }, { word: "fisting拳头插入" }, { word: "fingering手插入" }, { word: "multiple_insertions一穴多插" }, { word: "double_penetration双穴同插" }, { word: "triple_penetration三穴同插" }, { word: "double_vaginal双重入穴" }, { word: "peeing尿尿" }, { word: "have_to_pee憋尿" }, { word: "ass屁股" }, { word: "huge_ass大屁股" }, { word: "spread_ass用手张开屁股" }, { word: "buttjob臀交" }, { word: "spanked打屁股" }, { word: "anus菊花" }, { word: "anal爆菊" }, { word: "double_anal双重爆菊" }, { word: "anal_fingering手爆菊" }, { word: "anal_fisting拳爆菊" }, { word: "anilingus肛吻" }, { word: "enema灌肠" }, { word: "stomach_bulge肚子胀" }, { word: "x-ray/cross-section/internal_cumshot透视人体内部" }, { word: "wakamezake酒倒在阴部" }, { word: "public公共场所" }, { word: "humiliation羞耻play" }, { word: "bra_lift胸罩拉到胸上方" }, { word: "panties_around_one_leg内裤挂在一条腿上" }, { word: "caught被发现" }, { word: "walk-in进门被发现" }, { word: "body_writing身上有字" }, { word: "tally在身上计数" }, { word: "futanari双性" }, { word: "incest乱伦" }, { word: "twincest兄弟/姐妹/姐弟/兄妹" }, { word: "pegging女性使用假屌" }, { word: "femdom女奸男（逆推）" }, { word: "ganguro日本黑妹" }, { word: "bestiality人兽" }, { word: "gangbang轮奸" }, { word: "hreesome3P" }, { word: "group_sex/orgy/teamwork群P（多男x一女/性交派队/多女x1男）" }, { word: "tribadism磨豆腐" }, { word: "molestation性骚扰" }, { word: "voyeurism窥阴癖" }, { word: "exhibitionism裸露癖" }, { word: "rape强暴" }, { word: "about_to_be_raped将要被强暴" }, { word: "sex性爱" }, { word: "clothed_sex穿着衣服做爱" }, { word: "happy_sex快乐做爱" }, { word: "underwater_sex水中做爱" }, { word: "spitroast前后夹攻" }, { word: "cock_in_thighhigh插在过膝袜里" }, { word: "6969式" }, { word: "doggystyle狗爬式" }, { word: "leg_lock/upright_straddle跨坐式" }, { word: "missionary传教士体位" }, { word: "girl_on_top女上体位" }, { word: "cowgirl_position女上正骑" }, { word: "reverse_cowgirl女上反骑" }, { word: "virgin处女/破瓜" }, { word: "slave奴隶" }, { word: "shibari捆绑" }, { word: "bondage捆绑/奴役" }, { word: "bdsm绑缚与调教/支配与臣服/施虐与受虐" }, { word: "pillory/stocks枷锁" }, { word: "rope绳子" }, { word: "bound_arms手臂捆绑" }, { word: "bound_wrists手腕捆绑" }, { word: "crotch_rope胯下捆绑" }, { word: "hogtie曲膝捆绑" }, { word: "frogtie青蛙捆绑" }, { word: "suspension悬空捆绑" }, { word: "spreader_bar分腿捆绑" }, { word: "wooden_horse木马" }, { word: "anal_beads肛珠" }, { word: "dildo假屌" }, { word: "cock_ring屌环" }, { word: "egg_vibrator跳蛋" }, { word: "artificial_vagina人工阴道" }, { word: "hitachi_magic_wand按摩棒" }, { word: "dildo人造阴茎" }, { word: "double_dildo双头龙" }, { word: "vibrator带振动的自慰器" }, { word: "vibrator_in_thighhighs震动开关在过膝袜里" }, { word: "nyotaimori女体盛" }, { word: "vore吃人" }, { word: "amputee截肢" }, { word: "transformation肉体变形" }, { word: "mind_control思想操控" }, { word: "censored审核过的/有码" }, { word: "uncensored未审核的/无码" }, { word: "asian亚洲" }, { word: "faceless_male无脸男" }, { word: "blood血" }
-                ]
-            }]
     }
 ]

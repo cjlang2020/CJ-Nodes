@@ -1,5 +1,6 @@
 # 插件说明
 > 可通过配置选择相关的场景描述，生成的描述可通过本地大模型处理，更方便，不用调用远程或者Ollama。
+github：https://github.com/cjlang2020/CJ-Nodes
 
 ## 安装
 > 直接下载到 ComfyUI\custom_node目录下即可，无任何依赖，不用安装
