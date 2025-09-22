@@ -44,7 +44,8 @@ class MultiPurposeNode(BaseNode):
                     "multiline": True,
                     "placeholder": "请输入提示词...",
                     "rows": 5
-                })
+                }),
+                "运行后清理GPU缓存": (["否", "是"],),  # 新增参数
             },
             "optional": {}
         }
@@ -80,7 +81,7 @@ class MultiPurposeNode(BaseNode):
 
         return model, tokenizer
 
-    def process_prompt(self, 模型选择, 功能选择, 提示词):
+    def process_prompt(self, 模型选择, 功能选择, 提示词, 运行后清理GPU缓存):
         prompt_prefix = config_data["prompts"].get(功能选择, "")
         full_prompt = f"{prompt_prefix}\n{提示词}" if 提示词 else prompt_prefix
         try:
@@ -105,6 +106,23 @@ class MultiPurposeNode(BaseNode):
             except ValueError:
                 index = 0
             content = tokenizer.decode(output_ids[index:], skip_special_tokens=True).strip()
+
+            # 根据用户选择决定是否清理GPU缓存
+            if 运行后清理GPU缓存 == "是":
+                # 从缓存中移除模型和分词器
+                if 模型选择 in self.models:
+                    del self.models[模型选择]
+                if 模型选择 in self.tokenizers:
+                    del self.tokenizers[模型选择]
+
+                # 显式删除引用
+                del model
+                del tokenizer
+
+                # 清理PyTorch的GPU缓存
+                import torch
+                torch.cuda.empty_cache()
+
             return (content,)
 
         except Exception as e:
