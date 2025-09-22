@@ -227,17 +227,6 @@ const keysWord = [
                     { word: "arms up, armpits 举手露腋" },
                     { word: "tiamat (fate) 提亚马特" }
                 ]
-            },
-            {
-                name: "R18Tag",
-                child: [
-                    { word: "surrounded, multiple others, exhibitionism, audience, background characters, crowd, public humiliation 露出" },
-                    { word: "partially unbuttoned 解开一部分扣子" },
-                    { word: "show foot 展示足" },
-                    { word: "pubic tattoo on underbelly 淫纹在小腹" },
-                    { word: "spread pussy 掰开 XX" },
-                    { word: "ass_visible_through_thighs 透过大腿可见屁股" }
-                ]
             }
         ]
     }, {
@@ -722,16 +711,6 @@ const keysWord = [
                     { word: ":t 不耐烦" },
                     { word: ":d 杯型笑脸" }
                 ]
-            },
-            {
-                name: "R18",
-                child: [
-                    { word: "naughty_face 下流的表情" },
-                    { word: "endured_face 忍耐的表情" },
-                    { word: "ahegao 阿黑颜" },
-                    { word: "blood on face 血在脸上" },
-                    { word: "saliva 唾液" }
-                ]
             }
 
         ]
@@ -817,13 +796,6 @@ const keysWord = [
                     { word: "breasts apart 胸部分开" },
                     { word: "hanging breasts 晃来晃去" },
                     { word: "bouncing breasts 弹来弹去" }
-                ]
-            },
-            {
-                name: "R18",
-                child: [
-                    { word: "breasts out 露出胸部" },
-                    { word: "one breast out 露出一边" }
                 ]
             }
         ]
@@ -915,29 +887,6 @@ const keysWord = [
                     { word: "one-piece swimsuit 连体泳衣" },
                     { word: "competition swimsuit 竞技泳衣" },
                     { word: "Sukumizu 死库水" }
-                ]
-            }, {
-                name: "R18",
-                child: [
-                    { word: "no bra 没胸罩" },
-                    { word: "bra 胸罩" },
-                    { word: "victorian bra 褶边文胸" },
-                    { word: "frilled bra 褶边文胸" },
-                    { word: "sexy lingerie 情趣内衣" },
-                    { word: "transparent underwear 透明内衣" },
-                    { word: "sarasah 胸贴布" },
-                    { word: "bustier 胸衣" },
-                    { word: "chemise 吊带胸衣" },
-                    { word: "underwear 内衣" },
-                    { word: "panties 内裤（前加颜色）" },
-                    { word: "striped panties 条纹内裤" },
-                    { word: "no panties 没内裤" },
-                    { word: "lowleg panties/low_leg panties 低腰式内裤" },
-                    { word: "side-tie panties 侧系带内裤" },
-                    { word: "string panties 高腰内裤" },
-                    { word: "thong 丁字裤" },
-                    { word: "fundoshi 日式丁字裤" },
-                    { word: "lingerie 女用贴身内衣裤" }
                 ]
             }
         ]
@@ -1071,13 +1020,6 @@ const keysWord = [
                     { word: "legwear garter 裤袜吊袜带" },
                     { word: "two-tone legwear 双色裤袜" },
                     { word: "latex legwear 乳胶裤袜" }
-                ]
-            },
-            {
-                name: "R18",
-                child: [
-                    { word: "vibrator in thighhighs 长筒袜里塞跳蛋" },
-                    { word: "tom pantyhose 撕裂的连裤袜" }
                 ]
             }
         ]
@@ -1281,22 +1223,7 @@ const keysWord = [
                     { word: "brushing hair 梳头" },
                     { word: "washing hair 洗头" }
                 ]
-            }, {
-                name: "R18",
-                child: [
-                    { word: "all fours 四肢趴地" },
-                    { word: "symmetrical_docking2 女胸部贴在一起" },
-                    { word: "undressing 脱衣服" },
-                    { word: "skirt lift 掀起裙子" },
-                    { word: "shirt lift 掀起上衣" },
-                    { word: "adjusting_thighhigh 调整过膝袜" }
-                ]
             }
-        ]
-    }, {
-        name: 'R18',
-        child: [
-
         ]
     }
 ]
