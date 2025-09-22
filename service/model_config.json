@@ -10,5 +10,8 @@
 		"Qwen3_0.6B_FP8": "LLM/Qwen3-0.6B-FP8",
 		"Qwen3_4B_Instruct_2507": "LLM/Qwen3-4B-Instruct-2507",
 		"Qwen3_4B_Instruct_2507_FP8":"LLM/Qwen3-4B-Instruct-2507-FP8"
+	},
+	"image_models": {
+		"FastVLM_1_5B":"LLM/FastVLM-1.5B"
 	}
 }

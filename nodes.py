@@ -5,6 +5,7 @@ from .service.LLMNode import LLMNode
 from .service.VisionModelNode import VisionModelNode
 from .service.PromptSelectorNode import PromptSelectorNode
 from .service.MultiPurposeNode import MultiPurposeNode
+from .service.ImageRecognitionNode import ImageRecognitionNode
 
 
 
@@ -15,7 +16,8 @@ NODE_CLASS_MAPPINGS = {
     "LLMNode": LLMNode,
     "VisionModelNode": VisionModelNode,
     "PromptSelectorNode": PromptSelectorNode,
-    "MultiPurposeNode":MultiPurposeNode
+    "MultiPurposeNode":MultiPurposeNode,
+    "ImageRecognitionNode":ImageRecognitionNode
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "POSE_KEYPOINT数据转换",
@@ -24,5 +26,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LLMNode": "本地大模型服务",
     "VisionModelNode":"本地视觉大模型",
     "PromptSelectorNode": "提示词选择器",
-    "MultiPurposeNode": "多功能AI节点"
+    "ImageRecognitionNode": "图片反推"
 }
