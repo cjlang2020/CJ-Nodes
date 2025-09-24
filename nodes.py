@@ -20,12 +20,13 @@ NODE_CLASS_MAPPINGS = {
     "ImageDrawNode":ImageDrawNode
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PoseKeypointData": "POSE_KEYPOINT数据转换",
-    "EmptyLatentImage": "输出图片尺寸",
-    "BatchImageLoader": "从文件夹读取图片",
-    "LLMNode": "本地大模型服务",
-    "VisionModelNode":"本地视觉大模型",
-    "PromptSelectorNode": "提示词选择器",
-    "ImageRecognitionNode": "图片反推",
-    "ImageDrawNode": "图片绘制"
+    "PoseKeypointData": "Luy-POSE数据转换",
+    "EmptyLatentImage": "Luy-输出图片尺寸",
+    "BatchImageLoader": "Luy-文件夹读取批量图片",
+    "LLMNode": "Luy-Ollama语言大模型",
+    "VisionModelNode":"Luy-Ollama视觉大模型",
+    "PromptSelectorNode": "Luy-提示词选择器",
+    "MultiPurposeNode": "Luy-本地多功能AI节点",
+    "ImageRecognitionNode": "Luy-图片反推",
+    "ImageDrawNode": "Luy-涂鸦"
 }
