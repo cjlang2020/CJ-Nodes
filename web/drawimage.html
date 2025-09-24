@@ -1,0 +1,101 @@
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <script src="global.js"></script>
+  <link rel="stylesheet" href="index.css">
+  <script src="index.full.js"></script>
+  <script src="data.js"></script>
+  <title>绘图工具</title>
+</head>
+<body style="background-color: #ccc;">
+  <div id="app" style="background-color: #ccc;">
+    <!-- 绘图区域 -->
+      <div style="margin-bottom: 10px;text-align: center;">
+        <el-button type="primary" plain class="btn" @click="sendCanvasImage">发送图像</el-button>
+        <el-button plain class="btn" @click="clearCanvas">清空画布</el-button>
+      </div>
+      <div style="text-align: center;">
+        <!-- 注意：Canvas宽高属性不能带单位 -->
+        <canvas id="drawCanvas" width="768" height="768" style="border:1px solid #ccc;background:#fff;cursor:crosshair;text-align:center;display:inline-block;"></canvas>
+      </div>
+  </div>
+  <script>
+    const App = {
+      data() {
+        return {
+          canvas: null,
+          ctx: null,
+          drawing: false,
+          lastX: 0,
+          lastY: 0
+        };
+      },
+      mounted() {
+        this.initCanvas();
+        window.parent.postMessage({ ready: true }, '*');
+      },
+      methods: {
+        // 初始化画布
+        initCanvas() {
+          this.canvas = document.getElementById('drawCanvas');
+          this.ctx = this.canvas.getContext('2d');
+
+          // 线条样式
+          this.ctx.lineWidth = 3;
+          this.ctx.lineCap = 'round';
+          this.ctx.strokeStyle = '#FF0000';
+
+          // 事件监听
+          this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
+          this.canvas.addEventListener('mousemove', this.draw.bind(this));
+          this.canvas.addEventListener('mouseup', this.endDrawing.bind(this));
+          this.canvas.addEventListener('mouseout', this.endDrawing.bind(this));
+        },
+        startDrawing(e) {
+          this.drawing = true;
+          [this.lastX, this.lastY] = this.getPosition(e);
+        },
+        draw(e) {
+          if (!this.drawing) return;
+          const [x, y] = this.getPosition(e);
+          this.ctx.beginPath();
+          this.ctx.moveTo(this.lastX, this.lastY);
+          this.ctx.lineTo(x, y);
+          this.ctx.stroke();
+          [this.lastX, this.lastY] = [x, y];
+        },
+        endDrawing() {
+          this.drawing = false;
+        },
+        getPosition(e) {
+          const rect = this.canvas.getBoundingClientRect();
+          return [
+            e.clientX - rect.left,
+            e.clientY - rect.top
+          ];
+        },
+        // 清空画布
+        clearCanvas() {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        },
+        // 发送画布图像
+        sendCanvasImage() {
+          const dataURL = this.canvas.toDataURL('image/png');
+          const msg={
+            Id: 0,
+            data: dataURL
+          }
+          // 使用后端期望的格式发送
+          window.parent.postMessage(msg, '*');
+          console.log("图像已发送到后端");
+        }
+      }
+    };
+
+    const app = Vue.createApp(App);
+    app.use(ElementPlus);
+    app.mount("#app");
+  </script>
+</body>
+</html>

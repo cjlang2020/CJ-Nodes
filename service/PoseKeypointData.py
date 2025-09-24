@@ -2,7 +2,7 @@ import json
 
 # 兼容不同版本的ComfyUI
 try:
-    from comfy.nodes import BaseNode
+    from comfy.nodes import BaseNode # type: ignore
 except ImportError:
     class BaseNode:
         pass
@@ -18,7 +18,7 @@ class PoseKeypointData(BaseNode):
                 "pose_keypoint": ("POSE_KEYPOINT",),
             }
         }
-    
+
     RETURN_TYPES = ("STRING",)
     FUNCTION = "convert_and_print"
     CATEGORY = "luy"
