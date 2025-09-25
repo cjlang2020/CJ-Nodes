@@ -2,33 +2,182 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <script src="global.js"></script>
-  <link rel="stylesheet" href="index.css">
-  <script src="index.full.js"></script>
-  <script src="data.js"></script>
+  <!-- 引入Element Plus CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <!-- 引入Vue -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- 引入Element Plus JS -->
+  <script src="https://unpkg.com/element-plus"></script>
   <title>绘图工具</title>
+  <style>
+    .app-container {
+      display: flex;
+      gap: 20px;
+      padding: 20px;
+      background-color: #ccc;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .toolbar {
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .tool-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tool-label {
+      font-weight: 500;
+      color: #333;
+      font-size: 14px;
+    }
+
+    .canvas-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      margin: 0 5px;
+    }
+
+    .brush-preview {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin: 0 auto;
+      border: 1px solid #ddd;
+    }
+
+    .size-value {
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+    }
+  </style>
 </head>
-<body style="background-color: #ccc;">
-  <div id="app" style="background-color: #ccc;">
+<body>
+  <div id="app" class="app-container">
+    <!-- 左侧工具栏 -->
+    <div class="toolbar">
+      <h3>绘图工具</h3>
+
+      <!-- 画笔大小调整 -->
+      <div class="tool-group">
+        <div class="tool-label">画笔大小</div>
+        <el-slider
+          v-model="brushSize"
+          :min="1"
+          :max="50"
+          :step="1"
+          @change="updateBrushSettings"
+        ></el-slider>
+        <div class="size-value">{{ brushSize }}px</div>
+        <div class="brush-preview" :style="{
+          backgroundColor: brushColor,
+          opacity: brushOpacity,
+          transform: `scale(${brushSize / 20})`
+        }"></div>
+      </div>
+
+      <!-- 颜色选择 -->
+      <div class="tool-group">
+        <div class="tool-label">画笔颜色</div>
+        <el-color-picker
+          v-model="brushColor"
+          show-alpha
+          @change="updateBrushSettings"
+        ></el-color-picker>
+      </div>
+
+      <!-- 透明度调整 -->
+      <div class="tool-group">
+        <div class="tool-label">透明度</div>
+        <el-slider
+          v-model="brushOpacity"
+          :min="0.1"
+          :max="1"
+          :step="0.1"
+          @change="updateBrushSettings"
+        ></el-slider>
+        <div class="size-value">{{ Math.round(brushOpacity * 100) }}%</div>
+      </div>
+
+      <!-- 预设颜色 -->
+      <div class="tool-group">
+        <div class="tool-label">预设颜色</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <div
+            v-for="color in presetColors"
+            :key="color"
+            class="color-preset"
+            :style="{ backgroundColor: color }"
+            @click="selectPresetColor(color)"
+          ></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 绘图区域 -->
-      <div style="margin-bottom: 10px;text-align: center;">
+    <div class="canvas-container">
+      <div class="button-group">
         <el-button type="primary" plain class="btn" @click="sendCanvasImage">发送图像</el-button>
         <el-button plain class="btn" @click="clearCanvas">清空画布</el-button>
       </div>
-      <div style="text-align: center;">
-        <!-- 注意：Canvas宽高属性不能带单位 -->
-        <canvas id="drawCanvas" width="768" height="768" style="border:1px solid #ccc;background:#fff;cursor:crosshair;text-align:center;display:inline-block;"></canvas>
-      </div>
+
+      <canvas
+        id="drawCanvas"
+        width="768"
+        height="768"
+        style="border:1px solid #ccc;background:#fff;cursor:crosshair;box-shadow: 0 2px 10px rgba(0,0,0,0.1);"
+      ></canvas>
+    </div>
   </div>
+
   <script>
+    const { createApp, ref, reactive } = Vue;
+    const { ElSlider, ElColorPicker, ElButton } = ElementPlus;
+
     const App = {
+      components: {
+        ElSlider,
+        ElColorPicker,
+        ElButton
+      },
       data() {
         return {
           canvas: null,
           ctx: null,
           drawing: false,
           lastX: 0,
-          lastY: 0
+          lastY: 0,
+          // 画笔设置
+          brushSize: 3,
+          brushColor: '#FF0000',
+          brushOpacity: 1,
+          // 预设颜色
+          presetColors: [
+            '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF',
+            '#FFFF00', '#FF00FF', '#00FFFF', '#888888', '#FFA500'
+          ]
         };
       },
       mounted() {
@@ -41,21 +190,62 @@
           this.canvas = document.getElementById('drawCanvas');
           this.ctx = this.canvas.getContext('2d');
 
-          // 线条样式
-          this.ctx.lineWidth = 3;
-          this.ctx.lineCap = 'round';
-          this.ctx.strokeStyle = '#FF0000';
+          // 初始化线条样式
+          this.updateBrushSettings();
 
           // 事件监听
           this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
           this.canvas.addEventListener('mousemove', this.draw.bind(this));
           this.canvas.addEventListener('mouseup', this.endDrawing.bind(this));
           this.canvas.addEventListener('mouseout', this.endDrawing.bind(this));
+
+          // 触摸设备支持
+          this.canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.startDrawing(this.getTouchPosition(e));
+          });
+          this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            this.draw(this.getTouchPosition(e));
+          });
+          this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            this.endDrawing();
+          });
         },
+
+        // 获取触摸位置（用于移动设备）
+        getTouchPosition(e) {
+          const touch = e.touches[0];
+          const rect = this.canvas.getBoundingClientRect();
+          return {
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            target: e.target
+          };
+        },
+
+        // 更新画笔设置
+        updateBrushSettings() {
+          if (!this.ctx) return;
+          this.ctx.lineWidth = this.brushSize;
+          this.ctx.strokeStyle = this.brushColor;
+          this.ctx.globalAlpha = this.brushOpacity;
+          this.ctx.lineCap = 'round';
+          this.ctx.lineJoin = 'round'; // 使线条连接更平滑
+        },
+
+        // 选择预设颜色
+        selectPresetColor(color) {
+          this.brushColor = color;
+          this.updateBrushSettings();
+        },
+
         startDrawing(e) {
           this.drawing = true;
           [this.lastX, this.lastY] = this.getPosition(e);
         },
+
         draw(e) {
           if (!this.drawing) return;
           const [x, y] = this.getPosition(e);
@@ -65,9 +255,11 @@
           this.ctx.stroke();
           [this.lastX, this.lastY] = [x, y];
         },
+
         endDrawing() {
           this.drawing = false;
         },
+
         getPosition(e) {
           const rect = this.canvas.getBoundingClientRect();
           return [
@@ -75,27 +267,44 @@
             e.clientY - rect.top
           ];
         },
+
         // 清空画布
         clearCanvas() {
           this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         },
+
         // 发送画布图像
         sendCanvasImage() {
           const dataURL = this.canvas.toDataURL('image/png');
-          const msg={
+          const msg = {
             Id: 0,
             data: dataURL
-          }
-          // 使用后端期望的格式发送
+          };
+          // 发送到父窗口
           window.parent.postMessage(msg, '*');
           console.log("图像已发送到后端");
         }
       }
     };
 
-    const app = Vue.createApp(App);
+    const app = createApp(App);
     app.use(ElementPlus);
     app.mount("#app");
   </script>
+
+  <style>
+    .color-preset {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      border: 1px solid #ddd;
+    }
+
+    .color-preset:hover {
+      transform: scale(1.1);
+    }
+  </style>
 </body>
 </html>
