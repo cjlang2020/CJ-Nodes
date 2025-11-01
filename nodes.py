@@ -7,6 +7,8 @@ from .service.PromptSelectorNode import PromptSelectorNode
 from .service.MultiPurposeNode import MultiPurposeNode
 from .service.ImageRecognitionNode import ImageRecognitionNode
 from .service.ImageDrawNode import ImageDrawNode
+from .service.ImageMaskNode import ImageMaskNode
+from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -17,7 +19,9 @@ NODE_CLASS_MAPPINGS = {
     "PromptSelectorNode": PromptSelectorNode,
     "MultiPurposeNode":MultiPurposeNode,
     "ImageRecognitionNode":ImageRecognitionNode,
-    "ImageDrawNode":ImageDrawNode
+    "ImageDrawNode":ImageDrawNode,
+    "ImageMaskNode":ImageMaskNode,
+    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -28,5 +32,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PromptSelectorNode": "Luy-提示词选择器",
     "MultiPurposeNode": "Luy-本地多功能AI节点",
     "ImageRecognitionNode": "Luy-图片反推",
-    "ImageDrawNode": "Luy-涂鸦"
+    "ImageDrawNode": "Luy-涂鸦",
+    "ImageMaskNode": "添加蒙版区域",
+    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "RGBA图层"
 }

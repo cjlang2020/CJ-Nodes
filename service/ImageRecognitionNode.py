@@ -42,15 +42,15 @@ class ImageRecognitionNode(BaseNode):
                 "模型选择": (model_list,),
                 "图片输入": ("IMAGE",),
                 "提示词": ("STRING", {
-                    "default": "<image>\n用中文简要描述这张图片风格、布局、存在的元素等。",
+                    "default": "<image>\nDescribe the image.",
                     "multiline": True,
                     "placeholder": "请输入关于图片的提示词...",
                     "rows": 5
                 }),
                 "最大生成长度": ("INT", {
-                    "default": 512,
+                    "default": 128,
                     "min": 1,
-                    "max": 65536,
+                    "max": 512,
                     "step": 1,
                     "display": "number"
                 }),
@@ -95,7 +95,7 @@ class ImageRecognitionNode(BaseNode):
 
     def recognize_image(self, 模型选择, 图片输入, 提示词, 最大生成长度, 运行后清理GPU缓存):
         if not 提示词.strip():
-            提示词 = "<image>\n用中文描述这张图片风格、布局、存在的元素等,返回结果不允许出现：这张图片表现或者图片展示什么等这样的描述，直接输出描述部分。"
+            提示词 = "<image>\nDescribe the image."
         else:
             if "<image>" not in 提示词:
                 提示词 = "<image>\n" + 提示词

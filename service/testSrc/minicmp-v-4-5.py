@@ -2,7 +2,7 @@ from PIL import Image
 from llama_cpp import Llama
 import base64
 from io import BytesIO
-from ctransformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM
 from PIL import Image
 import base64
 from io import BytesIO
@@ -23,7 +23,7 @@ def image_to_base64(image):
     image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-image = Image.open('D:/Image/test1.png').convert('RGB')
+image = Image.open('C:/Users/Lang/Pictures/cpmfyui_output/ComfyUI_00003_.png').convert('RGB')
 image_b64 = image_to_base64(image)
 
 # 构建包含图片的提示
