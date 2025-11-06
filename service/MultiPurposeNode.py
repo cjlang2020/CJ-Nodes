@@ -34,7 +34,7 @@ class MultiPurposeNode(BaseNode):
     def INPUT_TYPES(cls):
         model_list = list(config_data["models"].keys())
         prompt_types = list(config_data["prompts"].keys())
-
+        print(model_list)
         return {
             "required": {
                 "模型选择": (model_list,),

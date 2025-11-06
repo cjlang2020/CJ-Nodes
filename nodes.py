@@ -9,6 +9,7 @@ from .service.ImageRecognitionNode import ImageRecognitionNode
 from .service.ImageDrawNode import ImageDrawNode
 from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
+from .service.MaskedImage2Png import MaskedImage2Png
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -21,6 +22,7 @@ NODE_CLASS_MAPPINGS = {
     "ImageRecognitionNode":ImageRecognitionNode,
     "ImageDrawNode":ImageDrawNode,
     "ImageMaskNode":ImageMaskNode,
+    "MaskedImage2Png":MaskedImage2Png,
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -34,5 +36,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageRecognitionNode": "Luy-图片反推",
     "ImageDrawNode": "Luy-涂鸦",
     "ImageMaskNode": "添加蒙版区域",
-    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "RGBA图层"
+    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "RGBA图层",
+    "MaskedImage2Png": "遮罩提取PNG"
 }

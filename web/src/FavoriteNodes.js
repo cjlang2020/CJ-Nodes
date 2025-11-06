@@ -7,7 +7,7 @@ class FavoriteNodes {
         this.panel = null;
         this.isDragging = false;
         this.offset = { x: 0, y: 0 };
-        this.initPanel();
+        //this.initPanel();
     }
 
     // 初始化面板
