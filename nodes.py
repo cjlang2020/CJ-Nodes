@@ -10,6 +10,7 @@ from .service.ImageDrawNode import ImageDrawNode
 from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 from .service.MaskedImage2Png import MaskedImage2Png
+from .service.OllamaCppQwenVl import (LoadllamaCppModel,ImageAnasisyAdv,ChatAnasisyAdv,LlamaCppParameters,JsonToBbox)
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -23,7 +24,12 @@ NODE_CLASS_MAPPINGS = {
     "ImageDrawNode":ImageDrawNode,
     "ImageMaskNode":ImageMaskNode,
     "MaskedImage2Png":MaskedImage2Png,
-    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
+    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": SavePNGZIP_and_Preview_RGBA_AnimatedWEBP,
+    "LoadllamaCppModel": LoadllamaCppModel,
+    "ImageAnasisyAdv": ImageAnasisyAdv,
+    "ChatAnasisyAdv": ChatAnasisyAdv,
+    "LlamaCppParameters": LlamaCppParameters,
+    "JsonToBbox": JsonToBbox
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -35,7 +41,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MultiPurposeNode": "Luy-本地多功能AI节点",
     "ImageRecognitionNode": "Luy-图片反推",
     "ImageDrawNode": "Luy-涂鸦",
-    "ImageMaskNode": "添加蒙版区域",
-    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "RGBA图层",
-    "MaskedImage2Png": "遮罩提取PNG"
+    "ImageMaskNode": "Luy-添加蒙版区域",
+    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层",
+    "MaskedImage2Png": "Luy-遮罩提取PNG",
+    "LoadllamaCppModel": "Luy-加载llamaCpp模型",
+    "ImageAnasisyAdv": "Luy-图像反推推理",
+    "ChatAnasisyAdv": "Luy-文本对话推理",
+    "LlamaCppParameters": "Luy-Llama-cpp参数",
+    "JsonToBbox": "Luy-JSON to BBOX"
 }
