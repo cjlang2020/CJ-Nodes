@@ -11,6 +11,7 @@ from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 from .service.MaskedImage2Png import MaskedImage2Png
 from .service.OllamaCppQwenVl import (LoadllamaCppModel,ImageAnasisyAdv,ChatAnasisyAdv,LlamaCppParameters,JsonToBbox)
+from .service.LuySdxlLoraLoader import LuySdxlLoraLoader
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -29,7 +30,8 @@ NODE_CLASS_MAPPINGS = {
     "ImageAnasisyAdv": ImageAnasisyAdv,
     "ChatAnasisyAdv": ChatAnasisyAdv,
     "LlamaCppParameters": LlamaCppParameters,
-    "JsonToBbox": JsonToBbox
+    "JsonToBbox": JsonToBbox,
+    "LuySdxlLoraLoader": LuySdxlLoraLoader
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -48,5 +50,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageAnasisyAdv": "Luy-图像反推推理",
     "ChatAnasisyAdv": "Luy-文本对话推理",
     "LlamaCppParameters": "Luy-Llama-cpp参数",
-    "JsonToBbox": "Luy-JSON to BBOX"
+    "JsonToBbox": "Luy-JSON to BBOX",
+    "LuySdxlLoraLoader": "Lyu-加载SDXL的lora模型"
 }
