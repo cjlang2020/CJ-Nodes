@@ -11,7 +11,7 @@ from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 from .service.MaskedImage2Png import MaskedImage2Png
 from .service.OllamaCppQwenVl import (LoadllamaCppModel,ImageAnasisyAdv,ChatAnasisyAdv,LlamaCppParameters,JsonToBbox)
-from .service.LuySdxlLoraLoader import LuySdxlLoraLoader
+from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnly,UpdateLoraMetaData)
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -31,7 +31,9 @@ NODE_CLASS_MAPPINGS = {
     "ChatAnasisyAdv": ChatAnasisyAdv,
     "LlamaCppParameters": LlamaCppParameters,
     "JsonToBbox": JsonToBbox,
-    "LuySdxlLoraLoader": LuySdxlLoraLoader
+    "LuySdxlLoraLoader": LuySdxlLoraLoader,
+    "LuyLoraLoaderModelOnly": LuyLoraLoaderModelOnly,
+    "UpdateLoraMetaData":UpdateLoraMetaData
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -51,5 +53,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ChatAnasisyAdv": "Luy-文本对话推理",
     "LlamaCppParameters": "Luy-Llama-cpp参数",
     "JsonToBbox": "Luy-JSON to BBOX",
-    "LuySdxlLoraLoader": "Lyu-加载SDXL的lora模型"
+    "LuySdxlLoraLoader": "Lyu-加载SDXL的lora模型",
+    "LuyLoraLoaderModelOnly": "Lyu-加载lora模型",
+    "UpdateLoraMetaData":"Luy-更新Flux或者Qwen的Lora元数据"
 }

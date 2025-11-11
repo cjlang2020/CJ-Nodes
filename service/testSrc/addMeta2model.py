@@ -19,10 +19,10 @@ def add_metadata(input_path, output_path, new_meta):
 
 # 使用示例
 if __name__ == "__main__":
-    input_file = "D:/AI/comfyui_models/loras/SDXL/SDXL人造人18号_v1.0.safetensors"
-    output_file = "D:/AI/Rebalance_v1_lora_r16.safetensors"  # 避免覆盖原文件
+    input_file = "D:/AI/comfyui_models/loras/FLUX/风格艺术插画女孩(anime girl)_v1.0.safetensors"
+    output_file = "D:/AI/风格艺术插画女孩(anime girl)_v1.0.safetensors"  # 避免覆盖原文件
 
     # 添加元数据
     add_metadata(input_file, output_file, {
-        "lora_keywords": "目标移除LoRA模型"
+        "lora_keywords": "目标移除LoRA模型","ceshi":"哈哈"
     })
