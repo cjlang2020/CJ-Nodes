@@ -41,7 +41,7 @@ class VisionModelNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("response",)
     FUNCTION = "call_vision_model"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollma"
 
     def encode_image(self, image_tensor):
         """将ComfyUI的图像张量转换为base64编码"""

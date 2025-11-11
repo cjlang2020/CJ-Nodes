@@ -3,6 +3,8 @@ import os
 import folder_paths
 import comfy.sd
 import comfy.utils
+import random
+from typing import List, Tuple
 from safetensors.torch import load_file, save_file
 # 兼容不同版本的ComfyUI
 try:
@@ -66,19 +68,27 @@ class LuySdxlLoraLoader(BaseNode):
                 "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The name of the LoRA."}),
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the diffusion model. This value can be negative."}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the CLIP model. This value can be negative."}),
+                "selection_mode": (
+                    ["随机", "最高频率", "最低频率", "中间值"],
+                    {"tooltip": "选择标签的筛选模式"}
+                ),
+                "tag_count": (
+                    "INT",
+                    {"default": 5, "min": 1, "step": 1, "tooltip": "限制输出的标签数量"}
+                )
             }
         }
 
-    RETURN_TYPES = ("MODEL", "CLIP","STRING")
-    OUTPUT_TOOLTIPS = ("The modified diffusion model.", "The modified CLIP model.","元数据中存储的核心标签，按次数排序，先出现的次数最多.")
+    RETURN_TYPES = ("MODEL", "CLIP", "STRING")
+    OUTPUT_TOOLTIPS = ("The modified diffusion model.", "The modified CLIP model.", "元数据中存储的核心标签，按选择模式筛选后的结果.")
     FUNCTION = "load_lora"
 
-    CATEGORY = "luy"
+    CATEGORY = "luy/元数据"
     DESCRIPTION = "LoRAs are used to modify diffusion and CLIP models, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together."
 
-    def load_lora(self, model, clip, lora_name, strength_model, strength_clip):
+    def load_lora(self, model, clip, lora_name, strength_model, strength_clip, selection_mode, tag_count):
         if strength_model == 0 and strength_clip == 0:
-            return (model, clip)
+            return (model, clip, "")
 
         lora_path = folder_paths.get_full_path_or_raise("loras", lora_name)
         lora = None
@@ -94,10 +104,49 @@ class LuySdxlLoraLoader(BaseNode):
 
         output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
         meta = read_metadata(output_file)
-        core_tags = get_core_tags(meta, min_count=1)
-        tags=",".join([tag for tag, _ in core_tags])
+        core_tags = get_core_tags(meta, min_count=1)  # 格式应为 [(tag1, count1), (tag2, count2), ...]
+
+        # 根据选择模式筛选标签
+        filtered_tags = self.filter_tags(core_tags, selection_mode, tag_count)
+        tags = ",".join(filtered_tags)
+
         model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
-        return (model_lora, clip_lora,tags)
+        return (model_lora, clip_lora, tags)
+
+    def filter_tags(self, core_tags: List[Tuple[str, int]], mode: str, count: int) -> List[str]:
+        """根据选择模式筛选标签"""
+        if not core_tags:
+            return []
+
+        # 确保不超过实际标签数量
+        actual_count = min(count, len(core_tags))
+        if actual_count <= 0:
+            return []
+
+        if mode == "随机":
+            # 随机选择指定数量的标签
+            shuffled = random.sample(core_tags, actual_count)
+            return [tag for tag, _ in shuffled]
+
+        elif mode == "最高频率":
+            # 按频率降序排序，取前N个
+            sorted_tags = sorted(core_tags, key=lambda x: x[1], reverse=True)
+            return [tag for tag, _ in sorted_tags[:actual_count]]
+
+        elif mode == "最低频率":
+            # 按频率升序排序，取前N个
+            sorted_tags = sorted(core_tags, key=lambda x: x[1])
+            return [tag for tag, _ in sorted_tags[:actual_count]]
+
+        elif mode == "中间值":
+            # 按频率排序后取中间位置的标签
+            sorted_tags = sorted(core_tags, key=lambda x: x[1])
+            total = len(sorted_tags)
+            # 计算中间起始索引
+            start_idx = (total - actual_count) // 2
+            return [tag for tag, _ in sorted_tags[start_idx:start_idx + actual_count]]
+
+        return []
 
 class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
     @classmethod
@@ -108,7 +157,7 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
                               }}
     RETURN_TYPES = ("MODEL","STRING")
     FUNCTION = "load_lora_model_only"
-    CATEGORY = "luy"
+    CATEGORY = "luy/元数据"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
         output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
@@ -141,7 +190,7 @@ class UpdateLoraMetaData(BaseNode):
     RETURN_TYPES = ("STRING",)
     OUTPUT_TOOLTIPS = ("返回提示词即可")
     FUNCTION = "update_lora"
-    CATEGORY = "luy"
+    CATEGORY = "luy/元数据"
 
     def update_lora(self, lora_name,keyWords):
         input_file = folder_paths.get_full_path_or_raise("loras", lora_name)

@@ -62,7 +62,7 @@ class ImageRecognitionNode(BaseNode):
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("识别结果",)
     FUNCTION = "recognize_image"
-    CATEGORY = "luy"
+    CATEGORY = "luy/苹果的反推"
 
     def load_model_and_tokenizer(self, model_name):
         model_rel_path = config_data["image_models"].get(model_name)

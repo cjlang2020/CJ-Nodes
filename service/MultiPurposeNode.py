@@ -53,7 +53,7 @@ class MultiPurposeNode(BaseNode):
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("输出提示词",)
     FUNCTION = "process_prompt"
-    CATEGORY = "luy"
+    CATEGORY = "luy/AI多功能"
 
     def load_model_and_tokenizer(self, model_name):
         """加载模型和分词器，使用相对路径和缓存机制"""

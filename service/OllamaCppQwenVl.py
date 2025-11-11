@@ -172,7 +172,7 @@ class LoadllamaCppModel:
     RETURN_TYPES = ("LLAMACPPMODEL",)
     RETURN_NAMES = ("llamamodel",)
     FUNCTION = "loadmodel"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollama-cpp"
 
     def loadmodel(self, model, mmproj_model, model_type, think_mode, n_ctx, n_gpu_layers, keep_model_loaded):
         custom_config = {"model": model, "mmproj_model": mmproj_model, "model_type":model_type, "think_mode": think_mode, "n_ctx": n_ctx, "n_gpu_layers": n_gpu_layers, "keep_model_loaded": keep_model_loaded}
@@ -213,7 +213,7 @@ class ImageAnasisyAdv:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("output",)
     FUNCTION = "process"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollama-cpp"
 
     def process(self, llmamodel, parameters, preset_prompt, custom_prompt, system_prompt, video_input, max_frames, video_size, seed, images=None):
         mm.soft_empty_cache()
@@ -300,7 +300,7 @@ class ChatAnasisyAdv:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("output",)
     FUNCTION = "process"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollama-cpp"
 
     def process(self, llmamodel, parameters, prompt, seed):
         mm.soft_empty_cache()
@@ -367,7 +367,7 @@ class LlamaCppParameters:
     RETURN_TYPES = ("LLAMACPPARAMS",)
     RETURN_NAMES = ("parameters",)
     FUNCTION = "process"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollama-cpp"
     def process(self, **kwargs):
         return (kwargs,)
 
@@ -387,7 +387,7 @@ class JsonToBbox:
     RETURN_TYPES = ("BBOX", "IMAGE")
     RETURN_NAMES = ("bbox", "image")
     FUNCTION = "process"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollama-cpp"
 
     def process(self, json, mode, image=None):
         bboxes = parse_json(json)
