@@ -101,14 +101,15 @@ class LuySdxlLoraLoader(BaseNode):
         if lora is None:
             lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
             self.loaded_lora = (lora_path, lora)
+        tags=""
+        if selection_mode != None:
+            output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
+            meta = read_metadata(output_file)
+            core_tags = get_core_tags(meta, min_count=1)  # 格式应为 [(tag1, count1), (tag2, count2), ...]
 
-        output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
-        meta = read_metadata(output_file)
-        core_tags = get_core_tags(meta, min_count=1)  # 格式应为 [(tag1, count1), (tag2, count2), ...]
-
-        # 根据选择模式筛选标签
-        filtered_tags = self.filter_tags(core_tags, selection_mode, tag_count)
-        tags = ",".join(filtered_tags)
+            # 根据选择模式筛选标签
+            filtered_tags = self.filter_tags(core_tags, selection_mode, tag_count)
+            tags = ",".join(filtered_tags)
 
         model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
         return (model_lora, clip_lora, tags)
@@ -167,7 +168,7 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
             keywords=meta["lora_keywords"]
         else:
             pass
-        return (model,keywords)
+        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords)
 
 class UpdateLoraMetaData(BaseNode):
     def __init__(self):
