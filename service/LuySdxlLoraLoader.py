@@ -167,7 +167,7 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
             keywords=meta["lora_keywords"]
         else:
             pass
-        return (self.load_lora(model, None, lora_name, strength_model, 0)[0],keywords)
+        return (model, lora_name,keywords)
 
 class UpdateLoraMetaData(BaseNode):
     def __init__(self):

@@ -53,7 +53,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ChatAnasisyAdv": "Luy-文本推理",
     "LlamaCppParameters": "Luy-参数设置",
     "JsonToBbox": "Luy-JSON to BBOX",
-    "LuySdxlLoraLoader": "Lyu-加载lora模型(SDXL)",
-    "LuyLoraLoaderModelOnly": "Lyu-加载lora模型(FLUX|QWEN|QWEN-EDIT)",
+    "LuySdxlLoraLoader": "Luy-加载lora模型(SDXL)",
+    "LuyLoraLoaderModelOnly": "Luy-加载lora模型(FLUX|QWEN|QWEN-EDIT)",
     "UpdateLoraMetaData":"Luy-更新元数据"
 }
