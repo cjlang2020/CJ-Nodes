@@ -37,3 +37,10 @@ https://hf-mirror.com/apple/FastVLM-1.5B
 鼠标绘制好后，点击发送图片即可
 
 ![示例图片](doc/7.png)
+
+
+读取和写入lora的关键触发词，避免小本子记录
+![示例图片](doc/8.png)
+
+
+
