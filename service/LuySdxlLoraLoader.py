@@ -80,6 +80,7 @@ class LuySdxlLoraLoader(BaseNode):
         }
 
     RETURN_TYPES = ("MODEL", "CLIP", "STRING")
+    RETURN_NAMES =("模型","CLIP","内置触发词",)
     OUTPUT_TOOLTIPS = ("The modified diffusion model.", "The modified CLIP model.", "元数据中存储的核心标签，按选择模式筛选后的结果.")
     FUNCTION = "load_lora"
 
@@ -170,6 +171,135 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
             pass
         return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords)
 
+class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { "model": ("MODEL",),
+                              "lora_name": (folder_paths.get_filename_list("loras"), ),
+                              "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+                              }}
+    RETURN_TYPES = ("MODEL","STRING")
+    FUNCTION = "load_lora_model_only"
+    CATEGORY = "luy/元数据"
+
+    def load_lora_model_only(self, model, lora_name, strength_model):
+        output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
+        meta = read_metadata(output_file)
+        keywords="null"
+        if "lora_keywords" in meta:
+            keywords=meta["lora_keywords"]
+        else:
+            pass
+        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords)
+
+class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+            "model": ("MODEL",),
+            "lora_name": (folder_paths.get_filename_list("loras"), ),
+            "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+        }}
+    RETURN_TYPES = ("MODEL","STRING")
+    FUNCTION = "load_lora_model_only"
+    CATEGORY = "luy/元数据"
+
+    def load_lora_model_only(self, model, lora_name, strength_model):
+        output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
+        meta = read_metadata(output_file)
+        keywords="null"
+        if "lora_keywords" in meta:
+            keywords=meta["lora_keywords"]
+        return (self.load_lora(model, None, lora_name, strength_model, 0, None, None)[0], keywords)
+
+class LuyLoraLoaderModelOnlyByDir(LuySdxlLoraLoader):
+    # 类级属性：保存最后选择的目录和刷新触发值
+    _last_selected_dir = None
+    _refresh_trigger = 0
+
+    @classmethod
+    def INPUT_TYPES(s):
+        # 获取Lora根目录
+        loras_roots = folder_paths.get_folder_paths("loras")
+        loras_root = loras_roots[0] if loras_roots else ""
+
+        # 枚举所有子目录作为选项
+        dir_options = []
+        if os.path.isdir(loras_root):
+            for item in os.listdir(loras_root):
+                item_path = os.path.join(loras_root, item)
+                if os.path.isdir(item_path) and not item.startswith('.'):  # 排除隐藏目录
+                    dir_options.append(item)
+
+        # 动态加载当前目录下的Lora文件
+        lora_files = []
+        if s._last_selected_dir and s._last_selected_dir in dir_options:
+            lora_files = s._get_lora_files_in_dir(s._last_selected_dir)
+
+        return {
+            "required": {
+                "model": ("MODEL",),
+                "lora_dir": (dir_options, {"tooltip": "选择Lora所在的目录"}),
+                "lora_name": (lora_files, {"tooltip": "选择目录中的Lora模型"}),
+                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+            }
+        }
+
+    # 辅助方法：获取指定目录下的Lora文件
+    @classmethod
+    def _get_lora_files_in_dir(cls, lora_dir):
+        loras_roots = folder_paths.get_folder_paths("loras")
+        loras_root = loras_roots[0] if loras_roots else ""
+        target_dir = os.path.join(loras_root, lora_dir)
+
+        lora_files = []
+        if os.path.isdir(target_dir):
+            for file in os.listdir(target_dir):
+                file_path = os.path.join(target_dir, file)
+                if os.path.isfile(file_path) and file.lower().endswith((".safetensors", ".ckpt", ".pt")):
+                    lora_files.append(file)
+        return lora_files
+
+    # 关键：ComfyUI触发参数刷新的核心方法
+    @classmethod
+    def IS_CHANGED(cls, model, lora_dir, lora_name, strength_model):
+        print("======"+lora_dir)
+        # 检测目录是否变化
+        if cls._last_selected_dir != lora_dir:
+            cls._last_selected_dir = lora_dir  # 更新状态
+            cls._refresh_trigger += 1  # 改变触发值
+            return True  # 告知ComfyUI需要刷新
+        # 如果目录未变，返回触发值的哈希（确保稳定性）
+        return hash((cls._refresh_trigger, lora_dir))
+
+    RETURN_TYPES = ("MODEL","STRING")
+    FUNCTION = "load_lora_model_only"
+    CATEGORY = "luy/元数据"
+
+    def load_lora_model_only(self, model, lora_dir, lora_name, strength_model):
+        # 保存当前选择的目录（更新类状态）
+        self.__class__._last_selected_dir = lora_dir
+
+        # 构建完整的Lora路径
+        loras_roots = folder_paths.get_folder_paths("loras")
+        loras_root = loras_roots[0] if loras_roots else ""
+        lora_full_path = os.path.join(loras_root, lora_dir, lora_name)
+
+        # 验证文件存在性
+        if not os.path.isfile(lora_full_path):
+            raise FileNotFoundError(f"Lora文件不存在: {lora_full_path}")
+
+        # 读取元数据中的关键词
+        meta = read_metadata(lora_full_path)
+        keywords = meta.get("lora_keywords", "null")
+
+        # 加载Lora模型（使用相对路径）
+        relative_path = os.path.join(lora_dir, lora_name)
+        model_lora = self.load_lora(model, None, relative_path, strength_model, 0, None, None)[0]
+
+        return (model_lora, keywords)
+
+
 class UpdateLoraMetaData(BaseNode):
     def __init__(self):
         self.loaded_lora = None
@@ -215,6 +345,7 @@ class UpdateLoraMetaData(BaseNode):
             if os.path.exists(input_file):
                 os.remove(input_file)
             os.rename(output_file, input_file)
+            print("=================="+keyWords)
             return (str(keyWords).strip())
         except Exception as e:
             error_msg = f"替换文件失败: {str(e)}"

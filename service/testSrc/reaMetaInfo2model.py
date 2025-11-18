@@ -7,14 +7,11 @@ def read_metadata(file_path):
         header = f.read(8)
         header_len = int.from_bytes(header, byteorder="little")
         header_data = f.read(header_len).decode("utf-8")
+        print(header_data)
         return json.loads(header_data).get("__metadata__", {})
 
 # 使用示例
 if __name__ == "__main__":
-    output_file = "D:/AI/风格艺术插画女孩(anime girl)_v1.0.safetensors"  # 避免覆盖原文件
+    output_file = "D:/AI/comfyui_models/loras/FLUX/莫奈-宫崎骏动漫画风(xrhy style)_cfg3.5.safetensors"  # 避免覆盖原文件
     meta = read_metadata(output_file)
-    if "lora_keywords" in meta:
-        # 存在时再访问
-        print("lora_keywords 的值：", meta["lora_keywords"])
-    else:
-        print("元数据中不存在 'lora_keywords23'")
+    print(meta)

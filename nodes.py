@@ -3,7 +3,7 @@ from .service.EmptyLatentImage import EmptyLatentImage
 from .service.BatchImageLoader import BatchImageLoader
 from .service.LLMNode import LLMNode
 from .service.VisionModelNode import VisionModelNode
-from .service.PromptSelectorNode import PromptSelectorNode
+from .service.PromptSelectorNode import (PromptSelectorNode,PromptGenerator)
 from .service.MultiPurposeNode import MultiPurposeNode
 from .service.ImageRecognitionNode import ImageRecognitionNode
 from .service.ImageDrawNode import ImageDrawNode
@@ -11,7 +11,8 @@ from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 from .service.MaskedImage2Png import MaskedImage2Png
 from .service.OllamaCppQwenVl import (LoadllamaCppModel,ImageAnasisyAdv,ChatAnasisyAdv,LlamaCppParameters,JsonToBbox)
-from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnly,UpdateLoraMetaData)
+from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnly,LuyLoraLoaderModelOnlyByDir,UpdateLoraMetaData)
+from .service.QwenEditAddLlamaTemplate import QwenEditAddLlamaTemplate
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -20,6 +21,7 @@ NODE_CLASS_MAPPINGS = {
     "LLMNode": LLMNode,
     "VisionModelNode": VisionModelNode,
     "PromptSelectorNode": PromptSelectorNode,
+    "PromptGenerator":PromptGenerator,
     "MultiPurposeNode":MultiPurposeNode,
     "ImageRecognitionNode":ImageRecognitionNode,
     "ImageDrawNode":ImageDrawNode,
@@ -33,7 +35,9 @@ NODE_CLASS_MAPPINGS = {
     "JsonToBbox": JsonToBbox,
     "LuySdxlLoraLoader": LuySdxlLoraLoader,
     "LuyLoraLoaderModelOnly": LuyLoraLoaderModelOnly,
-    "UpdateLoraMetaData":UpdateLoraMetaData
+    "LuyLoraLoaderModelOnlyByDir":LuyLoraLoaderModelOnlyByDir,
+    "UpdateLoraMetaData":UpdateLoraMetaData,
+    "QwenEditAddLlamaTemplate":QwenEditAddLlamaTemplate
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -42,6 +46,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LLMNode": "Luy-语言大模型",
     "VisionModelNode":"Luy-视觉大模型",
     "PromptSelectorNode": "Luy-提示词选择器",
+    "PromptGenerator":"Luy-提示词选择节点",
     "MultiPurposeNode": "Luy-多功能AI",
     "ImageRecognitionNode": "Luy-苹果模型图片反推",
     "ImageDrawNode": "Luy-涂鸦绘制",
@@ -55,5 +60,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "JsonToBbox": "Luy-JSON to BBOX",
     "LuySdxlLoraLoader": "Luy-加载lora模型(SDXL)",
     "LuyLoraLoaderModelOnly": "Luy-加载lora模型(FLUX|QWEN|QWEN-EDIT)",
-    "UpdateLoraMetaData":"Luy-更新元数据"
+    "LuyLoraLoaderModelOnlyByDir":"Luy-通过目录加载lora模型",
+    "UpdateLoraMetaData":"Luy-更新元数据",
+    "QwenEditAddLlamaTemplate":"Luy-千问编辑"
 }

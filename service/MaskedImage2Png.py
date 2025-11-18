@@ -10,41 +10,36 @@ except ImportError:
 
 class MaskedImage2Png(BaseNode):
     """
-    输入一张图片和一个遮罩，输出仅保留遮罩区域的图片（非遮罩区域透明）
+    输入一张图片和一个遮罩，输出仅保留遮罩区域的图片
+    （可选择保留透明通道或使用黑色背景，尺寸为遮罩实际大小）
     """
     def __init__(self):
         pass
 
     @classmethod
     def INPUT_TYPES(cls):
-        """定义输入类型：图片（RGB）和遮罩（单通道）"""
+        """定义输入类型：图片、遮罩、是否保留透明通道"""
         return {
             "required": {
-                "image": ("IMAGE",),  # 输入图片 (格式：[批次, 高度, 宽度, 通道数]，值范围0-1)
-                "mask": ("MASK",),   # 输入遮罩 (格式：[批次, 高度, 宽度]，值范围0-1，1表示保留区域)
+                "image": ("IMAGE",),  # 输入图片 [批次, 高度, 宽度, 3]
+                "mask": ("MASK",),   # 输入遮罩 [批次, 高度, 宽度]
+                "keep_alpha": ("BOOLEAN", {"default": True}),  # 是否保留透明通道
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)  # 输出格式：带透明通道的图片
-    FUNCTION = "apply_mask"    # 主函数
-    CATEGORY = "luy"  # 在ComfyUI中的分类
+    RETURN_TYPES = ("IMAGE",)
+    FUNCTION = "apply_mask"
+    CATEGORY = "luy"
 
-    def apply_mask(self, image: torch.Tensor, mask: torch.Tensor):
+    def apply_mask(self, image: torch.Tensor, mask: torch.Tensor, keep_alpha: bool):
         """
-        应用遮罩到图片，保留遮罩区域，其他区域透明
-
-        参数:
-            image: 输入图片张量，形状为 [batch, height, width, 3] (RGB)
-            mask: 遮罩张量，形状为 [batch, height, width] (单通道，0-1值)
-
-        返回:
-            带透明通道的图片张量，形状为 [batch, height, width, 4] (RGBA)
+        应用遮罩并裁剪到遮罩实际大小
+        - 保留透明通道：非遮罩区域透明（RGBA）
+        - 不保留透明通道：非遮罩区域为纯黑色（RGB）
         """
-        # 确保图片和遮罩尺寸一致（如果不一致，将遮罩缩放到图片尺寸）
+        # 确保图片和遮罩尺寸一致
         if image.shape[1:3] != mask.shape[1:3]:
-            # 遮罩需要先扩展为4维才能缩放 (批次, 高度, 宽度, 1)
-            mask_4d = mask.unsqueeze(-1)
-            # 缩放到图片尺寸（使用最近邻插值，保持遮罩边缘清晰）
+            mask_4d = mask.unsqueeze(-1)  # 扩展为4维 [batch, h, w, 1]
             scaled_mask = common_upscale(
                 mask_4d,
                 image.shape[2],  # 目标宽度
@@ -52,19 +47,51 @@ class MaskedImage2Png(BaseNode):
                 "nearest-exact",
                 None
             )
-            # 还原为3维遮罩 [batch, height, width]
-            mask = scaled_mask.squeeze(-1)
+            mask = scaled_mask.squeeze(-1)  # 还原为3维 [batch, h, w]
 
-        # 将遮罩扩展为3通道（与图片的RGB通道对应），用于对每个颜色通道应用遮罩
-        mask_3ch = mask.unsqueeze(-1).repeat(1, 1, 1, 3)  # 形状变为 [batch, height, width, 3]
+        # 应用遮罩到RGB通道（非遮罩区域变为0）
+        mask_3ch = mask.unsqueeze(-1).repeat(1, 1, 1, 3)  # [batch, h, w, 3]
+        masked_rgb = image * mask_3ch  # 遮罩区域保留原图颜色，其他区域为0（黑色）
 
-        # 应用遮罩：保留遮罩区域的像素（mask=1的区域），其他区域变为0
-        masked_rgb = image * mask_3ch
+        # 处理每个批次，裁剪到遮罩实际大小
+        batch_size = mask.shape[0]
+        result_images = []
 
-        # 创建Alpha通道（透明通道）：遮罩区域不透明（1），其他区域完全透明（0）
-        alpha_channel = mask.unsqueeze(-1)  # 形状变为 [batch, height, width, 1]
+        for b in range(batch_size):
+            current_mask = mask[b]
+            current_rgb = masked_rgb[b]  # [h, w, 3]
 
-        # 合并RGB和Alpha通道，形成RGBA图片
-        masked_rgba = torch.cat([masked_rgb, alpha_channel], dim=-1)
+            # 找到遮罩有效区域（值>0.5视为有效）
+            non_zero = torch.nonzero(current_mask > 0.5)
+            if non_zero.numel() == 0:
+                # 无有效遮罩区域，返回1x1的空图像
+                channels = 4 if keep_alpha else 3
+                empty = torch.zeros((1, 1, channels), device=image.device)
+                result_images.append(empty.unsqueeze(0))  # 保持批次维度
+                continue
 
-        return (masked_rgba,)
+            # 计算遮罩有效区域的边界框
+            min_y, min_x = non_zero.min(dim=0).values
+            max_y, max_x = non_zero.max(dim=0).values
+            # 转换为整数坐标（确保切片正确）
+            min_y, min_x = int(min_y), int(min_x)
+            max_y, max_x = int(max_y), int(max_x)
+
+            # 裁剪RGB通道到遮罩实际区域
+            cropped_rgb = current_rgb[min_y:max_y+1, min_x:max_x+1, :]  # [h_crop, w_crop, 3]
+
+            if keep_alpha:
+                # 裁剪Alpha通道并合并（非遮罩区域透明）
+                current_alpha = mask[b].unsqueeze(-1)  # [h, w, 1]
+                cropped_alpha = current_alpha[min_y:max_y+1, min_x:max_x+1, :]  # [h_crop, w_crop, 1]
+                result = torch.cat([cropped_rgb, cropped_alpha], dim=-1)  # [h_crop, w_crop, 4]
+            else:
+                # 不保留Alpha通道（非遮罩区域已为黑色）
+                result = cropped_rgb  # [h_crop, w_crop, 3]
+
+            # 添加批次维度
+            result_images.append(result.unsqueeze(0))
+
+        # 合并所有批次结果
+        final_result = torch.cat(result_images, dim=0)
+        return (final_result,)
