@@ -10,7 +10,7 @@ from .service.ImageDrawNode import ImageDrawNode
 from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 from .service.MaskedImage2Png import (MaskedImage2Png,DrawImageBbox)
-from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnly,LuyLoraLoaderModelOnlyByDir,UpdateLoraMetaData)
+from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnlyALL,LuyLoraLoaderModelOnlyFLUX,LuyLoraLoaderModelOnlyQWEN,LuyLoraLoaderModelOnlyQWENEDIT,LuyLoraLoaderModelOnlyByDir,UpdateLoraMetaData)
 from .service.QwenEditAddLlamaTemplate import QwenEditAddLlamaTemplate
 from .service.Qwen3VlImage import ImageDeal
 from .service.GPTChat import ChatDeal
@@ -31,7 +31,10 @@ NODE_CLASS_MAPPINGS = {
     "DrawImageBbox":DrawImageBbox,
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": SavePNGZIP_and_Preview_RGBA_AnimatedWEBP,
     "LuySdxlLoraLoader": LuySdxlLoraLoader,
-    "LuyLoraLoaderModelOnly": LuyLoraLoaderModelOnly,
+    "LuyLoraLoaderModelOnlyALL": LuyLoraLoaderModelOnlyALL,
+    "LuyLoraLoaderModelOnlyFLUX": LuyLoraLoaderModelOnlyFLUX,
+    "LuyLoraLoaderModelOnlyQWEN": LuyLoraLoaderModelOnlyQWEN,
+    "LuyLoraLoaderModelOnlyQWENEDIT": LuyLoraLoaderModelOnlyQWENEDIT,
     "LuyLoraLoaderModelOnlyByDir":LuyLoraLoaderModelOnlyByDir,
     "UpdateLoraMetaData":UpdateLoraMetaData,
     "QwenEditAddLlamaTemplate":QwenEditAddLlamaTemplate,
@@ -54,7 +57,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MaskedImage2Png": "Luy-遮罩转PNG",
     "DrawImageBbox":"Luy-绘制Bbox",
     "LuySdxlLoraLoader": "Luy-加载lora模型(SDXL)",
-    "LuyLoraLoaderModelOnly": "Luy-加载lora模型(FLUX|QWEN|QWEN-EDIT)",
+    "LuyLoraLoaderModelOnlyALL": "Luy-加载lora模型(FLUX|QWEN|QWEN-EDIT)",
+    "LuyLoraLoaderModelOnlyFLUX": "Luy-加载lora模型(FLUX)",
+    "LuyLoraLoaderModelOnlyQWEN": "Luy-加载lora模型(QWEN)",
+    "LuyLoraLoaderModelOnlyQWENEDIT": "Luy-加载lora模型(QWEN-EDIT)",
     "LuyLoraLoaderModelOnlyByDir":"Luy-通过目录加载lora模型",
     "UpdateLoraMetaData":"Luy-更新元数据",
     "QwenEditAddLlamaTemplate":"Luy-千问编辑",

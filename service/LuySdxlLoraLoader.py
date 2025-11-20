@@ -14,6 +14,20 @@ except ImportError:
         pass
 
 
+# 先获取 "loras" 根目录的路径
+loras_root = folder_paths.get_folder_paths("loras")[0]  # 取第一个配置的 loras 目录
+flux_loras_dir = os.path.join(loras_root, "FLUX")
+flux_lora_files = [f for f in os.listdir(flux_loras_dir) if os.path.isfile(os.path.join(flux_loras_dir, f))]
+flux_lora_files = [os.path.join("FLUX", f) for f in flux_lora_files]
+
+qwen_loras_dir = os.path.join(loras_root, "Qwen")
+qwen_lora_files = [f for f in os.listdir(qwen_loras_dir) if os.path.isfile(os.path.join(qwen_loras_dir, f))]
+qwen_lora_files = [os.path.join("Qwen", f) for f in qwen_lora_files]
+
+qwen_edit_loras_dir = os.path.join(loras_root, "Qwen-Edit")
+qwen_edit_lora_files = [f for f in os.listdir(qwen_edit_loras_dir) if os.path.isfile(os.path.join(qwen_edit_loras_dir, f))]
+qwen_edit_lora_files = [os.path.join("Qwen-Edit", f) for f in qwen_edit_lora_files]
+
 def read_metadata(file_path):
     with open(file_path, "rb") as f:
         header = f.read(8)
@@ -79,7 +93,7 @@ class LuySdxlLoraLoader(BaseNode):
             }
         }
 
-    RETURN_TYPES = ("MODEL", "CLIP", "STRING")
+    RETURN_TYPES = ("MODEL", "CLIP", "STRING",)
     RETURN_NAMES =("模型","CLIP","内置触发词",)
     OUTPUT_TOOLTIPS = ("The modified diffusion model.", "The modified CLIP model.", "元数据中存储的核心标签，按选择模式筛选后的结果.")
     FUNCTION = "load_lora"
@@ -113,7 +127,7 @@ class LuySdxlLoraLoader(BaseNode):
             tags = ",".join(filtered_tags)
 
         model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
-        return (model_lora, clip_lora, tags)
+        return (model_lora, clip_lora, tags,)
 
     def filter_tags(self, core_tags: List[Tuple[str, int]], mode: str, count: int) -> List[str]:
         """根据选择模式筛选标签"""
@@ -150,15 +164,16 @@ class LuySdxlLoraLoader(BaseNode):
 
         return []
 
-class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
+class LuyLoraLoaderModelOnlyALL(LuySdxlLoraLoader):
     @classmethod
     def INPUT_TYPES(s):
         return {"required": { "model": ("MODEL",),
                               "lora_name": (folder_paths.get_filename_list("loras"), ),
                               "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
                               }}
-    RETURN_TYPES = ("MODEL","STRING")
+    RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
+    RETURN_NAMES =("模型","内置触发词",)
     CATEGORY = "luy/元数据"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
@@ -169,17 +184,18 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
             keywords=meta["lora_keywords"]
         else:
             pass
-        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords)
+        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords,)
 
-class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
+class LuyLoraLoaderModelOnlyFLUX(LuySdxlLoraLoader):
     @classmethod
     def INPUT_TYPES(s):
         return {"required": { "model": ("MODEL",),
-                              "lora_name": (folder_paths.get_filename_list("loras"), ),
+                              "lora_name": (flux_lora_files, ),
                               "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
                               }}
-    RETURN_TYPES = ("MODEL","STRING")
+    RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
+    RETURN_NAMES =("模型","内置触发词",)
     CATEGORY = "luy/元数据"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
@@ -190,18 +206,18 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
             keywords=meta["lora_keywords"]
         else:
             pass
-        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords)
+        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords,)
 
-class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
+class LuyLoraLoaderModelOnlyQWEN(LuySdxlLoraLoader):
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {
-            "model": ("MODEL",),
-            "lora_name": (folder_paths.get_filename_list("loras"), ),
-            "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
-        }}
-    RETURN_TYPES = ("MODEL","STRING")
+        return {"required": { "model": ("MODEL",),
+                              "lora_name": (qwen_lora_files, ),
+                              "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+                              }}
+    RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
+    RETURN_NAMES =("模型","内置触发词",)
     CATEGORY = "luy/元数据"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
@@ -210,7 +226,32 @@ class LuyLoraLoaderModelOnly(LuySdxlLoraLoader):
         keywords="null"
         if "lora_keywords" in meta:
             keywords=meta["lora_keywords"]
-        return (self.load_lora(model, None, lora_name, strength_model, 0, None, None)[0], keywords)
+        else:
+            pass
+        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords,)
+
+class LuyLoraLoaderModelOnlyQWENEDIT(LuySdxlLoraLoader):
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": { "model": ("MODEL",),
+                              "lora_name": (qwen_edit_lora_files, ),
+                              "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
+                              }}
+    RETURN_TYPES = ("MODEL","STRING",)
+    FUNCTION = "load_lora_model_only"
+    RETURN_NAMES =("模型","内置触发词",)
+    CATEGORY = "luy/元数据"
+
+    def load_lora_model_only(self, model, lora_name, strength_model):
+        output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
+        meta = read_metadata(output_file)
+        keywords="null"
+        if "lora_keywords" in meta:
+            keywords=meta["lora_keywords"]
+        else:
+            pass
+        return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords,)
+
 
 class LuyLoraLoaderModelOnlyByDir(LuySdxlLoraLoader):
     # 类级属性：保存最后选择的目录和刷新触发值
@@ -297,7 +338,7 @@ class LuyLoraLoaderModelOnlyByDir(LuySdxlLoraLoader):
         relative_path = os.path.join(lora_dir, lora_name)
         model_lora = self.load_lora(model, None, relative_path, strength_model, 0, None, None)[0]
 
-        return (model_lora, keywords)
+        return (model_lora, keywords,)
 
 
 class UpdateLoraMetaData(BaseNode):
