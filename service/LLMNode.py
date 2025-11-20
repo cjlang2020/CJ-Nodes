@@ -40,7 +40,7 @@ class LLMNode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("response",)
     FUNCTION = "call_llm"
-    CATEGORY = "luy"
+    CATEGORY = "luy/ollama"
 
     def call_llm(self, url, model_type, prompt, system_instruction, temperature):
         """调用Ollama本地服务"""

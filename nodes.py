@@ -9,10 +9,11 @@ from .service.ImageRecognitionNode import ImageRecognitionNode
 from .service.ImageDrawNode import ImageDrawNode
 from .service.ImageMaskNode import ImageMaskNode
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
-from .service.MaskedImage2Png import MaskedImage2Png
-from .service.OllamaCppQwenVl import (LoadllamaCppModel,ImageAnasisyAdv,ChatAnasisyAdv,LlamaCppParameters,JsonToBbox)
+from .service.MaskedImage2Png import (MaskedImage2Png,DrawImageBbox)
 from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnly,LuyLoraLoaderModelOnlyByDir,UpdateLoraMetaData)
 from .service.QwenEditAddLlamaTemplate import QwenEditAddLlamaTemplate
+from .service.Qwen3VlImage import ImageDeal
+from .service.GPTChat import ChatDeal
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -27,17 +28,15 @@ NODE_CLASS_MAPPINGS = {
     "ImageDrawNode":ImageDrawNode,
     "ImageMaskNode":ImageMaskNode,
     "MaskedImage2Png":MaskedImage2Png,
+    "DrawImageBbox":DrawImageBbox,
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": SavePNGZIP_and_Preview_RGBA_AnimatedWEBP,
-    "LoadllamaCppModel": LoadllamaCppModel,
-    "ImageAnasisyAdv": ImageAnasisyAdv,
-    "ChatAnasisyAdv": ChatAnasisyAdv,
-    "LlamaCppParameters": LlamaCppParameters,
-    "JsonToBbox": JsonToBbox,
     "LuySdxlLoraLoader": LuySdxlLoraLoader,
     "LuyLoraLoaderModelOnly": LuyLoraLoaderModelOnly,
     "LuyLoraLoaderModelOnlyByDir":LuyLoraLoaderModelOnlyByDir,
     "UpdateLoraMetaData":UpdateLoraMetaData,
-    "QwenEditAddLlamaTemplate":QwenEditAddLlamaTemplate
+    "QwenEditAddLlamaTemplate":QwenEditAddLlamaTemplate,
+    "ImageDeal":ImageDeal,
+    "ChatDeal":ChatDeal
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -53,14 +52,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageMaskNode": "Luy-添加蒙版",
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层",
     "MaskedImage2Png": "Luy-遮罩转PNG",
-    "LoadllamaCppModel": "Luy-加载模型",
-    "ImageAnasisyAdv": "Luy-图像反推",
-    "ChatAnasisyAdv": "Luy-文本推理",
-    "LlamaCppParameters": "Luy-参数设置",
-    "JsonToBbox": "Luy-JSON to BBOX",
+    "DrawImageBbox":"Luy-绘制Bbox",
     "LuySdxlLoraLoader": "Luy-加载lora模型(SDXL)",
     "LuyLoraLoaderModelOnly": "Luy-加载lora模型(FLUX|QWEN|QWEN-EDIT)",
     "LuyLoraLoaderModelOnlyByDir":"Luy-通过目录加载lora模型",
     "UpdateLoraMetaData":"Luy-更新元数据",
-    "QwenEditAddLlamaTemplate":"Luy-千问编辑"
+    "QwenEditAddLlamaTemplate":"Luy-千问编辑",
+    "ImageDeal":"Luy-Qwen3-VL图片反推",
+    "ChatDeal":"Luy-GPT语言大模型"
 }

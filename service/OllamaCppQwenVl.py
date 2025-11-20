@@ -20,6 +20,8 @@ from llama_cpp.llama_chat_format import (
     Qwen25VLChatHandler, Qwen3VLChatHandler
 )
 
+from service.Qwen3VlImage import load_prompt_options
+
 def load_config():
     config_path = os.path.join(os.path.dirname(__file__), "model_config.json")
     if os.path.exists(config_path):
@@ -240,12 +242,12 @@ class ImageAnasisyAdv:
             # 检查preset_prompt是否以@开头
             if preset_prompt.startswith('@'):
                 # 拼接预设提示词和自定义提示词
-                user_content.append({"type": "text", "text": f"{preset_prompts[preset_prompt]} {custom_prompt}"})
+                user_content.append({"type": "text", "text": f"{load_prompt_options(preset_prompts[preset_prompt])} {custom_prompt}"})
             else:
                 # 非@开头的preset_prompt，仅使用自定义提示词
                 user_content.append({"type": "text", "text": custom_prompt})
         else:
-            user_content.append({"type": "text", "text": preset_prompts[preset_prompt].replace("@", "video" if video_input else "image")})
+            user_content.append({"type": "text", "text": load_prompt_options(preset_prompts[preset_prompt]).replace("@", "video" if video_input else "image")})
 
         if images is not None:
             if not hasattr(self.chat_handler, "clip_model_path") or self.chat_handler.clip_model_path is None:
