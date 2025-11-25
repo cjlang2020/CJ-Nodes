@@ -42,6 +42,10 @@ class MaskedImage2Png(BaseNode):
         - 保留透明通道：非遮罩区域透明（RGBA）
         - 不保留透明通道：非遮罩区域为纯黑色（RGB）
         """
+        # 统一设备（使用图片所在设备）
+        device = image.device
+        mask = mask.to(device)
+
         # 确保图片和遮罩尺寸一致
         if image.shape[1:3] != mask.shape[1:3]:
             mask_4d = mask.unsqueeze(-1)  # 扩展为4维 [batch, h, w, 1]
@@ -51,11 +55,11 @@ class MaskedImage2Png(BaseNode):
                 image.shape[1],  # 目标高度
                 "nearest-exact",
                 None
-            )
+            ).to(device)  # 确保上采样后的遮罩在同一设备
             mask = scaled_mask.squeeze(-1)  # 还原为3维 [batch, h, w]
 
         # 应用遮罩到RGB通道（非遮罩区域变为0）
-        mask_3ch = mask.unsqueeze(-1).repeat(1, 1, 1, 3)  # [batch, h, w, 3]
+        mask_3ch = mask.unsqueeze(-1).repeat(1, 1, 1, 3).to(device)  # [batch, h, w, 3]
         masked_rgb = image * mask_3ch  # 遮罩区域保留原图颜色，其他区域为0（黑色）
 
         # 处理每个批次，裁剪到遮罩实际大小
@@ -71,7 +75,7 @@ class MaskedImage2Png(BaseNode):
             if non_zero.numel() == 0:
                 # 无有效遮罩区域，返回1x1的空图像
                 channels = 4 if keep_alpha else 3
-                empty = torch.zeros((1, 1, channels), device=image.device)
+                empty = torch.zeros((1, 1, channels), device=device)
                 result_images.append(empty.unsqueeze(0))  # 保持批次维度
                 continue
 
@@ -187,12 +191,12 @@ class DrawImageBbox(BaseNode):
         except Exception as e:
             raise TypeError(f"图像处理失败：{str(e)}")
 
-        # 转换线框图为标准格式
+        # 转换线框图为标准格式（保持与输入图像相同设备）
         bbox_img_np = np.array(pil_img_with_bbox).astype(np.float32) / 255.0
-        bbox_tensor = torch.from_numpy(bbox_img_np).unsqueeze(0)
+        bbox_tensor = torch.from_numpy(bbox_img_np).unsqueeze(0).to(image.device if isinstance(image, torch.Tensor) else torch.device("cpu"))
 
-        # 转换裁切图为标准格式
+        # 转换裁切图为标准格式（保持与输入图像相同设备）
         cropped_img_np = np.array(cropped_img).astype(np.float32) / 255.0
-        cropped_tensor = torch.from_numpy(cropped_img_np).unsqueeze(0)
+        cropped_tensor = torch.from_numpy(cropped_img_np).unsqueeze(0).to(image.device if isinstance(image, torch.Tensor) else torch.device("cpu"))
 
         return (bbox_tensor, cropped_tensor)

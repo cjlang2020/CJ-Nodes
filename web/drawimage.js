@@ -25,7 +25,7 @@ function createPreviewWidget(node) {
         position:relative;
     `;
 
-    // 使用 padding-bottom 实现正方形比例
+    // 预览容器比例适配（保持1:1显示，内部图片按原始比例缩放）
     previewContainer.style.paddingBottom = "100%";
 
     const canvas = document.createElement("canvas");
@@ -53,8 +53,8 @@ function createPreviewWidget(node) {
     };
 }
 
-// 更新预览图
-function updatePreview(node, base64) {
+// 更新预览图（严格保持原始宽高比）
+function updatePreview(node, base64, width, height) {
     if (!node._base64Preview) {
         node._base64Preview = createPreviewWidget(node);
     }
@@ -66,33 +66,52 @@ function updatePreview(node, base64) {
         return;
     }
 
-    let src = base64.trim();
+    const src = base64.trim();
     if (!src.startsWith("data:")) {
-        // 如果没有 data URL 前缀，尝试添加
-        if (src.includes(",")) {
-            src = "data:image/png;base64," + src.split(",")[1];
-        } else {
-            src = "data:image/png;base64," + src;
-        }
+        container.style.display = "none";
+        return;
     }
 
     const img = new Image();
     img.onload = () => {
         try {
-            const ratio = Math.min(1, canvas.parentElement.clientWidth / img.width || 1);
-            canvas.width = img.width * ratio;
-            canvas.height = img.height * ratio;
+            // 使用图片原始宽高或保存的尺寸（确保比例一致）
+            const imgWidth = width || img.width;
+            const imgHeight = height || img.height;
+            const imgRatio = imgWidth / imgHeight;
 
+            // 预览容器尺寸
+            const containerWidth = canvas.parentElement.clientWidth;
+            const containerHeight = canvas.parentElement.clientHeight;
+            const containerRatio = containerWidth / containerHeight;
+
+            // 计算适配尺寸（保持原始比例）
+            let drawWidth, drawHeight;
+            if (imgRatio > containerRatio) {
+                drawWidth = containerWidth;
+                drawHeight = containerWidth / imgRatio;
+            } else {
+                drawHeight = containerHeight;
+                drawWidth = containerHeight * imgRatio;
+            }
+
+            // 设置预览画布尺寸
+            canvas.width = drawWidth;
+            canvas.height = drawHeight;
+
+            // 清空并绘制图片
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
 
             container.style.display = "block";
         } catch (e) {
             container.style.display = "none";
+            console.error("预览图渲染失败:", e);
         }
     };
     img.onerror = () => {
         container.style.display = "none";
+        console.error("预览图加载失败，无效的base64数据");
     };
     img.crossOrigin = "anonymous";
     img.src = src;
@@ -114,8 +133,8 @@ class DrawDialog extends ComfyDialog {
         this.element = $el("div.comfy-modal", {
             parent: document.body,
             style: {
-                width: "80vw",
-                height: "80vh",
+                width: "95vw",
+                height: "95vh",
             },
         }, [
             $el("div.comfy-modal-content", {
@@ -129,6 +148,12 @@ class DrawDialog extends ComfyDialog {
         ]);
         this.is_layout_created = false;
         this.iframeElement = null;
+        // 存储完整的尺寸信息（保持原始宽高比）
+        this.nodeImageData = {
+            width: null,
+            height: null,
+            ratio: null
+        };
 
         window.addEventListener("message", (event) => {
             if (event.source !== this.iframeElement?.contentWindow) {
@@ -140,11 +165,19 @@ class DrawDialog extends ComfyDialog {
                     const targetNode = ComfyApp.clipspace_return_node;
                     const textWidget = this.getTextWidget(targetNode);
                     if (textWidget) {
+                        // 保存完整的base64数据和尺寸信息
                         textWidget.element.value = event.data.data;
                         textWidget.element.dispatchEvent(new Event("change"));
 
-                        // 数据更新后直接渲染预览
-                        updatePreview(targetNode, event.data.data);
+                        // 同步原始宽高和比例（不做任何修改）
+                        this.nodeImageData = {
+                            width: event.data.width,
+                            height: event.data.height,
+                            ratio: event.data.ratio
+                        };
+
+                        // 更新预览图（传递原始尺寸确保比例一致）
+                        updatePreview(targetNode, event.data.data, event.data.width, event.data.height);
                     } else {
                         console.warn("未找到文本输入控件，无法更新数据");
                     }
@@ -168,7 +201,7 @@ class DrawDialog extends ComfyDialog {
         super.close();
     }
 
-    show() {
+    async show() {
         try {
             const targetNode = ComfyApp.clipspace_return_node;
             if (!targetNode) {
@@ -184,7 +217,7 @@ class DrawDialog extends ComfyDialog {
                 this.createLayout();
                 this.is_layout_created = true;
                 try {
-                    this.waitIframeReady();
+                    await this.waitIframeReady();
                 } catch (e) {
                     alert("加载编辑器超时，请检查扩展路径是否正确");
                     console.error("iframe加载失败:", e);
@@ -192,7 +225,8 @@ class DrawDialog extends ComfyDialog {
                 }
             }
             this.element.style.display = "block";
-            this.setCanvasJSONString(textWidget.element.value);
+            // 传递完整数据到绘图工具（包含保存的尺寸）
+            this.setCanvasData(textWidget.element.value);
         } catch (e) {
             console.error("显示对话框失败:", e);
             alert("操作失败: " + e.message);
@@ -241,22 +275,26 @@ class DrawDialog extends ComfyDialog {
         });
     }
 
-    setCanvasJSONString(jsonString) {
+    // 传递base64数据和尺寸信息到绘图工具
+    setCanvasData(base64String) {
         if (!this.iframeElement) {
             console.error("iframe元素未初始化，无法发送数据");
             return;
         }
         try {
-            const poses = jsonString ? JSON.parse(jsonString) : [];
             this.iframeElement.contentWindow.postMessage({
                 modalId: 0,
-                poses: poses
+                base64: base64String || "",
+                width: this.nodeImageData.width, // 传递保存的原始宽度
+                height: this.nodeImageData.height // 传递保存的原始高度
             }, "*");
         } catch (e) {
-            console.error("解析JSON失败:", e);
+            console.error("发送数据到绘图工具失败:", e);
             this.iframeElement.contentWindow.postMessage({
                 modalId: 0,
-                poses: []
+                base64: "",
+                width: null,
+                height: null
             }, "*");
         }
     }
@@ -273,6 +311,16 @@ app.registerExtension({
                         try {
                             ComfyApp.clipspace_return_node = this;
                             const dlg = DrawDialog.getInstance();
+                            // 初始化尺寸数据（从节点获取或留空）
+                            const textWidget = this.widgets.find(w => w.name === "base64_string");
+                            if (textWidget && textWidget.value) {
+                                // 保持之前保存的尺寸信息
+                                dlg.nodeImageData = {
+                                    width: dlg.nodeImageData.width || null,
+                                    height: dlg.nodeImageData.height || null,
+                                    ratio: dlg.nodeImageData.ratio || null
+                                };
+                            }
                             dlg.show();
                         } catch (e) {
                             console.error("打开配置对话框失败:", e);
@@ -281,18 +329,25 @@ app.registerExtension({
                 });
             });
 
-            // 监听文本框变化，实时更新预览
+            // 监听文本框变化，实时更新预览（保持宽高比）
             const originalOnWidgetChange = nodeType.prototype.onWidgetChange;
             nodeType.prototype.onWidgetChange = function (widget) {
                 if (originalOnWidgetChange) {
                     originalOnWidgetChange.apply(this, arguments);
                 }
                 if (widget.name === "base64_string") {
-                    updatePreview(this, widget.value);
+                    // 获取保存的尺寸信息
+                    const dlg = DrawDialog.getInstance();
+                    updatePreview(
+                        this,
+                        widget.value,
+                        dlg.nodeImageData.width,
+                        dlg.nodeImageData.height
+                    );
                 }
             };
 
-            // 节点创建时也尝试渲染预览
+            // 节点创建时尝试渲染预览
             const originalOnCreated = nodeType.prototype.onCreated;
             nodeType.prototype.onCreated = function () {
                 if (originalOnCreated) {
@@ -300,7 +355,13 @@ app.registerExtension({
                 }
                 const textWidget = this.widgets.find(w => w.name === "base64_string");
                 if (textWidget && textWidget.value) {
-                    updatePreview(this, textWidget.value);
+                    const dlg = DrawDialog.getInstance();
+                    updatePreview(
+                        this,
+                        textWidget.value,
+                        dlg.nodeImageData.width,
+                        dlg.nodeImageData.height
+                    );
                 }
             };
         }

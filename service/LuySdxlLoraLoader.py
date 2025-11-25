@@ -5,6 +5,7 @@ import comfy.sd
 import comfy.utils
 import random
 from typing import List, Tuple
+import hashlib
 from safetensors.torch import load_file, save_file
 # 兼容不同版本的ComfyUI
 try:
@@ -253,94 +254,6 @@ class LuyLoraLoaderModelOnlyQWENEDIT(LuySdxlLoraLoader):
         return (self.load_lora(model, None, lora_name, strength_model, 0,None,None)[0],keywords,)
 
 
-class LuyLoraLoaderModelOnlyByDir(LuySdxlLoraLoader):
-    # 类级属性：保存最后选择的目录和刷新触发值
-    _last_selected_dir = None
-    _refresh_trigger = 0
-
-    @classmethod
-    def INPUT_TYPES(s):
-        # 获取Lora根目录
-        loras_roots = folder_paths.get_folder_paths("loras")
-        loras_root = loras_roots[0] if loras_roots else ""
-
-        # 枚举所有子目录作为选项
-        dir_options = []
-        if os.path.isdir(loras_root):
-            for item in os.listdir(loras_root):
-                item_path = os.path.join(loras_root, item)
-                if os.path.isdir(item_path) and not item.startswith('.'):  # 排除隐藏目录
-                    dir_options.append(item)
-
-        # 动态加载当前目录下的Lora文件
-        lora_files = []
-        if s._last_selected_dir and s._last_selected_dir in dir_options:
-            lora_files = s._get_lora_files_in_dir(s._last_selected_dir)
-
-        return {
-            "required": {
-                "model": ("MODEL",),
-                "lora_dir": (dir_options, {"tooltip": "选择Lora所在的目录"}),
-                "lora_name": (lora_files, {"tooltip": "选择目录中的Lora模型"}),
-                "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01}),
-            }
-        }
-
-    # 辅助方法：获取指定目录下的Lora文件
-    @classmethod
-    def _get_lora_files_in_dir(cls, lora_dir):
-        loras_roots = folder_paths.get_folder_paths("loras")
-        loras_root = loras_roots[0] if loras_roots else ""
-        target_dir = os.path.join(loras_root, lora_dir)
-
-        lora_files = []
-        if os.path.isdir(target_dir):
-            for file in os.listdir(target_dir):
-                file_path = os.path.join(target_dir, file)
-                if os.path.isfile(file_path) and file.lower().endswith((".safetensors", ".ckpt", ".pt")):
-                    lora_files.append(file)
-        return lora_files
-
-    # 关键：ComfyUI触发参数刷新的核心方法
-    @classmethod
-    def IS_CHANGED(cls, model, lora_dir, lora_name, strength_model):
-        print("======"+lora_dir)
-        # 检测目录是否变化
-        if cls._last_selected_dir != lora_dir:
-            cls._last_selected_dir = lora_dir  # 更新状态
-            cls._refresh_trigger += 1  # 改变触发值
-            return True  # 告知ComfyUI需要刷新
-        # 如果目录未变，返回触发值的哈希（确保稳定性）
-        return hash((cls._refresh_trigger, lora_dir))
-
-    RETURN_TYPES = ("MODEL","STRING")
-    FUNCTION = "load_lora_model_only"
-    CATEGORY = "luy/元数据"
-
-    def load_lora_model_only(self, model, lora_dir, lora_name, strength_model):
-        # 保存当前选择的目录（更新类状态）
-        self.__class__._last_selected_dir = lora_dir
-
-        # 构建完整的Lora路径
-        loras_roots = folder_paths.get_folder_paths("loras")
-        loras_root = loras_roots[0] if loras_roots else ""
-        lora_full_path = os.path.join(loras_root, lora_dir, lora_name)
-
-        # 验证文件存在性
-        if not os.path.isfile(lora_full_path):
-            raise FileNotFoundError(f"Lora文件不存在: {lora_full_path}")
-
-        # 读取元数据中的关键词
-        meta = read_metadata(lora_full_path)
-        keywords = meta.get("lora_keywords", "null")
-
-        # 加载Lora模型（使用相对路径）
-        relative_path = os.path.join(lora_dir, lora_name)
-        model_lora = self.load_lora(model, None, relative_path, strength_model, 0, None, None)[0]
-
-        return (model_lora, keywords,)
-
-
 class UpdateLoraMetaData(BaseNode):
     def __init__(self):
         self.loaded_lora = None
@@ -394,3 +307,106 @@ class UpdateLoraMetaData(BaseNode):
                 error_msg += "，原文件已删除但新文件重命名失败，请手动将临时文件重命名为原文件名"
                 return(error_msg)
         return (str(keyWords).strip())
+
+
+class LuyLoraLoaderModelOnlyByDir:
+    # 关键：启用动态UI联动（必须）
+    DYNAMIC = True
+    # 节点基础配置
+    CATEGORY = "luy/元数据"
+    FUNCTION = "dummy_function"  # 占位函数（无实际逻辑，仅满足框架要求）
+    RETURN_TYPES = ()  # 无返回值
+    RETURN_NAMES = ()
+
+    @classmethod
+    def INPUT_TYPES(s):
+        # 1. 安全获取Lora根目录
+        loras_roots = folder_paths.get_folder_paths("loras")
+        loras_root = loras_roots[0] if loras_roots and os.path.isdir(loras_roots[0]) else ""
+
+        # 2. 生成文件夹选项（下拉框选项列表）
+        dir_options = ["Lora根目录未配置"]
+        if loras_root:
+            # 筛选有效文件夹（排除隐藏目录）
+            valid_dirs = [
+                item for item in os.listdir(loras_root)
+                if os.path.isdir(os.path.join(loras_root, item)) and not item.startswith('.')
+            ]
+            dir_options = valid_dirs if valid_dirs else ["无可用Lora文件夹"]
+
+        return {
+            "required": {
+                # 第一个参数：文件夹下拉框
+                "lora_dir": (
+                    dir_options,  # 选项列表（必须是字符串列表，前端识别为下拉框）
+                    {
+                        "tooltip": "选择Lora所在文件夹",
+                        "dynamic": True,  # 标记为动态触发源（关联lora_name更新）
+                        "default": dir_options[0],  # 必加默认值（确保渲染为下拉框）
+                        "combo": True  # 显式声明为下拉框（部分版本需要）
+                    }
+                ),
+                # 第二个参数：模型下拉框（动态更新）
+                "lora_name": (
+                    ["请先选择文件夹"],  # 初始选项（字符串列表，前端识别为下拉框）
+                    {
+                        "tooltip": "选择文件夹中的Lora模型",
+                        "dynamic_list": True,  # 标记为动态列表（由回调生成选项）
+                        "forceInput": True,    # 强制渲染为下拉框（不渲染为输入节点）
+                        "allowCustom": False,  # 禁止手动输入（仅允许选择选项）
+                        "default": "请先选择文件夹",  # 必加默认值
+                        "combo": True  # 显式声明为下拉框
+                    }
+                )
+            }
+        }
+
+    # 辅助方法：获取指定文件夹下的有效Lora模型（返回字符串列表，用于下拉框选项）
+    @classmethod
+    def _get_lora_models(cls, lora_dir):
+        # 过滤无效文件夹选项
+        if lora_dir in ["Lora根目录未配置", "无可用Lora文件夹"]:
+            return ["请先选择文件夹"]
+
+        # 拼接目标目录（处理中文/特殊字符）
+        loras_root = folder_paths.get_folder_paths("loras")[0]
+        target_dir = os.path.normpath(os.path.join(loras_root, lora_dir))
+
+        # 筛选有效Lora文件（仅支持指定格式）
+        valid_exts = (".safetensors", ".ckpt", ".pt")
+        try:
+            # 按名称排序，返回字符串列表（下拉框选项要求）
+            lora_files = [
+                f for f in sorted(os.listdir(target_dir))
+                if os.path.isfile(os.path.join(target_dir, f)) and f.lower().endswith(valid_exts)
+            ]
+            return lora_files if lora_files else ["该目录无有效Lora"]
+        except Exception:
+            return ["目录访问失败"]
+
+    # 核心：动态联动回调（文件夹变化 → 刷新模型下拉框）
+    @classmethod
+    def DYNAMIC_LIST_CALLBACKS(s):
+        def update_lora_name(params):
+            # 兼容不同ComfyUI版本的参数传递方式
+            if isinstance(params, dict):
+                selected_dir = params.get("lora_dir", "Lora根目录未配置")
+            else:
+                selected_dir = params[0] if len(params) > 0 else "Lora根目录未配置"
+            # 返回字符串列表（下拉框选项）
+            return s._get_lora_models(selected_dir)
+
+        # 绑定依赖关系：lora_name 的选项依赖 lora_dir 的值
+        return {"lora_name": ("lora_dir", update_lora_name)}
+
+    # 检测参数变化，确保前端刷新
+    @classmethod
+    def IS_CHANGED(cls, lora_dir, lora_name):
+        hash_obj = hashlib.sha256()
+        hash_obj.update(lora_dir.encode("utf-8") if lora_dir else b"")
+        hash_obj.update(lora_name.encode("utf-8") if lora_name else b"")
+        return hash_obj.digest().hex()
+
+    # 占位函数（无实际业务逻辑，仅满足ComfyUI框架对FUNCTION的要求）
+    def dummy_function(self, lora_dir, lora_name):
+        return ()

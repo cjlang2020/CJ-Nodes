@@ -14,6 +14,7 @@ from .service.LuySdxlLoraLoader import (LuySdxlLoraLoader,LuyLoraLoaderModelOnly
 from .service.QwenEditAddLlamaTemplate import QwenEditAddLlamaTemplate
 from .service.Qwen3VlImage import ImageDeal
 from .service.GPTChat import ChatDeal
+from .service.StringJoinDeal import StringJoinDeal
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -39,7 +40,8 @@ NODE_CLASS_MAPPINGS = {
     "UpdateLoraMetaData":UpdateLoraMetaData,
     "QwenEditAddLlamaTemplate":QwenEditAddLlamaTemplate,
     "ImageDeal":ImageDeal,
-    "ChatDeal":ChatDeal
+    "ChatDeal":ChatDeal,
+    "StringJoinDeal":StringJoinDeal
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -65,5 +67,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "UpdateLoraMetaData":"Luy-更新元数据",
     "QwenEditAddLlamaTemplate":"Luy-千问编辑",
     "ImageDeal":"Luy-Qwen3-VL图片反推",
-    "ChatDeal":"Luy-GPT语言大模型"
+    "ChatDeal":"Luy-GPT语言大模型",
+    "StringJoinDeal":"Luy-字符串处理"
 }

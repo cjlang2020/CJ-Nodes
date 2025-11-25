@@ -3,17 +3,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <!-- 引入Element Plus CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <link rel="stylesheet" href="./common/index.css">
   <!-- 引入Vue -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="./common/global.js"></script>
   <!-- 引入Element Plus JS -->
-  <script src="https://unpkg.com/element-plus"></script>
-  <title>绘图工具</title>
+  <script src="./common/index.full.js"></script>
+  <title>绘图工具（固定预设尺寸）</title>
   <style>
     .app-container {
       display: flex;
       gap: 20px;
-      padding: 20px;
+      padding: 5px;
       background-color: #ccc;
       min-height: 100vh;
       box-sizing: border-box;
@@ -24,7 +24,7 @@
       padding: 15px;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      width: 220px;
+      width: 420px;
       display: flex;
       flex-direction: column;
       gap: 20px;
@@ -72,13 +72,75 @@
       font-size: 14px;
       color: #666;
     }
+
+    .canvas-size-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .canvas-size-input {
+      width: 80px;
+    }
+
+    .apply-size-btn {
+      width: 100%;
+      margin-top: 5px;
+    }
+
+    .ratio-info {
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      margin-top: 5px;
+    }
   </style>
 </head>
-<body>
+<body style="margin: 0px;">
   <div id="app" class="app-container">
     <!-- 左侧工具栏 -->
     <div class="toolbar">
       <h3>绘图工具</h3>
+
+      <div class="button-group">
+        <el-button type="primary" plain class="btn" @click="sendCanvasImage">发送图像</el-button>
+        <el-button plain class="btn" @click="clearCanvas">清空画布</el-button>
+      </div>
+
+      <!-- 画布大小设置（固定预设尺寸） -->
+      <div class="tool-group">
+        <div class="tool-label">画布尺寸选择</div>
+        <div class="size-value">
+          当前尺寸: {{ canvasWidth }} × {{ canvasHeight }}<br>
+          比例: {{ getRatioText() }}
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+          <el-button
+            type="primary"
+            size="small"
+            @click="setPresetSize(600, 600)"
+          >
+            正方形 (600×600)
+          </el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="setPresetSize(750, 424)"
+          >
+            横屏 (750×424)
+          </el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="setPresetSize(424, 750)"
+          >
+            竖屏 (424×750)
+          </el-button>
+        </div>
+        <div class="ratio-info">
+          注：选择固定尺寸，发送后保持原始宽高比
+        </div>
+      </div>
 
       <!-- 画笔大小调整 -->
       <div class="tool-group">
@@ -110,7 +172,7 @@
 
       <!-- 透明度调整 -->
       <div class="tool-group">
-        <div class="tool-label">透明度</div>
+        <div class="tool-label">透明度={{ Math.round(brushOpacity * 100) }}%</div>
         <el-slider
           v-model="brushOpacity"
           :min="0.1"
@@ -118,7 +180,6 @@
           :step="0.1"
           @change="updateBrushSettings"
         ></el-slider>
-        <div class="size-value">{{ Math.round(brushOpacity * 100) }}%</div>
       </div>
 
       <!-- 预设颜色 -->
@@ -138,15 +199,10 @@
 
     <!-- 绘图区域 -->
     <div class="canvas-container">
-      <div class="button-group">
-        <el-button type="primary" plain class="btn" @click="sendCanvasImage">发送图像</el-button>
-        <el-button plain class="btn" @click="clearCanvas">清空画布</el-button>
-      </div>
-
       <canvas
         id="drawCanvas"
-        width="768"
-        height="768"
+        :width="canvasWidth"
+        :height="canvasHeight"
         style="border:1px solid #ccc;background:#fff;cursor:crosshair;box-shadow: 0 2px 10px rgba(0,0,0,0.1);"
       ></canvas>
     </div>
@@ -154,13 +210,14 @@
 
   <script>
     const { createApp, ref, reactive } = Vue;
-    const { ElSlider, ElColorPicker, ElButton } = ElementPlus;
+    const { ElSlider, ElColorPicker, ElButton, ElInput } = ElementPlus;
 
     const App = {
       components: {
         ElSlider,
         ElColorPicker,
-        ElButton
+        ElButton,
+        ElInput
       },
       data() {
         return {
@@ -169,6 +226,9 @@
           drawing: false,
           lastX: 0,
           lastY: 0,
+          // 实际画布尺寸（默认正方形400×400）
+          canvasWidth: 600,
+          canvasHeight: 600,
           // 画笔设置
           brushSize: 3,
           brushColor: '#FF0000',
@@ -183,6 +243,46 @@
       mounted() {
         this.initCanvas();
         window.parent.postMessage({ ready: true }, '*');
+
+        // 接收来自父窗口的初始化数据（尺寸和base64）
+        window.addEventListener('message', (e) => {
+          if (e.data.modalId === 0) {
+            // 接收尺寸信息（优先使用保存的尺寸）
+            if (e.data.width && e.data.height) {
+              this.canvasWidth = e.data.width;
+              this.canvasHeight = e.data.height;
+              this.applyCanvasSize(); // 应用尺寸
+            }
+            // 接收base64数据并渲染（保持原始宽高比）
+            if (e.data.base64 && e.data.base64.startsWith('data:')) {
+              const img = new Image();
+              img.onload = () => {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                // 保持图片原始宽高比，居中绘制
+                const imgRatio = img.width / img.height;
+                const canvasRatio = this.canvas.width / this.canvas.height;
+
+                let drawWidth, drawHeight, offsetX, offsetY;
+                if (imgRatio > canvasRatio) {
+                  // 图片更宽，按宽度适配
+                  drawWidth = this.canvas.width;
+                  drawHeight = this.canvas.width / imgRatio;
+                  offsetX = 0;
+                  offsetY = (this.canvas.height - drawHeight) / 2;
+                } else {
+                  // 图片更高，按高度适配
+                  drawHeight = this.canvas.height;
+                  drawWidth = this.canvas.height * imgRatio;
+                  offsetX = (this.canvas.width - drawWidth) / 2;
+                  offsetY = 0;
+                }
+
+                this.ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+              };
+              img.src = e.data.base64;
+            }
+          }
+        });
       },
       methods: {
         // 初始化画布
@@ -273,16 +373,94 @@
           this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         },
 
-        // 发送画布图像
+        // 发送画布图像（保持原始宽高）
         sendCanvasImage() {
           const dataURL = this.canvas.toDataURL('image/png');
           const msg = {
             Id: 0,
-            data: dataURL
+            data: dataURL,
+            width: this.canvasWidth, // 原始宽度
+            height: this.canvasHeight, // 原始高度
+            ratio: this.getRatioText() // 宽高比
           };
           // 发送到父窗口
           window.parent.postMessage(msg, '*');
-          console.log("图像已发送到后端");
+          console.log("图像已发送到后端（保持宽高比）", msg);
+        },
+
+        // 应用画布尺寸（切换尺寸时保留绘图内容）
+        applyCanvasSize() {
+          // 保存当前画布内容
+          const tempCanvas = document.createElement('canvas');
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCanvas.width = this.canvas ? this.canvas.width : 0;
+          tempCanvas.height = this.canvas ? this.canvas.height : 0;
+          if (this.canvas) {
+            tempCtx.drawImage(this.canvas, 0, 0);
+          }
+
+          // 重新初始化画布
+          this.initCanvas();
+
+          // 恢复画布内容（保持原始宽高比）
+          if (tempCanvas.width > 0 && tempCanvas.height > 0) {
+            const tempRatio = tempCanvas.width / tempCanvas.height;
+            const canvasRatio = this.canvas.width / this.canvas.height;
+
+            let drawWidth, drawHeight, offsetX, offsetY;
+            if (tempRatio > canvasRatio) {
+              drawWidth = this.canvas.width;
+              drawHeight = this.canvas.width / tempRatio;
+              offsetX = 0;
+              offsetY = (this.canvas.height - drawHeight) / 2;
+            } else {
+              drawHeight = this.canvas.height;
+              drawWidth = this.canvas.height * tempRatio;
+              offsetX = (this.canvas.width - drawWidth) / 2;
+              offsetY = 0;
+            }
+
+            this.ctx.drawImage(
+              tempCanvas,
+              offsetX, offsetY, drawWidth, drawHeight
+            );
+          }
+
+          // 更新画笔设置
+          this.updateBrushSettings();
+        },
+
+        // 设置预设尺寸（固定尺寸）
+        setPresetSize(width, height) {
+          this.canvasWidth = width;
+          this.canvasHeight = height;
+          this.applyCanvasSize();
+        },
+
+        // 获取比例文本（简化为最简分数）
+        getRatioText() {
+          const gcd = this.calculateGCD(this.canvasWidth, this.canvasHeight);
+          const w = this.canvasWidth / gcd;
+          const h = this.canvasHeight / gcd;
+          return `${w}:${h}`;
+        },
+
+        // 计算最大公约数（用于简化比例）
+        calculateGCD(a, b) {
+          return b === 0 ? a : this.calculateGCD(b, a % b);
+        }
+      },
+      watch: {
+        // 监听尺寸变化，确保canvas元素尺寸同步
+        canvasWidth() {
+          if (this.canvas) {
+            this.canvas.width = this.canvasWidth;
+          }
+        },
+        canvasHeight() {
+          if (this.canvas) {
+            this.canvas.height = this.canvasHeight;
+          }
         }
       }
     };
