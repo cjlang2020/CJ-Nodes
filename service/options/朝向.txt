@@ -1,6 +1,25 @@
 # 方向选项 / Orientation Options
-面向观众 (Facing the audience)
-侧面 (Sideways)
-背面 (The back)
-三分之一侧面 (Three-Quarter View)
+正面向左（Facing Left Front）
+正面向右（Facing Right Front）
+半侧面（Half Side View）
+反三分之一侧面（Reverse Three-Quarter View）
+四分之三背面（Three-Quarter Back View）
+半背面（Half Back View）
+正面仰视（Front Upward View）
+正面俯视（Front Downward View）
+侧面仰视（Sideways Upward View）
+侧面俯视（Sideways Downward View）
+斜向侧面（Diagonal Side View）
+背面仰视（Back Upward View）
+背面俯视（Back Downward View）
+15° 侧面（15-Degree Side View）
+60° 侧面（60-Degree Side View）
+75° 侧面（75-Degree Side View）
+正面 30° 仰视（Front 30-Degree Upward View）
+三分之一侧面俯视（Three-Quarter View Downward）
+朝向画面左侧（Facing Left of Frame）
+朝向画面右侧（Facing Right of Frame）
+朝向画面中心（Facing Center of Frame）
+背对画面中心（Facing Away from Center）
+斜后方朝向（Diagonal Back View）
 # 下方为用户自行添加的预设项

@@ -5,6 +5,7 @@ import gc
 import folder_paths
 import comfy.model_management as mm
 from .qwen3vluntils import get_model, load_config
+from .qwen3vluntils import get_model, image2base64, load_config, load_prompt_options, scale_image
 
 config_data = load_config()
 llm_extensions = ['.gguf']
@@ -19,6 +20,7 @@ def load_config():
     return {"prompts": {}, "models": {}}
 
 config_data = load_config()
+prompt_types = list(config_data["prompts"].keys())
 
 class MultiFunAINode:
     def __init__(self):
@@ -29,16 +31,13 @@ class MultiFunAINode:
 
     @classmethod
     def INPUT_TYPES(cls):
-        model_list = list(config_data["models"].keys())
-        prompt_types = list(config_data["prompts"].keys())
-        print(model_list)
         return {
             "required": {
                 # 完全移除 mmproj_model 输入参数
                 "model": (folder_paths.get_filename_list("LLM"), {"default": "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"}),
                 "keep_model_loaded": ("BOOLEAN", {"default": True}),
-                "max_tokens": ("INT", {"default": 512, "min": 0, "max": 4096, "step": 1}),
-                "choice_type": (prompt_types,),
+                "max_tokens": ("INT", {"default": 800, "min": 0, "max": 4096, "step": 1}),
+                "choice_type": (prompt_types, {"default": prompt_types[0] if prompt_types else ""}),
                 "prompt": ("STRING", {"multiline": True, "default": "",}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1}),
             },
@@ -82,9 +81,8 @@ class MultiFunAINode:
             # 传入调整后的配置（包含默认None的mmproj_model，避免工具报错）
             self.chat_handler, self.llm = get_model(adjusted_config)
 
-        prompt_prefix = config_data["prompts"].get(choice_type, "")
-        full_prompt = f"{prompt_prefix}\n{prompt}" if prompt else prompt_prefix
-        messages = [{"role": "user", "content": full_prompt}]
+        prompt_full = load_prompt_options(config_data["prompts"][choice_type])
+        messages = [{"role": "user", "content": prompt_full+prompt}]
         output = self.llm.create_chat_completion(
             messages=messages,
             seed=seed,** parameters
