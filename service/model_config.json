@@ -17,18 +17,18 @@
 		"洗图-反推json格式":"V_反推json格式.txt",
 		"视频多镜头描述NextScene": "V_视频多镜头描述NextScene.txt",
 		"图片续写视频5S提示词": "V_图片续写视频5S提示词.txt",
+		"@图片续写视频(多少秒)S提示词": "V_@图片续写视频(多少秒)S提示词.txt",
 		"人物多角度提示词": "V_人物多角度提示词.txt",
 		"@视频5秒提示词（有用户描述）": "V_@视频5秒提示词（有用户描述).txt",
-		"SDXL提示词": "V_SDXL提示词.txt",
+		"@SDXL提示词(限制多少个单词)": "V_@SDXL提示词(限制多少个单词).txt",
 		"首尾帧01": "V_首尾帧01.txt",
 		"首尾帧02":"V_首尾帧02.txt",
 		"动态壁纸视频":"V_动态壁纸.txt"
 	},
 	"models": {
-		"Qwen3_0.6B":"LLM/Qwen3-0.6B",
 		"Qwen3_0.6B_FP8": "LLM/Qwen3-0.6B-FP8",
-		"Qwen3_4B_Instruct_2507": "LLM/Qwen3-4B-Instruct-2507",
-		"Qwen3_4B_Instruct_2507_FP8":"LLM/Qwen3-4B-Instruct-2507-FP8"
+		"Qwen3_4B_Instruct_2507_FP8":"LLM/Qwen3-4B-Instruct-2507-FP8",
+		"Qwen3-4B-Instruct-2507-Q5_K_M":"LLM/Qwen3-4B-Instruct-2507-Q5_K_M.gguf"
 	},
 	"image_models": {
 		"FastVLM_1_5B":"LLM/FastVLM-1.5B"

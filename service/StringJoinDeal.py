@@ -10,11 +10,11 @@ class StringJoinDeal:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "original_str": ("STRING", {"default": "请输入原始字符串..."}),
-                "join_type": (["拼接在前", "拼接在后", "字符串替换", "透传不处理"],),
-                "new_str": ("STRING", {  # 新增/保留：用于拼接或替换的字符串
+                "text1": ("STRING", {"default": ""}),
+                "join_type": (["t1->t2", "t2->t1", "t2", "t1"],),
+                "text2": ("STRING", {
                     "multiline": True,
-                    "default": "请输入..."
+                    "default": ""
                 })
             },
         }
@@ -24,7 +24,7 @@ class StringJoinDeal:
     FUNCTION = "strdeal"
     CATEGORY = "luy"
 
-    def strdeal(self, original_str, join_type, new_str):
+    def strdeal(self, text1, join_type, text2):
         """
         处理字符串的核心逻辑
         :param original_str: 传入的原始字符串（待处理）
@@ -32,11 +32,11 @@ class StringJoinDeal:
         :param new_str: 拼接用字符串 或 替换后的新子串
         :return: 处理后的字符串
         """
-        if join_type == "拼接在前":
-            return (new_str + original_str,)
-        elif join_type == "拼接在后":
-            return (original_str + new_str,)
-        elif join_type == "字符串替换":
-            return (new_str,)
-        elif join_type == "透传不处理":
-            return (original_str,)
+        if join_type == "t2->t1":
+            return (text2 +","+ text1,)
+        elif join_type == "t1->t2":
+            return (text1 +","+ text2,)
+        elif join_type == "t2":
+            return (text2,)
+        elif join_type == "t1":
+            return (text1,)

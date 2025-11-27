@@ -12,6 +12,6 @@ def read_metadata(file_path):
 
 # 使用示例
 if __name__ == "__main__":
-    output_file = "D:/AI/comfyui_models/loras/FLUX/莫奈-宫崎骏动漫画风(xrhy style)_cfg3.5.safetensors"  # 避免覆盖原文件
+    output_file = "D:/AI/comfyui_models/loras/FLUX/禁忌天使 – 诱惑女神.safetensors"  # 避免覆盖原文件
     meta = read_metadata(output_file)
     print(meta)

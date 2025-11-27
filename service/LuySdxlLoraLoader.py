@@ -17,6 +17,11 @@ except ImportError:
 
 # 先获取 "loras" 根目录的路径
 loras_root = folder_paths.get_folder_paths("loras")[0]  # 取第一个配置的 loras 目录
+
+sdxl_loras_dir = os.path.join(loras_root, "SDXL")
+sdxl_lora_files = [f for f in os.listdir(sdxl_loras_dir) if os.path.isfile(os.path.join(sdxl_loras_dir, f))]
+sdxl_lora_files = [os.path.join("SDXL", f) for f in sdxl_lora_files]
+
 flux_loras_dir = os.path.join(loras_root, "FLUX")
 flux_lora_files = [f for f in os.listdir(flux_loras_dir) if os.path.isfile(os.path.join(flux_loras_dir, f))]
 flux_lora_files = [os.path.join("FLUX", f) for f in flux_lora_files]
@@ -80,7 +85,7 @@ class LuySdxlLoraLoader(BaseNode):
             "required": {
                 "model": ("MODEL", {"tooltip": "The diffusion model the LoRA will be applied to."}),
                 "clip": ("CLIP", {"tooltip": "The CLIP model the LoRA will be applied to."}),
-                "lora_name": (folder_paths.get_filename_list("loras"), {"tooltip": "The name of the LoRA."}),
+                "lora_name": (sdxl_lora_files, ),
                 "strength_model": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the diffusion model. This value can be negative."}),
                 "strength_clip": ("FLOAT", {"default": 1.0, "min": -100.0, "max": 100.0, "step": 0.01, "tooltip": "How strongly to modify the CLIP model. This value can be negative."}),
                 "selection_mode": (
@@ -99,7 +104,7 @@ class LuySdxlLoraLoader(BaseNode):
     OUTPUT_TOOLTIPS = ("The modified diffusion model.", "The modified CLIP model.", "元数据中存储的核心标签，按选择模式筛选后的结果.")
     FUNCTION = "load_lora"
 
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
     DESCRIPTION = "LoRAs are used to modify diffusion and CLIP models, altering the way in which latents are denoised such as applying styles. Multiple LoRA nodes can be linked together."
 
     def load_lora(self, model, clip, lora_name, strength_model, strength_clip, selection_mode, tag_count):
@@ -175,7 +180,7 @@ class LuyLoraLoaderModelOnlyALL(LuySdxlLoraLoader):
     RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
     RETURN_NAMES =("模型","内置触发词",)
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
         output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
@@ -197,7 +202,7 @@ class LuyLoraLoaderModelOnlyFLUX(LuySdxlLoraLoader):
     RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
     RETURN_NAMES =("模型","内置触发词",)
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
         output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
@@ -219,7 +224,7 @@ class LuyLoraLoaderModelOnlyQWEN(LuySdxlLoraLoader):
     RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
     RETURN_NAMES =("模型","内置触发词",)
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
         output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
@@ -241,7 +246,7 @@ class LuyLoraLoaderModelOnlyQWENEDIT(LuySdxlLoraLoader):
     RETURN_TYPES = ("MODEL","STRING",)
     FUNCTION = "load_lora_model_only"
     RETURN_NAMES =("模型","内置触发词",)
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
 
     def load_lora_model_only(self, model, lora_name, strength_model):
         output_file = folder_paths.get_full_path_or_raise("loras", lora_name)
@@ -275,7 +280,7 @@ class UpdateLoraMetaData(BaseNode):
     RETURN_TYPES = ("STRING",)
     OUTPUT_TOOLTIPS = ("返回提示词即可")
     FUNCTION = "update_lora"
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
 
     def update_lora(self, lora_name,keyWords):
         input_file = folder_paths.get_full_path_or_raise("loras", lora_name)
@@ -313,7 +318,7 @@ class LuyLoraLoaderModelOnlyByDir:
     # 关键：启用动态UI联动（必须）
     DYNAMIC = True
     # 节点基础配置
-    CATEGORY = "luy/元数据"
+    CATEGORY = "luy/模型加载"
     FUNCTION = "dummy_function"  # 占位函数（无实际逻辑，仅满足框架要求）
     RETURN_TYPES = ()  # 无返回值
     RETURN_NAMES = ()
