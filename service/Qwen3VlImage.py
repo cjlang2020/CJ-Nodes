@@ -21,7 +21,7 @@ class ImageDeal:
                 "model": (folder_paths.get_filename_list("LLM"), {"default": "Qwen3-VL-4B-Instruct-Q5_K_M.gguf"}),
                 "mmproj_model": (["None"] + folder_paths.get_filename_list("LLM"), {"default": "mmproj-BF16.gguf"}),
                 "keep_model_loaded": ("BOOLEAN", {"default": True}),
-                "max_tokens": ("INT", {"default": 512, "min": 0, "max": 4096, "step": 1}),
+                "max_tokens": ("INT", {"default": 800, "min": 0, "max": 4096, "step": 1}),
                 "preset_prompt": (preset_tags, {"default": preset_tags[0] if preset_tags else ""}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True}),
                 "system_prompt": ("STRING", {"multiline": True, "default": ""}),

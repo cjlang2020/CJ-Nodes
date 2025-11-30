@@ -37,6 +37,7 @@ class PromptGenerator:
     @classmethod
     def _load_options(cls, filename):
         options = ["忽略 (Ignore)"]
+        options.append("随机 (Random)")
         try:
             file_path = os.path.join(os.path.dirname(__file__), "options", filename)
             with open(file_path, encoding="utf-8") as f:
@@ -46,42 +47,45 @@ class PromptGenerator:
                         options.append(stripped_line)
         except FileNotFoundError:
             print(f"警告：未找到文件 {filename}")
-        options.append("随机 (Random)")
         return options
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "画质": (cls._load_options("画质.txt"),),
+                "适用场景": (cls._load_options("适用场景.txt"),),
                 "画风": (cls._load_options("画风.txt"),),
                 "性别": (cls._load_options("性别.txt"),),
+                "镜头": (cls._load_options("镜头.txt"),),
                 "人物": (cls._load_options("人物.txt"),),
                 "角色": (cls._load_options("角色.txt"),),
                 "姿势": (cls._load_options("姿势.txt"),),
                 "动作": (cls._load_options("动作.txt"),),
+                "表情": (cls._load_options("表情.txt"),),
                 "朝向": (cls._load_options("朝向.txt"),),
                 "灯光": (cls._load_options("灯光.txt"),),
                 "俯仰": (cls._load_options("俯仰.txt"),),
                 "地点": (cls._load_options("地点.txt"),),
+                "特效": (cls._load_options("特效.txt"),),
+                "服饰风格": (cls._load_options("服饰风格.txt"),),
                 "天气": (cls._load_options("天气.txt"),),
                 "上衣": (cls._load_options("上衣.txt"),),
                 "下装": (cls._load_options("下装.txt"),),
                 "靴子": (cls._load_options("靴子.txt"),),
                 "配饰": (cls._load_options("配饰.txt"),),
                 "相机": (cls._load_options("相机.txt"),),
-                "镜头": (cls._load_options("镜头.txt"),),
                 "季节": (cls._load_options("季节.txt"),),
-                "特效": (cls._load_options("特效.txt"),),
+                "人种": (cls._load_options("人种.txt"),),
+                "画质": (cls._load_options("画质.txt"),),
             },
             "optional": {
                 "txt_str": ("STRING", {"default": " "}),  # lora关键词
             }
         }
 
-    # 修改返回类型为三个STRING
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("中文标签", "英文标签", "中英混合标签")
+    # 修改返回类型，增加下拉框选择内容的输出
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("中文标签", "英文标签", "中英混合标签", "包含主题内容")
     FUNCTION = "generate_text"
     CATEGORY = "luy"
 
@@ -105,12 +109,12 @@ class PromptGenerator:
             # 格式不规范时，全部作为中文
             return text.strip(), ""
 
-    def generate_text(self, txt_str, 画质, 画风, 特效, 相机, 镜头, 灯光, 俯仰, 地点, 姿势, 朝向, 动作, 上衣, 下装, 靴子, 配饰, 天气, 季节, 人物, 性别, 角色):
+    def generate_text(self, txt_str, 画质, 画风, 特效, 相机, 镜头, 灯光, 俯仰, 地点, 姿势, 朝向, 动作, 上衣, 下装, 靴子, 配饰, 天气, 季节, 人物, 性别, 角色,表情,服饰风格,适用场景,人种):
         fields = ["画质", "画风", "特效", "相机", "镜头", "灯光", "俯仰", "地点",
                   "姿势", "朝向", "动作", "上衣", "下装", "靴子", "配饰", "天气",
-                  "季节", "人物", "性别", "角色"]
+                  "季节", "人物", "性别", "角色","表情","服饰风格","适用场景","人种"]
         values = [画质, 画风, 特效, 相机, 镜头, 灯光, 俯仰, 地点, 姿势, 朝向,
-                  动作, 上衣, 下装, 靴子, 配饰, 天气, 季节, 人物, 性别, 角色]
+                  动作, 上衣, 下装, 靴子, 配饰, 天气, 季节, 人物, 性别, 角色, 表情,服饰风格,适用场景,人种]
 
         selections = {}
         for field, value in zip(fields, values):
@@ -121,10 +125,16 @@ class PromptGenerator:
         chinese_keywords = []
         english_keywords = []
         mix_keywords = []
+        # 收集下拉框选择内容（只包含中文部分）
+        dropdown_selections = []
 
         for field, value in selections.items():
             if "忽略" not in value:
                 chinese_part, english_part = self._extract_parts(value)
+
+                # 收集下拉框选择内容（格式：字段（中文值））
+                if chinese_part:
+                    dropdown_selections.append(f"{field}（{chinese_part}）")
 
                 if chinese_part:
                     chinese_keywords.append(chinese_part)
@@ -152,4 +162,7 @@ class PromptGenerator:
         english_result = join_keywords(txt_str_clean, english_keywords)
         mix_result = join_keywords(txt_str_clean, mix_keywords)
 
-        return (chinese_result, english_result, mix_result)
+        # 拼接下拉框选择内容（用、分隔）
+        dropdown_result = "、".join(dropdown_selections)
+
+        return (chinese_result, english_result, mix_result, dropdown_result)

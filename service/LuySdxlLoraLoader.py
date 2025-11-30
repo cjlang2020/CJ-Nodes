@@ -19,20 +19,28 @@ except ImportError:
 loras_root = folder_paths.get_folder_paths("loras")[0]  # 取第一个配置的 loras 目录
 
 sdxl_loras_dir = os.path.join(loras_root, "SDXL")
-sdxl_lora_files = [f for f in os.listdir(sdxl_loras_dir) if os.path.isfile(os.path.join(sdxl_loras_dir, f))]
-sdxl_lora_files = [os.path.join("SDXL", f) for f in sdxl_lora_files]
+sdxl_lora_files=[]
+if os.path.exists(sdxl_loras_dir):
+    sdxl_lora_files = [f for f in os.listdir(sdxl_loras_dir) if os.path.isfile(os.path.join(sdxl_loras_dir, f))]
+    sdxl_lora_files = [os.path.join("SDXL", f) for f in sdxl_lora_files]
 
 flux_loras_dir = os.path.join(loras_root, "FLUX")
-flux_lora_files = [f for f in os.listdir(flux_loras_dir) if os.path.isfile(os.path.join(flux_loras_dir, f))]
-flux_lora_files = [os.path.join("FLUX", f) for f in flux_lora_files]
+flux_lora_files=[]
+if os.path.exists(flux_loras_dir):
+    flux_lora_files = [f for f in os.listdir(flux_loras_dir) if os.path.isfile(os.path.join(flux_loras_dir, f))]
+    flux_lora_files = [os.path.join("FLUX", f) for f in flux_lora_files]
 
 qwen_loras_dir = os.path.join(loras_root, "Qwen")
-qwen_lora_files = [f for f in os.listdir(qwen_loras_dir) if os.path.isfile(os.path.join(qwen_loras_dir, f))]
-qwen_lora_files = [os.path.join("Qwen", f) for f in qwen_lora_files]
+qwen_lora_files=[]
+if os.path.exists(qwen_loras_dir):
+    qwen_lora_files = [f for f in os.listdir(qwen_loras_dir) if os.path.isfile(os.path.join(qwen_loras_dir, f))]
+    qwen_lora_files = [os.path.join("Qwen", f) for f in qwen_lora_files]
 
 qwen_edit_loras_dir = os.path.join(loras_root, "Qwen-Edit")
-qwen_edit_lora_files = [f for f in os.listdir(qwen_edit_loras_dir) if os.path.isfile(os.path.join(qwen_edit_loras_dir, f))]
-qwen_edit_lora_files = [os.path.join("Qwen-Edit", f) for f in qwen_edit_lora_files]
+qwen_edit_lora_files=[]
+if os.path.exists(qwen_edit_loras_dir):
+    qwen_edit_lora_files = [f for f in os.listdir(qwen_edit_loras_dir) if os.path.isfile(os.path.join(qwen_edit_loras_dir, f))]
+    qwen_edit_lora_files = [os.path.join("Qwen-Edit", f) for f in qwen_edit_lora_files]
 
 def read_metadata(file_path):
     with open(file_path, "rb") as f:

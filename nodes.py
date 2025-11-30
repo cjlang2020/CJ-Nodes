@@ -15,7 +15,7 @@ from .service.StringJoinDeal import StringJoinDeal
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
-    "EmptyLatentImage": EmptyLatentImage,
+    "LuyEmptyLatentImage": EmptyLatentImage,
     "BatchImageLoader": BatchImageLoader,
     "PromptSelectorNode": PromptSelectorNode,
     "PromptGenerator":PromptGenerator,
@@ -40,7 +40,7 @@ NODE_CLASS_MAPPINGS = {
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
-    "EmptyLatentImage": "Luy-输出图片尺寸",
+    "LuyEmptyLatentImage": "Luy-创建空Latent",
     "BatchImageLoader": "Luy-批量读取文件夹下图片",
     "PromptSelectorNode": "Luy-提示词选择器",
     "PromptGenerator":"Luy-提示词选择节点",
