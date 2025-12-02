@@ -42,38 +42,29 @@ class PromptGenerator:
 
     @classmethod
     def _scan_options_files(cls):
-        """扫描选项文件夹中的所有txt文件，并按序号排序"""
+        """扫描选项文件夹中的所有txt文件，并按文件名的数字序号从小到大排序"""
         options_folder = cls._get_options_folder()
         if not os.path.exists(options_folder):
             os.makedirs(options_folder)
-            return {}
+            return []  # 改为返回列表，保留排序顺序
 
-        files_dict = {}
         numbered_files = []
-
         for filename in os.listdir(options_folder):
             if filename.endswith(".txt"):
-                # 提取文件名中的序号
+                # 提取文件名开头的数字序号（适配“1-适用场景.txt”格式）
                 match = re.match(r'^(\d+)-', filename)
                 if match:
-                    # 有序号的文件
                     file_number = int(match.group(1))
-                    # 去掉序号和扩展名作为参数名
+                    # 提取参数名（去掉序号和后缀）
                     param_name = re.sub(r'^\d+-', '', os.path.splitext(filename)[0])
                     numbered_files.append((file_number, param_name, filename))
                 else:
-                    # 没有序号的文件，放在后面
-                    param_name = os.path.splitext(filename)[0]
-                    numbered_files.append((9999, param_name, filename))
+                    # 无序号文件排最后
+                    numbered_files.append((9999, os.path.splitext(filename)[0], filename))
 
-        # 按序号排序
+        # 严格按数字序号升序排序
         numbered_files.sort(key=lambda x: x[0])
-
-        # 构建排序后的字典
-        for _, param_name, filename in numbered_files:
-            files_dict[param_name] = filename
-
-        return files_dict
+        return numbered_files  # 返回排序后的列表（包含序号、参数名、文件名）
 
     @classmethod
     def _load_options(cls, filename):
@@ -93,25 +84,29 @@ class PromptGenerator:
 
     @classmethod
     def INPUT_TYPES(cls):
-        """动态生成输入类型，基于文件夹中的文件，按序号排序"""
+        """动态生成输入类型，严格按文件名序号排序"""
         required_inputs = {}
-
-        # 扫描选项文件夹中的文件（已排序）
-        files_dict = cls._scan_options_files()
-
-        # 为每个文件创建一个输入参数（保持排序）
-        for param_name, filename in files_dict.items():
+        # 获取排序后的文件列表
+        sorted_files = cls._scan_options_files()
+        # 按排序顺序生成参数
+        for _, param_name, filename in sorted_files:
             required_inputs[param_name] = (cls._load_options(filename),)
 
-        # 添加可选参数
+        # 添加布尔值参数
+        required_inputs["启用选择节点"] = ("BOOLEAN", {"default": True})
+
         return {
             "required": required_inputs,
             "optional": {
-                "txt_str": ("STRING", {"default": " "}),  # lora关键词
+                "txt_str": ("STRING", {
+                    "default": "",
+                    "multiline": True,
+                    "placeholder": "请输入自定义提示词...会串接到前面",
+                    "rows": 5
+                }),  # lora关键词
             }
         }
 
-    # 修改返回类型，增加下拉框选择内容的输出
     RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
     RETURN_NAMES = ("中文标签", "英文标签", "中英混合标签", "包含主题内容")
     FUNCTION = "generate_text"
@@ -134,37 +129,37 @@ class PromptGenerator:
             english_part = parts[1][:-1].strip()  # 去掉最后的)
             return chinese_part, english_part
         else:
-            # 格式不规范时，全部作为中文
             return text.strip(), ""
 
-    def generate_text(self, txt_str,** kwargs):
-        """动态处理所有参数"""
-        # 获取所有必填字段（保持排序）
-        input_types = self.INPUT_TYPES()
-        fields = list(input_types['required'].keys())
+    def generate_text(self, txt_str, 启用选择节点=True,** kwargs):
+        """动态处理所有参数（严格按序号顺序）"""
+        # 获取排序后的字段列表
+        sorted_files = self._scan_options_files()
+        fields = [param_name for _, param_name, _ in sorted_files]
+
+        # 如果未启用选择节点，直接返回txt_str内容
+        if not 启用选择节点:
+            return (txt_str.strip(), txt_str.strip(), txt_str.strip(), "")
 
         selections = {}
         for field in fields:
             value = kwargs.get(field, "忽略 (Ignore)")
-            field_options = input_types['required'].get(field, (["忽略 (Ignore)"],))[0]
+            # 获取该字段对应的选项列表
+            field_options = self.INPUT_TYPES()['required'][field][0]
             selections[field] = self.random_choice(value, field_options)
 
-        # 分别收集中文、英文、中英混合的关键词
+        # 按序号顺序收集中文、英文等关键词
         chinese_keywords = []
         english_keywords = []
         mix_keywords = []
-        # 收集下拉框选择内容（只包含中文部分）
         dropdown_selections = []
 
-        for field in fields:  # 按排序后的顺序处理
+        for field in fields:
             value = selections[field]
             if "忽略" not in value:
                 chinese_part, english_part = self._extract_parts(value)
-
-                # 收集下拉框选择内容（格式：字段（中文值））
                 if chinese_part:
                     dropdown_selections.append(f"{field}（{chinese_part}）")
-
                 if chinese_part:
                     chinese_keywords.append(chinese_part)
                 if english_part:
@@ -176,10 +171,8 @@ class PromptGenerator:
                 elif english_part:
                     mix_keywords.append(english_part)
 
-        # 处理基础提示词
+        # 处理基础提示词并拼接结果
         txt_str_clean = txt_str.strip().rstrip(",").lstrip(",")
-
-        # 拼接结果
         def join_keywords(base, keywords):
             if not keywords:
                 return base
@@ -190,8 +183,6 @@ class PromptGenerator:
         chinese_result = join_keywords(txt_str_clean, chinese_keywords)
         english_result = join_keywords(txt_str_clean, english_keywords)
         mix_result = join_keywords(txt_str_clean, mix_keywords)
-
-        # 拼接下拉框选择内容（用、分隔）
         dropdown_result = "、".join(dropdown_selections)
 
         return (chinese_result, english_result, mix_result, dropdown_result)
