@@ -1,5 +1,6 @@
 import random
 import os
+import re
 
 class PromptSelectorNode:
     def __init__(self):
@@ -35,11 +36,52 @@ class PromptGenerator:
         pass
 
     @classmethod
+    def _get_options_folder(cls):
+        """获取选项文件夹路径"""
+        return os.path.join(os.path.dirname(__file__), "options")
+
+    @classmethod
+    def _scan_options_files(cls):
+        """扫描选项文件夹中的所有txt文件，并按序号排序"""
+        options_folder = cls._get_options_folder()
+        if not os.path.exists(options_folder):
+            os.makedirs(options_folder)
+            return {}
+
+        files_dict = {}
+        numbered_files = []
+
+        for filename in os.listdir(options_folder):
+            if filename.endswith(".txt"):
+                # 提取文件名中的序号
+                match = re.match(r'^(\d+)-', filename)
+                if match:
+                    # 有序号的文件
+                    file_number = int(match.group(1))
+                    # 去掉序号和扩展名作为参数名
+                    param_name = re.sub(r'^\d+-', '', os.path.splitext(filename)[0])
+                    numbered_files.append((file_number, param_name, filename))
+                else:
+                    # 没有序号的文件，放在后面
+                    param_name = os.path.splitext(filename)[0]
+                    numbered_files.append((9999, param_name, filename))
+
+        # 按序号排序
+        numbered_files.sort(key=lambda x: x[0])
+
+        # 构建排序后的字典
+        for _, param_name, filename in numbered_files:
+            files_dict[param_name] = filename
+
+        return files_dict
+
+    @classmethod
     def _load_options(cls, filename):
+        """加载单个文件的选项"""
         options = ["忽略 (Ignore)"]
         options.append("随机 (Random)")
         try:
-            file_path = os.path.join(os.path.dirname(__file__), "options", filename)
+            file_path = os.path.join(cls._get_options_folder(), filename)
             with open(file_path, encoding="utf-8") as f:
                 for line in f:
                     stripped_line = line.strip()
@@ -51,33 +93,19 @@ class PromptGenerator:
 
     @classmethod
     def INPUT_TYPES(cls):
+        """动态生成输入类型，基于文件夹中的文件，按序号排序"""
+        required_inputs = {}
+
+        # 扫描选项文件夹中的文件（已排序）
+        files_dict = cls._scan_options_files()
+
+        # 为每个文件创建一个输入参数（保持排序）
+        for param_name, filename in files_dict.items():
+            required_inputs[param_name] = (cls._load_options(filename),)
+
+        # 添加可选参数
         return {
-            "required": {
-                "适用场景": (cls._load_options("适用场景.txt"),),
-                "画风": (cls._load_options("画风.txt"),),
-                "性别": (cls._load_options("性别.txt"),),
-                "镜头": (cls._load_options("镜头.txt"),),
-                "人物": (cls._load_options("人物.txt"),),
-                "角色": (cls._load_options("角色.txt"),),
-                "姿势": (cls._load_options("姿势.txt"),),
-                "动作": (cls._load_options("动作.txt"),),
-                "表情": (cls._load_options("表情.txt"),),
-                "朝向": (cls._load_options("朝向.txt"),),
-                "灯光": (cls._load_options("灯光.txt"),),
-                "俯仰": (cls._load_options("俯仰.txt"),),
-                "地点": (cls._load_options("地点.txt"),),
-                "特效": (cls._load_options("特效.txt"),),
-                "服饰风格": (cls._load_options("服饰风格.txt"),),
-                "天气": (cls._load_options("天气.txt"),),
-                "上衣": (cls._load_options("上衣.txt"),),
-                "下装": (cls._load_options("下装.txt"),),
-                "靴子": (cls._load_options("靴子.txt"),),
-                "配饰": (cls._load_options("配饰.txt"),),
-                "相机": (cls._load_options("相机.txt"),),
-                "季节": (cls._load_options("季节.txt"),),
-                "人种": (cls._load_options("人种.txt"),),
-                "画质": (cls._load_options("画质.txt"),),
-            },
+            "required": required_inputs,
             "optional": {
                 "txt_str": ("STRING", {"default": " "}),  # lora关键词
             }
@@ -109,16 +137,16 @@ class PromptGenerator:
             # 格式不规范时，全部作为中文
             return text.strip(), ""
 
-    def generate_text(self, txt_str, 画质, 画风, 特效, 相机, 镜头, 灯光, 俯仰, 地点, 姿势, 朝向, 动作, 上衣, 下装, 靴子, 配饰, 天气, 季节, 人物, 性别, 角色,表情,服饰风格,适用场景,人种):
-        fields = ["画质", "画风", "特效", "相机", "镜头", "灯光", "俯仰", "地点",
-                  "姿势", "朝向", "动作", "上衣", "下装", "靴子", "配饰", "天气",
-                  "季节", "人物", "性别", "角色","表情","服饰风格","适用场景","人种"]
-        values = [画质, 画风, 特效, 相机, 镜头, 灯光, 俯仰, 地点, 姿势, 朝向,
-                  动作, 上衣, 下装, 靴子, 配饰, 天气, 季节, 人物, 性别, 角色, 表情,服饰风格,适用场景,人种]
+    def generate_text(self, txt_str,** kwargs):
+        """动态处理所有参数"""
+        # 获取所有必填字段（保持排序）
+        input_types = self.INPUT_TYPES()
+        fields = list(input_types['required'].keys())
 
         selections = {}
-        for field, value in zip(fields, values):
-            field_options = self.INPUT_TYPES()['required'].get(field, (["忽略 (Ignore)"],))[0]
+        for field in fields:
+            value = kwargs.get(field, "忽略 (Ignore)")
+            field_options = input_types['required'].get(field, (["忽略 (Ignore)"],))[0]
             selections[field] = self.random_choice(value, field_options)
 
         # 分别收集中文、英文、中英混合的关键词
@@ -128,7 +156,8 @@ class PromptGenerator:
         # 收集下拉框选择内容（只包含中文部分）
         dropdown_selections = []
 
-        for field, value in selections.items():
+        for field in fields:  # 按排序后的顺序处理
+            value = selections[field]
             if "忽略" not in value:
                 chinese_part, english_part = self._extract_parts(value)
 
