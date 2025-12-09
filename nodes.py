@@ -12,6 +12,8 @@ from .service.GPTChat import ChatDeal
 from .service.Qwen3Chat import Qwen3Deal
 from .service.MultiFunAINode import MultiFunAINode
 from .service.StringJoinDeal import StringJoinDeal
+from .service.ForItemByIndex import ForItemByIndex
+from .service.FileDeal import (FileReadDeal,FileSaveDeal)
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -36,7 +38,10 @@ NODE_CLASS_MAPPINGS = {
     "ChatDeal":ChatDeal,
     "Qwen3Chat":Qwen3Deal,
     "MultiFunAINode":MultiFunAINode,
-    "StringJoinDeal":StringJoinDeal
+    "StringJoinDeal":StringJoinDeal,
+    "ForItemByIndex":ForItemByIndex,
+    "FileReadDeal":FileReadDeal,
+    "FileSaveDeal":FileSaveDeal
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -61,5 +66,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ChatDeal":"Luy-GPT语言大模型",
     "Qwen3Chat":"Luy-Qwen3语言大模型",
     "MultiFunAINode":"Luy-AI多功能语言大模型",
-    "StringJoinDeal":"Luy-字符串处理"
+    "StringJoinDeal":"Luy-字符串处理",
+    "ForItemByIndex":"Luy-循环取行文本",
+    "FileReadDeal":"Luy-读取txt文件",
+    "FileSaveDeal":"Luy-写入txt到文件夹",
 }
