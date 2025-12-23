@@ -39,6 +39,7 @@ class BatchImageLoader:
 
     RETURN_TYPES = ("IMAGE", "STRING",)
     RETURN_NAMES = ("图片批量数据", "图片路径列表",)
+    OUTPUT_IS_LIST = (True, True)
     FUNCTION = "load_images"
     CATEGORY = "luy"
 

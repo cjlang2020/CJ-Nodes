@@ -1,8 +1,8 @@
 {
     "name": "luy.prompt.selector",
     "version": "1.0.0",
-    "description": "提示词选择器",
+    "description": "个人插件",
     "author": "luy",
-    "js": ["index.js"],
+    "js": ["index.js","selectdir.js"],
     "dependencies": []
 }

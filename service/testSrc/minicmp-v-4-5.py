@@ -10,9 +10,9 @@ from io import BytesIO
 #model_path = "D:/AI/comfyui_models/LLM/GGUF/MiniCPM-v-4/MiniCPM-V-4_5-Q4_0.gguf"  # 替换为实际的GGUF文件名
 # 加载模型
 llm = AutoModelForCausalLM.from_pretrained(
-    "D:/AI/comfyui_models/LLM/GGUF/MiniCPM-v-4",
-    model_file="MiniCPM-V-4_5-Q4_0.gguf",
-    model_type="minicpm",  # 可能需要根据实际情况调整
+    "D:/AI/comfyui_models/LLM",
+    model_file="GLM-4.6V-Flash.Q5_K_S.gguf",
+    model_type="",  # 可能需要根据实际情况调整
     context_length=2048,
     gpu_layers=50  # 调整为适合你GPU的层数
 )
@@ -23,7 +23,7 @@ def image_to_base64(image):
     image.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
-image = Image.open('C:/Users/Lang/Pictures/cpmfyui_output/ComfyUI_00003_.png').convert('RGB')
+image = Image.open('C:/Users/Lang/Pictures/Saved Pictures/QQ20251007-201543.png').convert('RGB')
 image_b64 = image_to_base64(image)
 
 # 构建包含图片的提示

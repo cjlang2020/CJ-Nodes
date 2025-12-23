@@ -14,6 +14,10 @@ from .service.MultiFunAINode import MultiFunAINode
 from .service.StringJoinDeal import StringJoinDeal
 from .service.ForItemByIndex import ForItemByIndex
 from .service.FileDeal import (FileReadDeal,FileSaveDeal)
+from .service.LoadImageUtils import (LoadImageUtils,FolderSelectNode)
+from .service.VramClean import VRAMClean
+from .service.ConditionalSkip import ConditionalSkip
+
 
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
@@ -41,7 +45,11 @@ NODE_CLASS_MAPPINGS = {
     "StringJoinDeal":StringJoinDeal,
     "ForItemByIndex":ForItemByIndex,
     "FileReadDeal":FileReadDeal,
-    "FileSaveDeal":FileSaveDeal
+    "FileSaveDeal":FileSaveDeal,
+    "LoadImageUtils":LoadImageUtils,
+    "FolderSelectNode":FolderSelectNode,
+    "VRAMClean":VRAMClean,
+    "ConditionalSkip":ConditionalSkip
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
@@ -51,7 +59,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PromptGenerator":"Luy-提示词选择节点",
     "ImageDrawNode": "Luy-涂鸦绘制",
     "ImageMaskNode": "Luy-添加蒙版",
-    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层",
+    "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层转视频",
     "MaskedImage2Png": "Luy-遮罩转PNG",
     "DrawImageBbox":"Luy-绘制Bbox",
     "LuySdxlLoraLoader": "Luy-加载lora模型(SDXL)",
@@ -61,7 +69,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LuyLoraLoaderModelOnlyQWENEDIT": "Luy-加载lora模型(QWEN-EDIT)",
     "LuyLoraLoaderModelOnlyByDir":"Luy-通过目录加载lora模型",
     "UpdateLoraMetaData":"Luy-更新元数据",
-    "QwenEditAddLlamaTemplate":"Luy-千问ENCODE编辑",
+    "QwenEditAddLlamaTemplate":"Luy-千问编码器",
     "ImageDeal":"Luy-Qwen3-VL图片反推",
     "ChatDeal":"Luy-GPT语言大模型",
     "Qwen3Chat":"Luy-Qwen3语言大模型",
@@ -70,4 +78,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "ForItemByIndex":"Luy-循环取行文本",
     "FileReadDeal":"Luy-读取txt文件",
     "FileSaveDeal":"Luy-写入txt到文件夹",
+    "LoadImageUtils":"Luy-加载图片",
+    "FolderSelectNode":"Luy-选择文件夹",
+    "VRAMClean":"Luy-清除显存占用",
+    "ConditionalSkip":"luy-跳过分支"
 }

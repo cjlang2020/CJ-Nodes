@@ -35,7 +35,7 @@ class SavePNGZIP_and_Preview_RGBA_AnimatedWEBP:
 
     OUTPUT_NODE = True
 
-    CATEGORY = "luy/RGBA_Animated"
+    CATEGORY = "luy"
 
     def save_images(self, images_rgb, images_alpha, fps, filename_prefix, lossless, quality, method, num_frames=0, prompt=None, extra_pnginfo=None):
         method = self.methods.get(method)
@@ -59,12 +59,12 @@ class SavePNGZIP_and_Preview_RGBA_AnimatedWEBP:
             def image_to_np(image):
                 i = 255. * image.cpu().numpy()
                 return np.clip(i, 0, 255)
-            
+
             def image_to_single_color_np(image):
                 i = 1. * image.cpu().numpy()
                 i = (i[:,:,0:1] + i[:,:,1:2] + i[:,:,2:3]) / 3.
                 return np.clip(i, 0, 1)
-            
+
             image_rgb = image_to_np(image_rgb)
             alpha_channel = image_to_single_color_np(image_alpha)
 
@@ -98,8 +98,8 @@ class SavePNGZIP_and_Preview_RGBA_AnimatedWEBP:
                 "type": self.type
             })
             counter += 1
-        
-        zip_path = os.path.join(full_output_folder, f"{filename}_{counter-1:05}.zip") 
+
+        zip_path = os.path.join(full_output_folder, f"{filename}_{counter-1:05}.zip")
         print("Saving zip tp", zip_path)
 
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -108,7 +108,7 @@ class SavePNGZIP_and_Preview_RGBA_AnimatedWEBP:
                 if not success:
                     print(f"Failed to encode image {idx}, skipping...")
                     continue
-                
+
                 filename = f"img_{idx:03d}.png"
                 zipf.writestr(filename, buffer.tobytes())
 

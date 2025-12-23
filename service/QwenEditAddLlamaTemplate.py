@@ -24,6 +24,7 @@ class QwenEditAddLlamaTemplate(BaseNode):
                 "image1": ("IMAGE",),
                 "image2": ("IMAGE",),
                 "image3": ("IMAGE",),
+                "funcType": ("STRING", {"default": "","multiline": False}),
                 "prompt": ("STRING", {
                     "default": "",
                     "multiline": True,
@@ -42,9 +43,9 @@ class QwenEditAddLlamaTemplate(BaseNode):
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("positive",)
     FUNCTION = "execute"
-    CATEGORY = "luy/千问编辑"
+    CATEGORY = "luy"
 
-    def execute(self,image1=None, image2=None, image3=None,clip=None,vae=None,prompt="",llama_template=""):
+    def execute(self,image1=None, image2=None, image3=None,clip=None,vae=None,prompt="",llama_template="",funcType=""):
         ref_latents = []
         images = [image1, image2, image3]
         images_vl = []

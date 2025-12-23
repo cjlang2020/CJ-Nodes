@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 from comfy.utils import common_upscale
+from comfy import model_management
+from tqdm import tqdm
 from .utils import log
 from einops import rearrange
 
@@ -11,6 +13,9 @@ except:
 
 VAE_STRIDE = (4, 8, 8)
 PATCH_SIZE = (1, 2, 2)
+
+main_device = model_management.get_torch_device()
+offload_device = model_management.unet_offload_device()
 
 class WanVideoImageResizeToClosest:
     @classmethod
@@ -26,11 +31,11 @@ class WanVideoImageResizeToClosest:
     RETURN_TYPES = ("IMAGE", "INT", "INT", )
     RETURN_NAMES = ("image","width","height",)
     FUNCTION = "process"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Resizes image to the closest supported resolution based on aspect ratio and max pixels, according to the original code"
 
     def process(self, image, generation_width, generation_height, aspect_ratio_preservation ):
-    
+
         H, W = image.shape[1], image.shape[2]
         max_area = generation_width * generation_height
 
@@ -42,7 +47,7 @@ class WanVideoImageResizeToClosest:
             aspect_ratio = generation_height / generation_width
             if aspect_ratio_preservation == "crop_to_new":
                 crop = "center"
-                
+
         lat_h = round(
         np.sqrt(max_area * aspect_ratio) // VAE_STRIDE[1] //
         PATCH_SIZE[1] * PATCH_SIZE[1])
@@ -69,7 +74,7 @@ class ExtractStartFramesForContinuations:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("start_frames",)
     FUNCTION = "get_start_frames"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Extracts the first N frames from a video sequence for continuations."
 
     def get_start_frames(self, input_video_frames, num_frames):
@@ -113,14 +118,14 @@ class WanVideoVACEStartToEndFrame:
     RETURN_TYPES = ("IMAGE", "MASK", )
     RETURN_NAMES = ("images", "masks",)
     FUNCTION = "process"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Helper node to create start/end frame batch and masks for VACE"
 
     def process(self, num_frames, empty_frame_level, start_image=None, end_image=None, control_images=None, inpaint_mask=None, start_index=0, end_index=-1, control_strength=1.0, control_ease=0):
 
         device = start_image.device if start_image is not None else end_image.device
         B, H, W, C = start_image.shape if start_image is not None else end_image.shape
-        
+
         if control_images is not None:
             # weaken the control images?
             if control_strength < 1.0:
@@ -128,7 +133,7 @@ class WanVideoVACEStartToEndFrame:
                 control_strength *= 2.0
                 control_strength = control_strength * control_strength / 8.0
                 control_images = torch.lerp(torch.ones((control_images.shape[0], control_images.shape[1], control_images.shape[2], control_images.shape[3])) * empty_frame_level, control_images, control_strength)
-                
+
             # ease in control stuff?
             if num_frames > control_ease and control_ease > 0:
                 empty_frame = torch.ones((1, control_images.shape[1], control_images.shape[2], control_images.shape[3])) * empty_frame_level
@@ -151,27 +156,27 @@ class WanVideoVACEStartToEndFrame:
         # Convert negative end_index to positive
         if end_index < 0:
             end_index = num_frames + end_index
-        
+
         # Create output batch with empty frames
         out_batch = torch.ones((num_frames, H, W, 3), device=device) * empty_frame_level
-        
+
         # Create mask tensor with proper dimensions
         masks = torch.ones((num_frames, H, W), device=device)
-        
+
         # Pre-process all images at once to avoid redundant work
         if end_image is not None and (end_image.shape[1] != H or end_image.shape[2] != W):
             end_image = common_upscale(end_image.movedim(-1, 1), W, H, "lanczos", "disabled").movedim(1, -1)
-        
+
         if control_images is not None and (control_images.shape[1] != H or control_images.shape[2] != W):
             control_images = common_upscale(control_images.movedim(-1, 1), W, H, "lanczos", "disabled").movedim(1, -1)
-        
+
         # Place start image at start_index
         if start_image is not None:
             frames_to_copy = min(start_image.shape[0], num_frames - start_index)
             if frames_to_copy > 0:
                 out_batch[start_index:start_index + frames_to_copy] = start_image[:frames_to_copy]
                 masks[start_index:start_index + frames_to_copy] = 0
-        
+
         # Place end image at end_index
         if end_image is not None:
             # Calculate where to start placing end images
@@ -179,28 +184,28 @@ class WanVideoVACEStartToEndFrame:
             if end_start < 0:  # Handle case where end images won't all fit
                 end_image = end_image[abs(end_start):]
                 end_start = 0
-                
+
             frames_to_copy = min(end_image.shape[0], num_frames - end_start)
             if frames_to_copy > 0:
                 out_batch[end_start:end_start + frames_to_copy] = end_image[:frames_to_copy]
                 masks[end_start:end_start + frames_to_copy] = 0
-        
+
         # Apply control images to remaining frames that don't have start or end images
         if control_images is not None:
             # Create a mask of frames that are still empty (mask == 1)
             empty_frames = masks.sum(dim=(1, 2)) > 0.5 * H * W
-            
+
             if empty_frames.any():
                 # Only apply control images where they exist
                 control_length = control_images.shape[0]
                 for frame_idx in range(num_frames):
                     if empty_frames[frame_idx] and frame_idx < control_length:
                         out_batch[frame_idx] = control_images[frame_idx]
-        
+
         # Apply inpaint mask if provided
         if inpaint_mask is not None:
             inpaint_mask = common_upscale(inpaint_mask.unsqueeze(1), W, H, "nearest-exact", "disabled").squeeze(1).to(device)
-            
+
             # Handle different mask lengths efficiently
             if inpaint_mask.shape[0] > num_frames:
                 inpaint_mask = inpaint_mask[:num_frames]
@@ -233,7 +238,7 @@ class CreateCFGScheduleFloatList:
     RETURN_TYPES = ("FLOAT", )
     RETURN_NAMES = ("float_list",)
     FUNCTION = "process"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Helper node to generate a list of floats that can be used to schedule cfg scale for the steps, outside the set range cfg is set to 1.0"
 
     def process(self, steps, cfg_scale_start, cfg_scale_end, interpolation, start_percent, end_percent, unique_id):
@@ -242,31 +247,31 @@ class CreateCFGScheduleFloatList:
         cfg_list = [1.0] * steps
         start_idx = min(int(steps * start_percent), steps - 1)
         end_idx = min(int(steps * end_percent), steps - 1)
-        
+
         for i in range(start_idx, end_idx + 1):
             if i >= steps:
                 break
-                
+
             if end_idx == start_idx:
                 t = 0
             else:
                 t = (i - start_idx) / (end_idx - start_idx)
-            
+
             if interpolation == "linear":
                 factor = t
             elif interpolation == "ease_in":
                 factor = t * t
             elif interpolation == "ease_out":
                 factor = t * (2 - t)
-            
+
             cfg_list[i] = round(cfg_scale_start + factor * (cfg_scale_end - cfg_scale_start), 2)
-        
+
         # If start_percent > 0, always include the first step
         if start_percent > 0:
             cfg_list[0] = 1.0
 
         if unique_id and PromptServer is not None:
-            try:                
+            try:
                 PromptServer.instance.send_progress_text(
                     f"{cfg_list}",
                     unique_id
@@ -275,7 +280,7 @@ class CreateCFGScheduleFloatList:
                 pass
 
         return (cfg_list,)
-    
+
 class CreateScheduleFloatList:
     @classmethod
     def INPUT_TYPES(s):
@@ -296,7 +301,7 @@ class CreateScheduleFloatList:
     RETURN_TYPES = ("FLOAT", )
     RETURN_NAMES = ("float_list",)
     FUNCTION = "process"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Helper node to generate a list of floats that can be used to schedule things like cfg and lora scale per step"
 
     def process(self, steps, start_value, end_value, default_value,interpolation, start_percent, end_percent, unique_id):
@@ -305,16 +310,16 @@ class CreateScheduleFloatList:
         cfg_list = [default_value] * steps
         start_idx = min(int(steps * start_percent), steps - 1)
         end_idx = min(int(steps * end_percent), steps - 1)
-        
+
         for i in range(start_idx, end_idx + 1):
             if i >= steps:
                 break
-                
+
             if end_idx == start_idx:
                 t = 0
             else:
                 t = (i - start_idx) / (end_idx - start_idx)
-            
+
             if interpolation == "linear":
                 factor = t
             elif interpolation == "ease_in":
@@ -329,7 +334,7 @@ class CreateScheduleFloatList:
             cfg_list[0] = default_value
 
         if unique_id and PromptServer is not None:
-            try:                
+            try:
                 PromptServer.instance.send_progress_text(
                     f"{cfg_list}",
                     unique_id
@@ -338,7 +343,7 @@ class CreateScheduleFloatList:
                 pass
 
         return (cfg_list,)
-    
+
 
 class DummyComfyWanModelObject:
     @classmethod
@@ -351,7 +356,7 @@ class DummyComfyWanModelObject:
     RETURN_TYPES = ("MODEL", )
     RETURN_NAMES = ("model",)
     FUNCTION = "create"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Helper node to create empty Wan model to use with BasicScheduler -node to get sigmas"
 
     def create(self, shift):
@@ -364,7 +369,7 @@ class DummyComfyWanModelObject:
                     return model_sampling
                 return None
         return (DummyModel(),)
-    
+
 class WanVideoLatentReScale:
     @classmethod
     def INPUT_TYPES(s):
@@ -377,7 +382,7 @@ class WanVideoLatentReScale:
     RETURN_TYPES = ("LATENT",)
     RETURN_NAMES = ("samples",)
     FUNCTION = "encode"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Rescale latents to match the expected range for encoding or decoding between native ComfyUI VAE and the WanVideoWrapper VAE."
 
     def encode(self, samples, direction):
@@ -421,7 +426,7 @@ class WanVideoLatentReScale:
         samples["samples"] = latents
 
         return (samples,)
-    
+
 class WanVideoSigmaToStep:
     @classmethod
     def INPUT_TYPES(s):
@@ -433,12 +438,12 @@ class WanVideoSigmaToStep:
     RETURN_TYPES = ("INT", )
     RETURN_NAMES = ("step",)
     FUNCTION = "convert"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Simply passes a float value as an integer, used to set start/end steps with sigma threshold"
 
     def convert(self, sigma):
         return (sigma,)
-    
+
 class NormalizeAudioLoudness:
     @classmethod
     def INPUT_TYPES(s):
@@ -451,13 +456,13 @@ class NormalizeAudioLoudness:
     RETURN_TYPES = ("AUDIO", )
     RETURN_NAMES = ("audio", )
     FUNCTION = "normalize"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
 
-    def normalize(self, audio, lufs):       
+    def normalize(self, audio, lufs):
         audio_input = audio["waveform"]
         sample_rate = audio["sample_rate"]
         if audio_input.dim() == 3:
-            audio_input = audio_input.squeeze(0) 
+            audio_input = audio_input.squeeze(0)
         audio_input_np = audio_input.detach().transpose(0, 1).numpy().astype(np.float32)
         audio_input_np = np.ascontiguousarray(audio_input_np)
         normalized_audio = self.loudness_norm(audio_input_np, sr=sample_rate, lufs=lufs)
@@ -465,7 +470,7 @@ class NormalizeAudioLoudness:
         out_audio = {"waveform": torch.from_numpy(normalized_audio).transpose(0, 1).unsqueeze(0).float(), "sample_rate": sample_rate}
 
         return (out_audio, )
-    
+
     def loudness_norm(self, audio_array, sr=16000, lufs=-23):
         try:
             import pyloudnorm
@@ -477,7 +482,7 @@ class NormalizeAudioLoudness:
             return audio_array
         normalized_audio = pyloudnorm.normalize.loudness(audio_array, loudness, lufs)
         return normalized_audio
-    
+
 class WanVideoPassImagesFromSamples:
     @classmethod
     def INPUT_TYPES(s):
@@ -490,7 +495,7 @@ class WanVideoPassImagesFromSamples:
     RETURN_NAMES = ("images", "output_path",)
     OUTPUT_TOOLTIPS = ("Decoded images from the samples dictionary", "Output path if provided in the samples dictionary",)
     FUNCTION = "decode"
-    CATEGORY = "WanVideoWrapper"
+    CATEGORY = "luy/wanvideo"
     DESCRIPTION = "Gets possible already decoded images from the samples dictionary, used with Multi/InfiniteTalk sampling"
 
     def decode(self, samples):
@@ -521,12 +526,12 @@ class FaceMaskFromPoseKeypoints:
         for i, pose_frame in enumerate(pose_frames):
             selected_idx, prev_center = self.select_closest_person(pose_frame, person_index if i == 0 else prev_center)
             np_frames.append(self.draw_kps(pose_frame, selected_idx))
-        
+
         if not np_frames:
             # Handle case where no frames were processed
             log.warning("No valid pose frames found, returning empty mask")
             return (torch.zeros((1, 64, 64), dtype=torch.float32),)
-            
+
         np_frames = np.stack(np_frames, axis=0)
         tensor = torch.from_numpy(np_frames).float() / 255.
         print("tensor.shape:", tensor.shape)
@@ -537,41 +542,41 @@ class FaceMaskFromPoseKeypoints:
         people = pose_frame["people"]
         if not people:
             return -1, None
-        
+
         centers = []
         valid_people_indices = []
-        
+
         for idx, person in enumerate(people):
             # Check if face keypoints exist and are valid
             if "face_keypoints_2d" not in person or not person["face_keypoints_2d"]:
                 continue
-                
+
             kps = np.array(person["face_keypoints_2d"])
             if len(kps) == 0:
                 continue
-                
+
             n = len(kps) // 3
             if n == 0:
                 continue
-                
+
             facial_kps = rearrange(kps, "(n c) -> n c", n=n, c=3)[:, :2]
-            
+
             # Check if we have valid coordinates (not all zeros)
             if np.all(facial_kps == 0):
                 continue
-                
+
             center = facial_kps.mean(axis=0)
-            
+
             # Check if center is valid (not NaN or infinite)
             if np.isnan(center).any() or np.isinf(center).any():
                 continue
-                
+
             centers.append(center)
             valid_people_indices.append(idx)
-        
+
         if not centers:
             return -1, None
-            
+
         if isinstance(prev_center_or_index, (int, np.integer)):
             # First frame: use person_index, but map to valid people
             if 0 <= prev_center_or_index < len(valid_people_indices):
@@ -603,58 +608,58 @@ class FaceMaskFromPoseKeypoints:
         width, height = pose_frame["canvas_width"], pose_frame["canvas_height"]
         canvas = np.zeros((height, width, 3), dtype=np.uint8)
         people = pose_frame["people"]
-        
+
         if person_index < 0 or person_index >= len(people):
             return canvas  # Out of bounds, return blank
-            
+
         person = people[person_index]
-        
+
         # Check if face keypoints exist and are valid
         if "face_keypoints_2d" not in person or not person["face_keypoints_2d"]:
             return canvas  # No face keypoints, return blank
-            
+
         face_kps_data = person["face_keypoints_2d"]
         if len(face_kps_data) == 0:
             return canvas  # Empty keypoints, return blank
-            
+
         n = len(face_kps_data) // 3
         if n < 17:  # Need at least 17 points for outer contour
             return canvas  # Not enough keypoints, return blank
-            
+
         facial_kps = rearrange(np.array(face_kps_data), "(n c) -> n c", n=n, c=3)[:, :2]
-        
+
         # Check if we have valid coordinates (not all zeros)
         if np.all(facial_kps == 0):
             return canvas  # All keypoints are zero, return blank
-            
+
         # Check for NaN or infinite values
         if np.isnan(facial_kps).any() or np.isinf(facial_kps).any():
             return canvas  # Invalid coordinates, return blank
-        
+
         # Check for negative coordinates or coordinates that would create streaks
         if np.any(facial_kps < 0):
             return canvas  # Negative coordinates, likely bad detection
-            
+
         # Check if coordinates are reasonable (not too close to edges which might indicate bad detection)
         min_margin = 5  # Minimum distance from edges
-        if (np.any(facial_kps[:, 0] < min_margin) or 
-            np.any(facial_kps[:, 1] < min_margin) or 
-            np.any(facial_kps[:, 0] > width - min_margin) or 
+        if (np.any(facial_kps[:, 0] < min_margin) or
+            np.any(facial_kps[:, 1] < min_margin) or
+            np.any(facial_kps[:, 0] > width - min_margin) or
             np.any(facial_kps[:, 1] > height - min_margin)):
             # Check if this looks like a streak to corner (many points near 0,0)
             corner_points = np.sum((facial_kps[:, 0] < min_margin) & (facial_kps[:, 1] < min_margin))
             if corner_points > 3:  # Too many points near corner, likely bad detection
                 return canvas
-                
+
         facial_kps = facial_kps.astype(np.int32)
-        
+
         # Ensure coordinates are within canvas bounds
         facial_kps[:, 0] = np.clip(facial_kps[:, 0], 0, width - 1)
         facial_kps[:, 1] = np.clip(facial_kps[:, 1], 0, height - 1)
-        
+
         part_color = (255, 255, 255)
         outer_contour = facial_kps[:17]
-        
+
         # Additional validation for the contour before drawing
         # Check if contour points are too spread out (indicating bad detection)
         if len(outer_contour) >= 3:
@@ -663,11 +668,11 @@ class FaceMaskFromPoseKeypoints:
             max_x, max_y = np.max(outer_contour, axis=0)
             contour_width = max_x - min_x
             contour_height = max_y - min_y
-            
+
             # If contour spans more than 80% of canvas, likely bad detection
             if (contour_width > 0.8 * width or contour_height > 0.8 * height):
                 return canvas
-                
+
             # Check if we have a valid contour (at least 3 unique points)
             unique_points = np.unique(outer_contour, axis=0)
             if len(unique_points) >= 3:
@@ -675,13 +680,103 @@ class FaceMaskFromPoseKeypoints:
                 # Calculate area to see if it's too large or too small
                 contour_area = cv2.contourArea(outer_contour)
                 canvas_area = width * height
-                
+
                 # If contour is less than 0.1% or more than 50% of canvas, skip
                 if 0.001 * canvas_area <= contour_area <= 0.5 * canvas_area:
                     cv2.fillPoly(canvas, pts=[outer_contour], color=part_color)
-            
+
         return canvas
-    
+
+
+class DrawGaussianNoiseOnImage:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required": {
+                    "image": ("IMAGE", ),
+                    "mask": ("MASK", ),
+                  },
+                  "optional": {
+                    "device": (["cpu", "gpu"], {"default": "cpu", "tooltip": "Device to use for processing"}),
+                    "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
+                }
+        }
+
+    RETURN_TYPES = ("IMAGE", )
+    RETURN_NAMES = ("images",)
+    FUNCTION = "apply"
+    CATEGORY = "luy/wanvideo"
+    DESCRIPTION = "Fills the background (masked area) with Gaussian noise sampled using the mean and variance of the subject (unmasked) region."
+
+    def apply(self, image, mask, device="cpu", seed=0):
+        B, H, W, C = image.shape
+        BM, HM, WM = mask.shape
+
+        processing_device = main_device if device == "gpu" else torch.device("cpu")
+
+        in_masks = mask.clone().to(processing_device)
+        in_images = image.clone().to(processing_device)
+
+        # Resize mask to match image dimensions
+        if HM != H or WM != W:
+            in_masks = F.interpolate(mask.unsqueeze(1), size=(H, W), mode='nearest-exact').squeeze(1)
+
+        # Match batch sizes
+        if B > BM:
+            in_masks = in_masks.repeat((B + BM - 1) // BM, 1, 1)[:B]
+        elif BM > B:
+            in_masks = in_masks[:B]
+
+        output_images = []
+
+        # Set random seed for reproducibility
+        generator = torch.Generator(device=processing_device).manual_seed(seed)
+
+        for i in tqdm(range(B), desc="DrawGaussianNoiseOnImage batch"):
+            curr_mask = in_masks[i]
+            img_idx = min(i, B - 1)
+            curr_image = in_images[img_idx]
+
+            # Expand mask to 3 channels
+            mask_expanded = curr_mask.unsqueeze(-1).expand(-1, -1, 3)
+
+            # Calculate mean and std per channel from the subject region (where mask is 1)
+            subject_mask = mask_expanded > 0.5
+
+            # Initialize noise tensor
+            noise = torch.zeros_like(curr_image)
+
+            for c in range(C):
+                channel = curr_image[:, :, c]
+                channel_mask = subject_mask[:, :, c]
+
+                if channel_mask.sum() > 0:
+                    # Get subject pixels
+                    subject_pixels = channel[channel_mask]
+
+                    # Calculate statistics
+                    mean = subject_pixels.mean()
+                    std = subject_pixels.std()
+
+                    # Generate Gaussian noise for this channel
+                    noise[:, :, c] = torch.normal(mean=mean.item(), std=std.item(),
+                                                  size=(H, W), generator=generator,
+                                                  device=processing_device)
+
+            # Clamp noise to valid range
+            noise = torch.clamp(noise, 0.0, 1.0)
+
+            # Apply: keep subject, fill background with noise
+            masked_image = curr_image * mask_expanded + noise * (1 - mask_expanded)
+            output_images.append(masked_image)
+
+        # If no masks were processed, return empty tensor
+        if not output_images:
+            return (torch.zeros((0, H, W, 3), dtype=image.dtype),)
+
+        out_rgb = torch.stack(output_images, dim=0).cpu()
+
+        return (out_rgb, )
+
 NODE_CLASS_MAPPINGS = {
     "WanVideoImageResizeToClosest": WanVideoImageResizeToClosest,
     "WanVideoVACEStartToEndFrame": WanVideoVACEStartToEndFrame,
@@ -694,6 +789,7 @@ NODE_CLASS_MAPPINGS = {
     "NormalizeAudioLoudness": NormalizeAudioLoudness,
     "WanVideoPassImagesFromSamples": WanVideoPassImagesFromSamples,
     "FaceMaskFromPoseKeypoints": FaceMaskFromPoseKeypoints,
+    "DrawGaussianNoiseOnImage": DrawGaussianNoiseOnImage,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "WanVideoImageResizeToClosest": "WanVideo Image Resize To Closest",
@@ -707,4 +803,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "NormalizeAudioLoudness": "Normalize Audio Loudness",
     "WanVideoPassImagesFromSamples": "WanVideo Pass Images From Samples",
     "FaceMaskFromPoseKeypoints": "Face Mask From Pose Keypoints",
+    "DrawGaussianNoiseOnImage": "Draw Gaussian Noise On Image",
 }

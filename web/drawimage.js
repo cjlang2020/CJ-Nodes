@@ -99,8 +99,9 @@ function updatePreview(node, base64, width, height) {
             canvas.width = drawWidth;
             canvas.height = drawHeight;
 
-            // 清空并绘制图片
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+// 填充白色背景并绘制图片
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
 
             container.style.display = "block";

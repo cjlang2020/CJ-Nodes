@@ -51,6 +51,7 @@ class ImageDrawNode(BaseNode):
             if len(base64_string) % 4 != 0:
                 padding_needed = 4 - (len(base64_string) % 4)
                 base64_string += '=' * padding_needed
+
             try:
                 image_data = base64.b64decode(base64_string, validate=True)
             except Exception as e:
@@ -58,10 +59,23 @@ class ImageDrawNode(BaseNode):
 
             try:
                 image = Image.open(io.BytesIO(image_data)).convert("RGB")
-                image_np_temp = np.array(image)
+                image_np = np.array(image)
             except Exception as e:
                 raise ValueError(f"无法从解码数据创建图像: {str(e)}")
-            image_np = np.array(image).astype(np.float32) / 255.0
+
+            # 确保图像数据正确转换为RGB格式并保持颜色信息
+            if image_np.dtype != np.uint8:
+                image_np = image_np.astype(np.uint8)
+
+            # 转换为浮点数并归一化到[0,1]范围
+            image_np = image_np.astype(np.float32) / 255.0
+
+            # 确保是3通道RGB图像
+            if len(image_np.shape) == 2:  # 如果是灰度图，转换为RGB
+                image_np = np.stack([image_np, image_np, image_np], axis=-1)
+            elif image_np.shape[-1] == 4:  # 如果是RGBA，去掉alpha通道
+                image_np = image_np[:, :, :3]
+
             image_tensor = torch.from_numpy(image_np).unsqueeze(0)
 
             return (image_tensor,)

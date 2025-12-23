@@ -1,4 +1,0 @@
-到这里下载你对应版本的llama-cpp，主要看你的python版本：
-https://github.com/JamePeng/llama-cpp-python/releases
-
-否者插件装不上
