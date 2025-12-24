@@ -13,6 +13,7 @@
 	},
 	"vl_prompts": {
 		"默认图片识别": "V_默认图片识别.txt",
+		"@手绘反推": "V_@手绘_反推.txt",
 		"@获取Bbox边界（JSON格式）":"V_获取Bbox边界_JSON格式.txt",
 		"洗图-反推": "V_洗图_反推.txt",
 		"洗图-反推json格式":"V_反推json格式.txt",

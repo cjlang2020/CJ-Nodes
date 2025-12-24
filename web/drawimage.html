@@ -135,7 +135,7 @@
           <el-button
             type="primary"
             size="small"
-            style="width: 80px; max-width: 100%;"
+            style="width: 80px;"
             @click="setPresetSize(600, 600)"
           >
           (600×600)
@@ -143,7 +143,7 @@
           <el-button
             type="primary"
             size="small"
-            style="width: 80px; max-width: 100%;"
+            style="width: 80px;"
             @click="setPresetSize(750, 424)"
           >
           (750×424)
@@ -151,15 +151,13 @@
           <el-button
             type="primary"
             size="small"
-            style="width: 80px; max-width: 100%;"
+            style="width: 80px;"
             @click="setPresetSize(424, 750)"
           >
           (424×750)
           </el-button>
         </div>
       </div>
-
-
 
       <!-- 画笔大小调整 -->
       <div class="tool-group">
@@ -194,7 +192,7 @@
 <!-- 画笔颜色和预设颜色 -->
       <div class="tool-group">
         <div class="tool-label">画笔颜色</div>
-<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
           <el-color-picker
             v-model="brushColor"
             show-alpha
@@ -215,7 +213,7 @@
 <!-- 背景颜色设置 -->
       <div class="tool-group">
         <div class="tool-label">背景颜色</div>
-<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
           <el-color-picker
             v-model="backgroundColor"
             @change="changeBackgroundColor"
