@@ -99,7 +99,7 @@ function updatePreview(node, base64, width, height) {
             canvas.width = drawWidth;
             canvas.height = drawHeight;
 
-// 填充白色背景并绘制图片
+            // 填充白色背景并绘制图片
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
@@ -176,7 +176,6 @@ class DrawDialog extends ComfyDialog {
                             height: event.data.height,
                             ratio: event.data.ratio
                         };
-
                         // 更新预览图（传递原始尺寸确保比例一致）
                         updatePreview(targetNode, event.data.data, event.data.width, event.data.height);
                     } else {

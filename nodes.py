@@ -1,5 +1,5 @@
 from .service.PoseKeypointData import PoseKeypointData
-from .service.EmptyLatentImage import EmptyLatentImage
+from .service.LatentUtils import (EmptyLatentImage,LuyLoadLatent,LuySaveLatent)
 from .service.BatchImageLoader import BatchImageLoader
 from .service.PromptSelectorNode import (PromptSelectorNode,PromptGenerator)
 from .service.ImageDrawNode import (ImageDrawNode,ImageMaskNode)
@@ -14,7 +14,7 @@ from .service.MultiFunAINode import MultiFunAINode
 from .service.StringJoinDeal import StringJoinDeal
 from .service.ForItemByIndex import ForItemByIndex
 from .service.FileDeal import (FileReadDeal,FileSaveDeal)
-from .service.LoadImageUtils import (LoadImageUtils,FolderSelectNode)
+from .service.LoadImageUtils import (LoadImageUtils,FolderSelectNode,LuyLoadImageBatch,ShowCanvasImage)
 from .service.VramClean import VRAMClean
 from .service.ConditionalSkip import ConditionalSkip
 
@@ -22,6 +22,8 @@ from .service.ConditionalSkip import ConditionalSkip
 NODE_CLASS_MAPPINGS = {
     "PoseKeypointData": PoseKeypointData,
     "LuyEmptyLatentImage": EmptyLatentImage,
+    "LuyLoadLatent": LuyLoadLatent,
+    "LuySaveLatent": LuySaveLatent,
     "BatchImageLoader": BatchImageLoader,
     "PromptSelectorNode": PromptSelectorNode,
     "PromptGenerator":PromptGenerator,
@@ -49,11 +51,15 @@ NODE_CLASS_MAPPINGS = {
     "LoadImageUtils":LoadImageUtils,
     "FolderSelectNode":FolderSelectNode,
     "VRAMClean":VRAMClean,
-    "ConditionalSkip":ConditionalSkip
+    "ConditionalSkip":ConditionalSkip,
+    "LuyLoadImageBatch":LuyLoadImageBatch,
+    "ShowCanvasImage":ShowCanvasImage
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "PoseKeypointData": "Luy-POSE数据转换",
     "LuyEmptyLatentImage": "Luy-创建空Latent",
+    "LuyLoadLatent": "Luy-加载Latent",
+    "LuySaveLatent": "Luy-保存Latent",
     "BatchImageLoader": "Luy-批量读取文件夹下图片",
     "PromptSelectorNode": "Luy-提示词选择器",
     "PromptGenerator":"Luy-提示词选择节点",
@@ -81,5 +87,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LoadImageUtils":"Luy-加载图片",
     "FolderSelectNode":"Luy-选择文件夹",
     "VRAMClean":"Luy-清除显存占用",
-    "ConditionalSkip":"luy-跳过分支"
+    "ConditionalSkip":"Luy-跳过分支",
+    "LuyLoadImageBatch":"Luy-批量加载",
+    "ShowCanvasImage":"Luy-画布图片显示"
 }
