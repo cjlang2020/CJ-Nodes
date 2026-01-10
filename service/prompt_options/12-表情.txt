@@ -1,0 +1,32 @@
+# 姿势选项 / Pose Options
+大笑（Laughing）
+撇嘴（Twisting Mouth）
+害羞（Shy）
+愤怒（Angry）
+惊讶（Surprised）
+得意（Proud）
+委屈（Grievanced）
+发呆（Staring Blankly）
+撒娇（Acting Coquettishly）
+紧张（Nervous）
+欣慰（Grateful）
+茫然（Dazed）
+狂喜（Ecstatic）
+鄙夷（Scornful）
+疲惫（Exhausted）
+偷笑（Snickering）
+皱眉（Frowning）
+傲娇（Tsundere）
+恐惧（Fearful）
+好奇（Curious）
+失落（Disheartened）
+满足（Content）
+烦躁（Irritable）
+宠溺（Doting）
+焦虑（Anxious）
+释怀（Relieved）
+懵懂（Ignorant）
+暴怒（Furious）
+羡慕（Envious）
+慵懒（Lazy）
+# 下方为用户自行添加的预设项

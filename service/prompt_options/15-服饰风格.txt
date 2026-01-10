@@ -1,0 +1,52 @@
+# 穿衣风格选项 / Pose Options
+民国风（Republic of China Style）
+古装汉服（Ancient Style Hanfu）
+乡村搭配（Countryside Outfit）
+杀马特风格（Shamate Style）
+赛博风格（Cyber Style）
+内衣装（Lingerie Style）
+比基尼（Bikini Style）
+机甲风（Mecha Style）
+日系原宿风（Japanese Harajuku Style）
+法式慵懒风（French Lazy Style）
+美式复古风（American Retro Style）
+韩系通勤风（Korean Office Style）
+港风复古（Hong Kong Retro Style）
+工装风（Workwear Style）
+洛丽塔（Lolita Style）
+哥特风（Gothic Style）
+朋克风（Punk Style）
+新中式风格（New Chinese Style）
+街头嘻哈风（Street Hip-hop Style）
+学院风（Preppy Style）
+极简风（Minimalist Style）
+波西米亚风（Bohemian Style）
+甜妹风（Sweet Girl Style）
+盐系风（Salt Style）
+轻熟风（Light Mature Style）
+机能风（Techwear Style）
+森系风（Forest Style）
+雅痞风（Yuppie Style）
+国潮风（Guochao Style）
+蒸汽波风格（Vaporwave Style）
+暗黑系（Dark Style）
+度假风（Vacation Style）
+复古英伦风（Vintage British Style）
+旗袍风（Cheongsam Style）
+运动风（Sporty Style）
+宫廷风（Palace Style）
+牛仔风（Denim Style）
+军装风（Military Style）
+萝莉风（Loli Style）
+御姐风（Royal Sister Style）
+古风仙侠风（Ancient Immortal Style）
+废土风（Wasteland Style）
+轻奢风（Light Luxury Style）
+民族风（Ethnic Style）
+女仆装（Maid Style）
+水手服（Sailor Suit Style）
+摇滚风（Rock Style）
+汉服改良风（Improved Hanfu Style）
+未来科技风（Futuristic Tech Style）
+复古迪斯科风（Vintage Disco Style）
+# 下方为用户自行添加的预设项
