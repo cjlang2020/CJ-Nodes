@@ -25,7 +25,7 @@ class Qwen3Deal:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("output",)
     FUNCTION = "process"
-    CATEGORY = "luy/ollama-cpp"
+    CATEGORY = "luy/AI"
 
     def process(self, model, keep_model_loaded, max_tokens, prompt, seed):
         mm.soft_empty_cache()

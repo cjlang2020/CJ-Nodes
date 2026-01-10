@@ -22,7 +22,7 @@ class StringJoinDeal:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("response",)
     FUNCTION = "strdeal"
-    CATEGORY = "luy"
+    CATEGORY = "luy/字符处理"
 
     def strdeal(self, text1, join_type, text2):
         """

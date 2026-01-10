@@ -43,7 +43,7 @@ class QwenEditAddLlamaTemplate(BaseNode):
     RETURN_TYPES = ("CONDITIONING",)
     RETURN_NAMES = ("positive",)
     FUNCTION = "execute"
-    CATEGORY = "luy"
+    CATEGORY = "luy/Edit"
 
     def execute(self,image1=None, image2=None, image3=None,clip=None,vae=None,prompt="",llama_template="",funcType=""):
         ref_latents = []

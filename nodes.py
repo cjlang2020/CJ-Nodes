@@ -1,7 +1,7 @@
-from .service.PoseKeypointData import PoseKeypointData
+from .service.Any2Any import (Any2Number,Any2String)
 from .service.LatentUtils import (EmptyLatentImage,LuyLoadLatent,LuySaveLatent)
-from .service.BatchImageLoader import BatchImageLoader
-from .service.PromptSelectorNode import (PromptSelectorNode,PromptGenerator)
+from .service.BatchImageLoader import (BatchImageLoader,ImagePathScanner,SingleImageLoader,StringArrayIndexer)
+from .service.PromptSelectorNode import (PromptSelectorNode,PromptGenerator,Wan22PromptSelector)
 from .service.ImageDrawNode import (ImageDrawNode,ImageMaskNode)
 from .service.RGBA_save_tools import SavePNGZIP_and_Preview_RGBA_AnimatedWEBP
 from .service.MaskedImage2Png import (MaskedImage2Png,DrawImageBbox)
@@ -17,16 +17,25 @@ from .service.FileDeal import (FileReadDeal,FileSaveDeal)
 from .service.LoadImageUtils import (LoadImageUtils,FolderSelectNode,LuyLoadImageBatch,ShowCanvasImage)
 from .service.VramClean import VRAMClean
 from .service.ConditionalSkip import ConditionalSkip
+from.service.FirstEndFrameDeal import FirstEndFrameDeal
+from.service.MultiFrameVideo import MultiFrameVideo
+from.service.VisClipCopy import VisClipCopyImageReference
+
 
 
 NODE_CLASS_MAPPINGS = {
-    "PoseKeypointData": PoseKeypointData,
+    "Any2Number": Any2Number,
+    "Any2String": Any2String,
     "LuyEmptyLatentImage": EmptyLatentImage,
     "LuyLoadLatent": LuyLoadLatent,
     "LuySaveLatent": LuySaveLatent,
+    "ImagePathScanner": ImagePathScanner,
+    "SingleImageLoader": SingleImageLoader,
+    "StringArrayIndexer": StringArrayIndexer,
     "BatchImageLoader": BatchImageLoader,
     "PromptSelectorNode": PromptSelectorNode,
     "PromptGenerator":PromptGenerator,
+    "Wan22PromptSelector":Wan22PromptSelector,
     "ImageDrawNode":ImageDrawNode,
     "ImageMaskNode":ImageMaskNode,
     "MaskedImage2Png":MaskedImage2Png,
@@ -53,16 +62,24 @@ NODE_CLASS_MAPPINGS = {
     "VRAMClean":VRAMClean,
     "ConditionalSkip":ConditionalSkip,
     "LuyLoadImageBatch":LuyLoadImageBatch,
-    "ShowCanvasImage":ShowCanvasImage
+    "ShowCanvasImage":ShowCanvasImage,
+    "MultiFrameVideo":MultiFrameVideo,
+    "FirstEndFrameDeal":FirstEndFrameDeal,
+    "VisClipCopyImageReference":VisClipCopyImageReference
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "PoseKeypointData": "Luy-POSE数据转换",
+    "Any2Number": "Luy-Any2Number",
+    "Any2String": "Luy-Any2String",
     "LuyEmptyLatentImage": "Luy-创建空Latent",
     "LuyLoadLatent": "Luy-加载Latent",
     "LuySaveLatent": "Luy-保存Latent",
+    "ImagePathScanner": "Luy-读取文件夹下图片路径",
     "BatchImageLoader": "Luy-批量读取文件夹下图片",
-    "PromptSelectorNode": "Luy-提示词选择器",
-    "PromptGenerator":"Luy-提示词选择节点",
+    "SingleImageLoader": "Luy-单张图片加载",
+    "StringArrayIndexer": "Luy-读取数组值",
+    "PromptSelectorNode": "Luy-提示词Web选择器",
+    "PromptGenerator":"Luy-画图提示词",
+    "Wan22PromptSelector":"Luy-Wan2.2提示词",
     "ImageDrawNode": "Luy-涂鸦绘制",
     "ImageMaskNode": "Luy-添加蒙版",
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层转视频",
@@ -89,5 +106,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "VRAMClean":"Luy-清除显存占用",
     "ConditionalSkip":"Luy-跳过分支",
     "LuyLoadImageBatch":"Luy-批量加载",
-    "ShowCanvasImage":"Luy-画布图片显示"
+    "ShowCanvasImage":"Luy-画布图片显示",
+    "MultiFrameVideo":"Luy-多帧视频处理",
+    "FirstEndFrameDeal":"Luy-首尾帧处理",
+    "VisClipCopyImageReference":"Luy-视觉参考"
 }

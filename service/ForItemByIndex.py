@@ -17,7 +17,7 @@ class ForItemByIndex:
     RETURN_NAMES = ("array", "count")
     FUNCTION = "process_text"
     OUTPUT_IS_LIST = (True, False)
-    CATEGORY = "luy"
+    CATEGORY = "luy/字符处理"
 
     def process_text(self, text, count, isRandom, min, max):
         if isRandom:

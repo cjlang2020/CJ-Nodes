@@ -38,7 +38,7 @@ class ImageDeal:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("推理文本",)
     FUNCTION = "process"
-    CATEGORY = "luy/ollama-cpp"
+    CATEGORY = "luy/AI"
 
     def process(self, model, mmproj_model, keep_model_loaded, max_tokens,
                 preset_prompt, custom_prompt, system_prompt, video_input,

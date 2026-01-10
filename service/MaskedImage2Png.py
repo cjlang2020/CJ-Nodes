@@ -34,7 +34,7 @@ class MaskedImage2Png(BaseNode):
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "apply_mask"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def apply_mask(self, image: torch.Tensor, mask: torch.Tensor, keep_alpha: bool):
         """
@@ -121,7 +121,7 @@ class DrawImageBbox(BaseNode):
     RETURN_TYPES = ("IMAGE", "IMAGE",)
     RETURN_NAMES = ("BBOX线框图", "裁切图",)
     FUNCTION = "draw_bbox"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def draw_bbox(self, image: Any, bbox: str) -> tuple[torch.Tensor, torch.Tensor]:
         # 解析边界框坐标（增强容错性）

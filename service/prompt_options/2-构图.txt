@@ -1,0 +1,32 @@
+# 构图选项 / Pose Options
+二分法（Dichotomy）
+对称法（Symmetry）
+三分法（Rule of Thirds）
+引导线（Leading Lines）
+框架式（Framing）
+对角线（Diagonal）
+三角形（Triangular）
+黄金分割（Golden Ratio）
+中心构图（Central Composition）
+留白（Negative Space）
+重复构图（Repetition）
+棋盘式（Checkerboard）
+放射式（Radiating）
+剪影构图（Silhouette）
+前景构图（Foreground）
+层次构图（Layering）
+对称破缺（Broken Symmetry）
+S 形构图（S-curve）
+C 形构图（C-curve）
+三分线交叉点（Power Points）
+对比构图（Contrast）
+紧凑构图（Tight Framing）
+全景构图（Panoramic）
+特写构图（Close-up）
+鸟瞰构图（Aerial View）
+低角度构图（Low Angle）
+高角度构图（High Angle）
+对称框架（Symmetric Framing）
+动态构图（Dynamic Composition）
+平衡构图（Balanced Composition）
+# 下方为用户自行添加的预设项

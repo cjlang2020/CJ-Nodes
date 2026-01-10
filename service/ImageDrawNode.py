@@ -32,7 +32,7 @@ class ImageDrawNode(BaseNode):
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("输出图片",)
     FUNCTION = "process_image"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def process_image(self, base64_string):
         """

@@ -35,7 +35,7 @@ class LuyLoadImageBatch:
     RETURN_TYPES = ("image_batch", "INT")
     RETURN_NAMES = ("image_batch", "count")
     FUNCTION = "process_batch"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def process_batch(self, batch):
         target_dir = os.path.join(self.batch_dir, batch)
@@ -104,7 +104,7 @@ class ShowCanvasImage:
     RETURN_TYPES = ("IMAGE", "MASK")
     RETURN_NAMES = ("image", "mask")
     FUNCTION = "load_single_image"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def load_single_image(self, batch, image):
         if batch == "None" or image == "None":
@@ -158,7 +158,7 @@ class LoadImageUtils:
 
     RETURN_TYPES = ("IMAGE", "MASK")
     FUNCTION = "load_image"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
 
     def load_image(self, image):

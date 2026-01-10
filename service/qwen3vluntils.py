@@ -26,7 +26,7 @@ def image2base64(image):
 def load_prompt_options(filename):
     txt_str=""
     try:
-        with open(os.path.join(os.path.dirname(__file__), "prompt_options", filename), encoding="utf-8") as f:
+        with open(os.path.join(os.path.dirname(__file__), "ai_prompt", filename), encoding="utf-8") as f:
             txt_str=f.read()
     except FileNotFoundError:
         pass

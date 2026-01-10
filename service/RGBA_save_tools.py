@@ -35,7 +35,7 @@ class SavePNGZIP_and_Preview_RGBA_AnimatedWEBP:
 
     OUTPUT_NODE = True
 
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def save_images(self, images_rgb, images_alpha, fps, filename_prefix, lossless, quality, method, num_frames=0, prompt=None, extra_pnginfo=None):
         method = self.methods.get(method)

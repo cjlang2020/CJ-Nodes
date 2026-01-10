@@ -47,7 +47,7 @@ class MultiFunAINode:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("输出提示词",)
     FUNCTION = "process_prompt"
-    CATEGORY = "luy"
+    CATEGORY = "luy/AI"
 
     def process_prompt(self, model, keep_model_loaded, max_tokens, choice_type, prompt, seed):
         mm.soft_empty_cache()

@@ -90,7 +90,7 @@ class VRAMClean:
     RETURN_NAMES = ("output", "SEED", "已释放(GB)")
     OUTPUT_NODE = True
     FUNCTION = "set_vram"
-    CATEGORY = "luy"
+    CATEGORY = "luy/"
 
     @classmethod
     def IS_CHANGED(cls, seed=0, **kwargs):
