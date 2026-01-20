@@ -2,6 +2,8 @@
 > 可通过配置选择相关的场景描述，生成的描述可通过本地大模型处理，更方便，不用调用远程或者Ollama。
 github：https://github.com/cjlang2020/CJ-Nodes
 
+> 到这里下载你对应版本的llama-cpp，主要看你的python版本：https://github.com/JamePeng/llama-cpp-python/releases
+
 ## 安装
 > 直接下载到 ComfyUI\custom_node目录下即可，无任何依赖，不用安装
 > 模型下载地址（按需下载）：
