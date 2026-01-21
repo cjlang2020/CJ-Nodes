@@ -1,0 +1,5 @@
+白平衡校正（White Balance Correction）
+色彩分级优化（Color Grading Optimization）
+消除色差（Chromatic Aberration Removal）
+匹配 sRGB 色彩标准（sRGB Color Space Matching）
+参照专业显示器校准参数（Referencing Professional Monitor Calibration Parameters）

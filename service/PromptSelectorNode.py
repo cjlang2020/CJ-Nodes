@@ -104,6 +104,7 @@ class PromptGenerator:
                     "placeholder": "请输入自定义提示词...会串接到前面",
                     "rows": 5
                 }),  # lora关键词
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "control_after_generate": True, "tooltip": "The random seed used for creating the noise."}),
             }
         }
 

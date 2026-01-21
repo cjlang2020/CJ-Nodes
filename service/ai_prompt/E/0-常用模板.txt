@@ -1,0 +1,3 @@
+高清细化##8K 高清、丰富细节（8K Ultra HD, Abundant Details）
+老照片修复##优化数字文件画质、去除模糊与噪点、直方图均衡化、反锐化蒙版、色彩分级优化、白平衡校正、微对比度增强及校正镜头畸变（Digital File Quality Optimization, Deblurring and Noise Reduction, Histogram Equalization, Unsharp Mask (USM), Color Grading Optimization, White Balance Correction, Micro-Contrast Enhancement and Lens Distortion Correction）
+人像冷白皮##人像冷调白肤光影优化（Portrait Retouching with Cool Tone, Bright Skin & Light and Shadow Optimization）

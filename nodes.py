@@ -23,7 +23,7 @@ from .service.VisClipCopy import VisClipCopyImageReference
 from .service.LuyWanImageToVideoSVIPro import (LuyWanImageToVideoSVIPro,LuyWanImageToVideoSVIPro2)
 from .service.LuyWanFirstLastFrameToVideo import (LuyWanFirstLastFrameToVideo,LuyWanFirstLastFrameToVideo2)
 from .service.QwenMultiangleCameraNode import (QwenMultiangleCameraNode,QwenPlusMultiangleCameraNode,QwenLoraMultiangleCameraNode,QwenMultiangleLightningNode)
-
+from .service.EditPromptNode import EditPromptNode
 
 NODE_CLASS_MAPPINGS = {
     "Any2Number": Any2Number,
@@ -75,7 +75,8 @@ NODE_CLASS_MAPPINGS = {
     "QwenMultiangleCameraNode": QwenMultiangleCameraNode,
     "QwenPlusMultiangleCameraNode": QwenPlusMultiangleCameraNode,
     "QwenLoraMultiangleCameraNode": QwenLoraMultiangleCameraNode,
-    "QwenMultiangleLightningNode":QwenMultiangleLightningNode
+    "QwenMultiangleLightningNode":QwenMultiangleLightningNode,
+    "EditPromptNode":EditPromptNode
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Any2Number": "Luy-Any2Number",
@@ -127,6 +128,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "QwenMultiangleCameraNode": "Luy-镜头视角控制（柯基版）",
     "QwenPlusMultiangleCameraNode": "Luy-镜头视角控制（魔改版）",
     "QwenLoraMultiangleCameraNode": "Luy-镜头视角控制（Lora标准版）",
-    "QwenMultiangleLightningNode":"Luy-多角度光照控制节点"
+    "QwenMultiangleLightningNode":"Luy-多角度光照控制节点",
+    "EditPromptNode":"Luy-自定义提示词"
 }
 

@@ -1,0 +1,5 @@
+直方图均衡化（Histogram Equalization）
+反锐化蒙版（Unsharp Mask, USM）
+微对比度增强（Micro-Contrast Enhancement）
+阴影细节还原（Shadow Detail Recovery）
+伽马校正（Gamma Correction）

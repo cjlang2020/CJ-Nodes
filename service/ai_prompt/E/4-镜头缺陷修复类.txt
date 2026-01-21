@@ -1,0 +1,3 @@
+校正镜头畸变（Lens Distortion Correction）
+抗锯齿处理（Anti-Aliasing Processing）
+减少 JPEG 压缩失真（JPEG Compression Artifact Reduction）
