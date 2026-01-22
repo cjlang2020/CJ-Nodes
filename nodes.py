@@ -20,8 +20,7 @@ from .service.ConditionalSkip import ConditionalSkip
 from .service.FirstEndFrameDeal import FirstEndFrameDeal
 from .service.MultiFrameVideo import MultiFrameVideo
 from .service.VisClipCopy import VisClipCopyImageReference
-from .service.LuyWanImageToVideoSVIPro import (LuyWanImageToVideoSVIPro,LuyWanImageToVideoSVIPro2)
-from .service.LuyWanFirstLastFrameToVideo import (LuyWanFirstLastFrameToVideo,LuyWanFirstLastFrameToVideo2)
+from .service.LuyWanImageToVideoSVIPro import (LuyWanImageToVideoSVIPro)
 from .service.QwenMultiangleCameraNode import (QwenMultiangleCameraNode,QwenPlusMultiangleCameraNode,QwenLoraMultiangleCameraNode,QwenMultiangleLightningNode)
 from .service.EditPromptNode import EditPromptNode
 
@@ -69,9 +68,6 @@ NODE_CLASS_MAPPINGS = {
     "FirstEndFrameDeal":FirstEndFrameDeal,
     "VisClipCopyImageReference":VisClipCopyImageReference,
     "LuyWanImageToVideoSVIPro":LuyWanImageToVideoSVIPro,
-    "LuyWanImageToVideoSVIPro2":LuyWanImageToVideoSVIPro2,
-    "LuyWanFirstLastFrameToVideo":LuyWanFirstLastFrameToVideo,
-    "LuyWanFirstLastFrameToVideo2":LuyWanFirstLastFrameToVideo2,
     "QwenMultiangleCameraNode": QwenMultiangleCameraNode,
     "QwenPlusMultiangleCameraNode": QwenPlusMultiangleCameraNode,
     "QwenLoraMultiangleCameraNode": QwenLoraMultiangleCameraNode,
@@ -121,10 +117,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "MultiFrameVideo":"Luy-多帧视频处理",
     "FirstEndFrameDeal":"Luy-首尾帧处理",
     "VisClipCopyImageReference":"Luy-视觉参考",
-    "LuyWanImageToVideoSVIPro":"Luy-图像转视频SVIPro",
-    "LuyWanImageToVideoSVIPro2":"Luy-图像转视频SVIPro2",
-    "LuyWanFirstLastFrameToVideo2":"Luy-首尾帧转视频(支持历史Latent无缝衔接)",
-    "LuyWanFirstLastFrameToVideo":"Luy-首尾帧转视频",
+    "LuyWanImageToVideoSVIPro":"Luy-图像转视频SVI-Plus",
     "QwenMultiangleCameraNode": "Luy-镜头视角控制（柯基版）",
     "QwenPlusMultiangleCameraNode": "Luy-镜头视角控制（魔改版）",
     "QwenLoraMultiangleCameraNode": "Luy-镜头视角控制（Lora标准版）",
