@@ -14,16 +14,16 @@ class MouseDrawNode:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "canvas_width": ("INT", {"default": 512, "min": 128, "max": 2048}),
-                "canvas_height": ("INT", {"default": 512, "min": 128, "max": 2048}),
-                "draw_data": ("STRING", {"default": "empty"})  # 从hidden移到required
+                "canvas_width": ("INT", {"default": 768, "min": 128, "max": 2048}),
+                "canvas_height": ("INT", {"default": 1360, "min": 128, "max": 2048}),
+                "draw_data": ("STRING", {"default": "empty"})
             }
         }
 
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("draw_image",)
     FUNCTION = "generate_image"
-    CATEGORY = "Luy"
+    CATEGORY = "luy"
 
     def generate_image(self, canvas_width, canvas_height, draw_data="empty"):
         """

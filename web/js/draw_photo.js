@@ -27,7 +27,7 @@ const DRAW_HTML = `
         }
         #toolbar {
             padding: 10px;
-            background: #2c3e50;
+            background: #242424;
             color: white;
             display: flex;
             gap: 15px;
@@ -42,7 +42,7 @@ const DRAW_HTML = `
         }
         label {
             font-size: 14px;
-            min-width: 80px;
+            min-width: 20px;
         }
         input[type="color"] {
             width: 30px;
@@ -57,7 +57,7 @@ const DRAW_HTML = `
             cursor: pointer;
         }
         button {
-            padding: 6px 12px;
+            padding: 2px 5px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -97,7 +97,7 @@ const DRAW_HTML = `
             height: calc(100% - 60px);
         }
         #draw-canvas {
-            border: 2px solid #2c3e50;
+            border: 2px solid #383838;
             background: white;
             cursor: crosshair;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
