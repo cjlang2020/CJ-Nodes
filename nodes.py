@@ -17,12 +17,15 @@ from .service.FileDeal import (FileReadDeal,FileSaveDeal)
 from .service.LoadImageUtils import (LoadImageUtils,FolderSelectNode,LuyLoadImageBatch,ShowCanvasImage)
 from .service.VramClean import VRAMClean
 from .service.ConditionalSkip import ConditionalSkip
-from .service.FirstEndFrameDeal import FirstEndFrameDeal
 from .service.MultiFrameVideo import MultiFrameVideo
 from .service.VisClipCopy import VisClipCopyImageReference
 from .service.LuyWanImageToVideoSVIPro import (LuyWanImageToVideoSVIPro)
 from .service.QwenMultiangleCameraNode import (QwenMultiangleCameraNode,QwenPlusMultiangleCameraNode,QwenLoraMultiangleCameraNode,QwenMultiangleLightningNode)
 from .service.EditPromptNode import EditPromptNode
+from .service.PainterLongVideo import PainterLongVideo
+from .service.PainterI2V import PainterI2V
+from .service.PainterI2VAdvanced import PainterI2VAdvanced
+from .service.painter_flf2v_nodes import PainterFLF2V
 
 NODE_CLASS_MAPPINGS = {
     "Any2Number": Any2Number,
@@ -65,14 +68,17 @@ NODE_CLASS_MAPPINGS = {
     "LuyLoadImageBatch":LuyLoadImageBatch,
     "ShowCanvasImage":ShowCanvasImage,
     "MultiFrameVideo":MultiFrameVideo,
-    "FirstEndFrameDeal":FirstEndFrameDeal,
     "VisClipCopyImageReference":VisClipCopyImageReference,
     "LuyWanImageToVideoSVIPro":LuyWanImageToVideoSVIPro,
     "QwenMultiangleCameraNode": QwenMultiangleCameraNode,
     "QwenPlusMultiangleCameraNode": QwenPlusMultiangleCameraNode,
     "QwenLoraMultiangleCameraNode": QwenLoraMultiangleCameraNode,
     "QwenMultiangleLightningNode":QwenMultiangleLightningNode,
-    "EditPromptNode":EditPromptNode
+    "EditPromptNode":EditPromptNode,
+    "PainterFLF2V":PainterFLF2V,
+    "PainterLongVideo":PainterLongVideo,
+    "PainterI2V":PainterI2V,
+    "PainterI2VAdvanced":PainterI2VAdvanced
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Any2Number": "Luy-Any2Number",
@@ -115,13 +121,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "LuyLoadImageBatch":"Luy-批量加载",
     "ShowCanvasImage":"Luy-画布图片显示",
     "MultiFrameVideo":"Luy-多帧视频处理",
-    "FirstEndFrameDeal":"Luy-首尾帧处理",
     "VisClipCopyImageReference":"Luy-视觉参考",
-    "LuyWanImageToVideoSVIPro":"Luy-图像转视频SVI-Plus",
+    "LuyWanImageToVideoSVIPro":"Luy-图像转视频SVIPlus",
     "QwenMultiangleCameraNode": "Luy-镜头视角控制（柯基版）",
     "QwenPlusMultiangleCameraNode": "Luy-镜头视角控制（魔改版）",
     "QwenLoraMultiangleCameraNode": "Luy-镜头视角控制（Lora标准版）",
     "QwenMultiangleLightningNode":"Luy-多角度光照控制节点",
-    "EditPromptNode":"Luy-自定义提示词"
+    "EditPromptNode":"Luy-自定义提示词",
+    "PainterFLF2V":"Luy-Painter首尾帧",
+    "PainterLongVideo":"Luy-Painter长视频增强",
+    "PainterI2V":"Luy-PainterI2V图片转视频",
+    "PainterI2VAdvanced":"Luy-PainterI2V图片转视频高级版",
 }
 
