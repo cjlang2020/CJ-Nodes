@@ -26,6 +26,7 @@ from .service.PainterLongVideo import PainterLongVideo
 from .service.PainterI2V import PainterI2V
 from .service.PainterI2VAdvanced import PainterI2VAdvanced
 from .service.painter_flf2v_nodes import PainterFLF2V
+from .service.DrawPhotoNode import MouseDrawNode
 
 NODE_CLASS_MAPPINGS = {
     "Any2Number": Any2Number,
@@ -78,7 +79,8 @@ NODE_CLASS_MAPPINGS = {
     "PainterFLF2V":PainterFLF2V,
     "PainterLongVideo":PainterLongVideo,
     "PainterI2V":PainterI2V,
-    "PainterI2VAdvanced":PainterI2VAdvanced
+    "PainterI2VAdvanced":PainterI2VAdvanced,
+    "MouseDrawNode":MouseDrawNode
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Any2Number": "Luy-Any2Number",
@@ -132,5 +134,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PainterLongVideo":"Luy-Painter长视频增强",
     "PainterI2V":"Luy-PainterI2V图片转视频",
     "PainterI2VAdvanced":"Luy-PainterI2V图片转视频高级版",
+    "MouseDrawNode":"Luy-鼠标绘图节点"
 }
 
