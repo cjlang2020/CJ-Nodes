@@ -27,6 +27,8 @@ from .service.PainterI2V import PainterI2V
 from .service.PainterI2VAdvanced import PainterI2VAdvanced
 from .service.painter_flf2v_nodes import PainterFLF2V
 from .service.DrawPhotoNode import MouseDrawNode
+from .service.nodes_flux_image_edit import PainterFluxImageEdit
+from .service.audio_nodes import PainterAudioCut
 
 NODE_CLASS_MAPPINGS = {
     "Any2Number": Any2Number,
@@ -80,7 +82,9 @@ NODE_CLASS_MAPPINGS = {
     "PainterLongVideo":PainterLongVideo,
     "PainterI2V":PainterI2V,
     "PainterI2VAdvanced":PainterI2VAdvanced,
-    "MouseDrawNode":MouseDrawNode
+    "MouseDrawNode":MouseDrawNode,
+    "PainterFluxImageEdit": PainterFluxImageEdit,
+    "PainterAudioCut":PainterAudioCut
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Any2Number": "Luy-Any2Number",
@@ -134,6 +138,8 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PainterLongVideo":"Luy-Painter长视频增强",
     "PainterI2V":"Luy-PainterI2V图片转视频",
     "PainterI2VAdvanced":"Luy-PainterI2V图片转视频高级版",
-    "MouseDrawNode":"Luy-鼠标绘图节点"
+    "MouseDrawNode":"Luy-鼠标绘图节点",
+    "PainterFluxImageEdit": "Luy-Flux2图像编辑",
+    "PainterAudioCut":"Luy-音频裁剪节点"
 }
 
