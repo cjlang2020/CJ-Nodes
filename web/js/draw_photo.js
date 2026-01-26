@@ -128,7 +128,7 @@ const DRAW_HTML = `
         </div>
         <div class="tool-group">
             <label>大小:</label>
-            <input type="range" id="pen-size" min="1" max="50" value="5">
+            <input type="range" id="pen-size" min="3" max="50" value="3">
             <span id="pen-size-value" class="size-display">5</span>
         </div>
         <div class="tool-group">

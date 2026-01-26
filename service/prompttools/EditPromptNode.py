@@ -104,7 +104,7 @@ class EditPromptNode:
             "自定义文件路径": ("STRING", {
                 "default": custom_path,
                 "placeholder": "输入txt文件存放路径，支持相对/绝对路径",
-                "tooltip": "例如：ai_prompt/E 或 D:/prompt_files，修改后请刷新节点"
+                "tooltip": "例如：prompt/E 或 D:/prompt_files，修改后请刷新节点"
             }),
             "启用选择节点": ("BOOLEAN", {"default": True})
         }
@@ -131,7 +131,7 @@ class EditPromptNode:
     @classmethod
     def INPUT_TYPES(cls):
         """初始化输入参数（首次加载）"""
-        default_path = "ai_prompt/E"
+        default_path = "prompt/E"
         NODE_INPUT_CACHE["last_path"] = default_path
         NODE_INPUT_CACHE["input_spec"] = cls._generate_input_spec(default_path)
         return NODE_INPUT_CACHE["input_spec"]
