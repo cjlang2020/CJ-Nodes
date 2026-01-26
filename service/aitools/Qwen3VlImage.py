@@ -78,7 +78,7 @@ folder_paths.folder_names_and_paths["LLM"] = ([os.path.join(folder_paths.models_
 
 # ======================== 核心修复+优化区域 START ========================
 # 1. 定义prompt文件目录（使用原始字符串避免转义，确认此路径是纯文件目录，不含文件内容！）
-PROMPT_FILE_DIR = os.path.join(os.path.dirname(__file__), "ai_prompt/V")
+PROMPT_FILE_DIR = os.path.join(os.path.dirname(__file__), "V")
 # 初始化预设prompt字典
 preset_prompts = {}
 

@@ -142,7 +142,7 @@ class EditPromptNode:
         ComfyUI核心方法：验证输入时触发，实现下拉框动态刷新
         当自定义路径变更时，重新生成输入参数规范
         """
-        current_path = kwargs.get("自定义文件路径", "ai_prompt/E")
+        current_path = kwargs.get("自定义文件路径", "prompt/E")
         # 路径未变化，直接返回验证通过
         if current_path == NODE_INPUT_CACHE["last_path"]:
             return True

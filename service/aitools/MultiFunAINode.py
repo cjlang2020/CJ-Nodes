@@ -31,7 +31,7 @@ folder_paths.folder_names_and_paths["LLM"] = ([os.path.join(folder_paths.models_
 
 # ======================== 核心改造区域 START ========================
 # 定义固定读取目录（你指定的 T 目录，原始字符串防止转义报错）
-PROMPT_FILE_DIR =  os.path.join(os.path.dirname(__file__), "ai_prompt/T")
+PROMPT_FILE_DIR =  os.path.join(os.path.dirname(__file__), "T")
 # 初始化预设prompt字典 文件名=key，文件内容=value
 prompt_types_dict = {}
 
