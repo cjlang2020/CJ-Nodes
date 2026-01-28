@@ -1,0 +1,1557 @@
+import { app } from "../../../../scripts/app.js";
+
+// ========== 提示词面板HTML模板（带Tab切换+紧凑布局） ==========
+const PROMPT_PICKER_HTML = `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>提示词选择器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 100%;
+            height: 100vh;
+            background: #f5f7fa;
+            font-family: Arial, sans-serif;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Tab 栏样式 */
+        .tab-bar {
+            display: flex;
+            background: #e9ecef;
+            border-bottom: 1px solid #dee2e6;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .tab-item {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            color: #495057;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .tab-item.active {
+            border-bottom-color: #2d5aff;
+            color: #2d5aff;
+            font-weight: 600;
+        }
+        .tab-item:hover {
+            background: #dee2e6;
+        }
+        /* 内容容器 */
+        .content-container {
+            flex: 1;
+            padding: 8px; /* 减少内边距 */
+            overflow-y: auto;
+            background: white;
+        }
+        /* 二级分类标题 */
+        .second-level-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #4a6fa5;
+            margin: 8px 0 4px 0; /* 减少上下间距 */
+            padding: 3px 6px; /* 缩小标题内边距 */
+            background: #e3f2fd;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        /* 标签容器 - 核心紧凑化修改 */
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px; /* 从6px改为3px，大幅减少标签间距 */
+            padding: 2px 4px; /* 减少容器内边距 */
+            margin-bottom: 8px; /* 减少容器底部间距 */
+        }
+        /* 标签按钮 - 核心紧凑化修改 */
+        .tag-btn {
+            padding: 2px 6px; /* 从4px 10px改为2px 6px，缩小按钮尺寸 */
+            background: #e8f3ff;
+            border: 1px solid #b3d8ff;
+            border-radius: 3px; /* 缩小圆角 */
+            cursor: pointer;
+            font-size: 11px; /* 字体缩小1px */
+            color: #333;
+            white-space: nowrap;
+            transition: all 0.2s;
+            line-height: 1.4; /* 调整行高，让按钮更紧凑 */
+        }
+        .tag-btn:hover {
+            background: #d1e7ff;
+        }
+        .tag-btn.active {
+            background: #2d5aff;
+            color: white;
+            border-color: #2d5aff;
+        }
+        .tag-btn.active:hover {
+            background: #1a46e0;
+        }
+        /* 空状态提示 */
+        .empty-tip {
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="tab-bar" id="tabBar"></div>
+    <div class="content-container" id="contentContainer"></div>
+
+    <script>
+        // 提示词数据
+        const keysWord = [
+            {
+                name: '常用',
+                child: [
+                    {
+                        name: "优化 Tag",
+                        child: [
+                            { word: "masterpiece 大师作品" },
+                            { word: "best quality 最好画质" },
+                            { word: "masterpiece,best quality,official art,extremely detailed CG unity 8k wallpaper 更高质量" }
+                        ]
+                    },
+                    {
+                        name: "其他 Tag",
+                        child: [
+                            { word: "wedding dress:china dress:0.3 旗袍婚纱" },
+                            { word: "arms behind head 双手脑后" },
+                            { word: "arms up, armpits 举手露腋" },
+                            { word: "tiamat (fate) 提亚马特" }
+                        ]
+                    },
+                    {
+                        name: "R18Tag",
+                        child: [
+                            { word: "surrounded, multiple others, exhibitionism, audience, background characters, crowd, public humiliation 露出" },
+                            { word: "partially unbuttoned 解开一部分扣子" },
+                            { word: "show foot 展示足" },
+                            { word: "pubic tattoo on underbelly 淫纹在小腹" },
+                            { word: "spread pussy 掰开 XX" },
+                            { word: "ass_visible_through_thighs 透过大腿可见屁股" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '环境',
+                child: [
+                    {
+                        name: "朝朝暮暮",
+                        child: [
+                            { word: "day 白天" },
+                            { word: "dusk 黄昏" },
+                            { word: "night 夜晚" },
+                            { word: "in spring 春" },
+                            { word: "in summer 夏" },
+                            { word: "in autumn 秋" },
+                            { word: "in winter 冬" }
+                        ]
+                    },
+                    {
+                        name: "日月星辰",
+                        child: [
+                            { word: "sun 太阳" },
+                            { word: "sunset 落日" },
+                            { word: "moon 月亮" },
+                            { word: "full_moon 满月" },
+                            { word: "stars 星星" },
+                            { word: "cloudy 多云" },
+                            { word: "rain 下雨" },
+                            { word: "in the rain 雨中" },
+                            { word: "rainy days 雨天" }
+                        ]
+                    },
+                    {
+                        name: "天涯海角",
+                        child: [
+                            { word: "sky 天空" },
+                            { word: "sea 大海" },
+                            { word: "mountain 山" },
+                            { word: "on a hill 山上" },
+                            { word: "the top of the hill 山顶" },
+                            { word: "in a meadow 草地" },
+                            { word: "plateau 高原" },
+                            { word: "on a desert 沙漠" },
+                            { word: "in hawaii 夏威夷" },
+                            { word: "cityscape 城市风景" },
+                            { word: "landscape 风景" },
+                            { word: "beautiful detailed sky 好天" },
+                            { word: "beautiful detailed water 好水" },
+                            { word: "on the beach 海滩上" },
+                            { word: "on the ocean 在大海上" },
+                            { word: "over the sea 海边上" },
+                            { word: "beautiful purple sunset at beach" },
+                            { word: "in the ocean 海边日落" },
+                            { word: "against backlight at dusk 傍晚背对阳光" },
+                            { word: "golden hour lighting 黄金时段照明" },
+                            { word: "strong rim light 强边缘光" },
+                            { word: "intense shadows 强阴影" },
+                            { word: "fireworks 焰火" },
+                            { word: "flower field 花田" },
+                            { word: "underwater 水下" },
+                            { word: "explosion 爆炸" },
+                            { word: "in the cyberpunk city 在赛博朋克城市" },
+                            { word: "steam 蒸汽" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '风格',
+                child: [
+                    {
+                        name: "风格",
+                        child: [
+                            { word: "artbook 原画" },
+                            { word: "game_cg 游戏 CG" },
+                            { word: "comic 漫画" },
+                            { word: "4koma 四格" },
+                            { word: "animated_gifgif 格式图片" },
+                            { word: "dakimakura 抱枕" },
+                            { word: "cosplay 角色扮演" },
+                            { word: "crossover 穿越" },
+                            { word: "guro 猎奇" },
+                            { word: "realistic 写实" },
+                            { word: "photo 照片" },
+                            { word: "real 真实" },
+                            { word: "landscape/scenery 风景" },
+                            { word: "cityscape 城市风景" },
+                            { word: "science_fiction 科技幻想" },
+                            { word: "original 原创" },
+                            { word: "parody 拙劣的模仿" },
+                            { word: "personification 拟人" },
+                            { word: "checkered 格子的" },
+                            { word: "lowres 低分辨率" },
+                            { word: "highres 高分辨率" },
+                            { word: "absurdres 超高分辨率" },
+                            { word: "incredibly_absurdres 极高分辨率" },
+                            { word: "huge_filesize 超级高分辨率 / 大文件" },
+                            { word: "wallpaper 壁纸" },
+                            { word: "pixel_art 点阵图" },
+                            { word: "monochrome 单色图片" },
+                            { word: "colorful 色彩斑斓的" },
+                            { word: "optical_illusion 视觉错误" },
+                            { word: "fine_art_parody 名画模仿" },
+                            { word: "sketch 素描" },
+                            { word: "traditional_media 传统媒体（基本上是手绘稿）" },
+                            { word: "watercolor_(medium) 透明水彩绘" },
+                            { word: "silhouette 剪影" },
+                            { word: "covr 封面" },
+                            { word: "album 专辑" },
+                            { word: "sample 图上有 sample 字样" },
+                            { word: "back 背影像" },
+                            { word: "bust 半身像" },
+                            { word: "profile 侧面绘" },
+                            { word: "expressions 表情绘（各种表情）" },
+                            { word: "everyone 一部作品中的主要人物集齐" },
+                            { word: "column_lineup 一列列小图组成大图" },
+                            { word: "transparent_background 透明的背景 (.png)" },
+                            { word: "simple_background 简单的背景 (无背景)" },
+                            { word: "gradient_background 渐变的背景" },
+                            { word: "zoom_layer 背景是前景的放大版" },
+                            { word: "English 英文" },
+                            { word: "Chinese 中文" },
+                            { word: "French 法文" },
+                            { word: "Japanese 日本人" },
+                            { word: "translation_request 翻译" },
+                            { word: "bad_idID 转向错误 (原地址或已被删除)" },
+                            { word: "tagme 图片有一些上传者未知的项目" },
+                            { word: "artist_request 作者未知，需要补完" },
+                            { word: "what 不知所谓" },
+                            { word: "dark 暗的" },
+                            { word: "light 亮的" },
+                            { word: "night 晚上" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '人物角色',
+                child: [
+                    {
+                        name: "人物",
+                        child: [
+                            { word: "girl 女孩" },
+                            { word: "2girls2 女孩" },
+                            { word: "3girls3 女孩" },
+                            { word: "boy 男孩" },
+                            { word: "2boys2 男孩" },
+                            { word: "3boys3 男孩" },
+                            { word: "solo 单人" },
+                            { word: "multiple girls 多个" },
+                            { word: "little girl 小女孩" },
+                            { word: "little boy 小男孩" },
+                            { word: "shota 正太" },
+                            { word: "loli 萝莉" },
+                            { word: "kawaii 可爱" },
+                            { word: "mesugaki 雌小鬼" },
+                            { word: "adorable girl 可爱的女孩" },
+                            { word: "bishoujo 美少女" },
+                            { word: "gyaru 辣妹" },
+                            { word: "sisters 姐妹" },
+                            { word: "ojousama 大小姐" },
+                            { word: "mature female 成熟女性" },
+                            { word: "mature 成熟" },
+                            { word: "female pervert 痴女" },
+                            { word: "milf 熟女" },
+                            { word: "harem 后宫" }
+                        ]
+                    },
+                    {
+                        name: "角色",
+                        child: [
+                            { word: "angel 天使" },
+                            { word: "cheerleader 啦啦队" },
+                            { word: "chibiQ 版人物" },
+                            { word: "crossdressing 伪娘" },
+                            { word: "devil 魔鬼" },
+                            { word: "doll 人偶" },
+                            { word: "elf 妖精" },
+                            { word: "fairy 小精灵" },
+                            { word: "female 女人" },
+                            { word: "furry 兽人" },
+                            { word: "orc 半兽人" },
+                            { word: "giantess 女巨人" },
+                            { word: "harem 后宫" },
+                            { word: "idol 偶像" },
+                            { word: "kemonomimi_mode 兽耳萝莉模式" },
+                            { word: "loli 萝莉" },
+                            { word: "magical_girl 魔法少女" },
+                            { word: "maid 女仆" },
+                            { word: "male 男人" },
+                            { word: "mermaid 美人鱼" },
+                            { word: "miko 巫女" },
+                            { word: "milf 熟女" },
+                            { word: "minigirl 迷你女孩" },
+                            { word: "monster 怪物" },
+                            { word: "multiple_girls 魔幻少女" },
+                            { word: "ninja 忍者" },
+                            { word: "no_humans 非人" },
+                            { word: "nun 修女" },
+                            { word: "nurse 护士" },
+                            { word: "shota 正太" },
+                            { word: "stewardess 空姐" },
+                            { word: "student 学生" },
+                            { word: "trap 伪娘" },
+                            { word: "vampire 吸血鬼" },
+                            { word: "waitress 女服务员" },
+                            { word: "witch 女巫" },
+                            { word: "yaoi 搞基" },
+                            { word: "yukkuri_shiteitte_ne 油库里" },
+                            { word: "yuri 百合" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '头发发饰',
+                child: [
+                    {
+                        name: "长度",
+                        child: [
+                            { word: "very short hair 很短" },
+                            { word: "short hair 短发" },
+                            { word: "medium hair 中发" },
+                            { word: "long hair 长发" },
+                            { word: "very long hair 很长" },
+                            { word: "absurdly long hair 特别长" },
+                            { word: "hair over shoulder 头发过肩" },
+                            { word: "alternate hair length 有长有短" }
+                        ]
+                    },
+                    {
+                        name: "颜色",
+                        child: [
+                            { word: "blonde hair 金色" },
+                            { word: "brown hair 棕色" },
+                            { word: "black hair 黑色" },
+                            { word: "blue hair 蓝色" },
+                            { word: "purple hair 紫色" },
+                            { word: "pink hair 粉红" },
+                            { word: "white hair 白色" },
+                            { word: "red hair 红色" },
+                            { word: "grey hair 灰色" },
+                            { word: "green hair 绿色" },
+                            { word: "silver hair 银色" },
+                            { word: "orange hair 橙色" },
+                            { word: "light brown hair 浅棕" },
+                            { word: "light purple hair 浅紫" },
+                            { word: "light blue hair 浅蓝" },
+                            { word: "platinum blonde hair 铂金色" },
+                            { word: "gradient hair 渐变" },
+                            { word: "multicolored hair 多色" },
+                            { word: "shiny hair 闪亮" },
+                            { word: "two-tone hair 双色" },
+                            { word: "streaked hair 挑染" },
+                            { word: "aqua hair 水色" },
+                            { word: "colored inner hair 内层彩发" },
+                            { word: "alternate hair color 交替发色" },
+                            { word: "hair up 头发起来" },
+                            { word: "hair down 头发下垂" },
+                            { word: "wet hair 湿头发" }
+                        ]
+                    },
+                    {
+                        name: "发型",
+                        child: [
+                            { word: "ahoge 呆毛" },
+                            { word: "antenna hair 多根呆毛" },
+                            { word: "bob cut 妹妹切" },
+                            { word: "hime_cut 公主切" },
+                            { word: "crossed bangs 交叉刘海" },
+                            { word: "hair wings 翼状头发" },
+                            { word: "disheveled hair 蓬发" },
+                            { word: "wavy hair 波浪头" },
+                            { word: "curly_hair 卷发" },
+                            { word: "hair in takes 收拢" },
+                            { word: "forehead 露额头" },
+                            { word: "drill hair 公主卷" },
+                            { word: "hair bun 包子头" },
+                            { word: "double_bun 俩包子头" },
+                            { word: "straight hair 直发" },
+                            { word: "spiked hair 尖刺的头发" },
+                            { word: "short hair with long locks 短发长鬓角" },
+                            { word: "low-tied long hair 低扎长发" },
+                            { word: "asymmetrical hair 不对称的头发" },
+                            { word: "alternate hairstyle 交替发型" },
+                            { word: "big hair 大头发" },
+                            { word: "hair strand 发丝" },
+                            { word: "hair twirling 卷发" },
+                            { word: "pointy hair 尖头头发" },
+                            { word: "hair slicked back 头发向后梳" },
+                            { word: "hair pulled back 头发向后拉" },
+                            { word: "split-color hair 分色头发" }
+                        ]
+                    }, {
+                        name: "辫子",
+                        child: [
+                            { word: "braid 辫子" },
+                            { word: "twin braids 双辫子" },
+                            { word: "single braid 单辫" },
+                            { word: "side braid 侧辫子" },
+                            { word: "long braid 长辫子" },
+                            { word: "french braid 法式辫子" },
+                            { word: "crown braid 皇冠编织" },
+                            { word: "braided bun 编织发髻" },
+                            { word: "ponytail 马尾辫" },
+                            { word: "braided ponytail 编马尾" },
+                            { word: "high ponytail 高马尾" },
+                            { word: "twintails 双马尾" },
+                            { word: "short_ponytail 短马尾" },
+                            { word: "twin_braids 双辫子" },
+                            { word: "Side ponytail 侧马" }
+                        ]
+                    },
+                    {
+                        name: "刘海 / 其他",
+                        child: [
+                            { word: "bangs 刘海" },
+                            { word: "blunt bangs 齐刘海" },
+                            { word: "parted bangs 分刘海" },
+                            { word: "swept bangs 侧扫刘海" },
+                            { word: "crossed bangs 交叉刘海" },
+                            { word: "asymmetrical bangs 不对称刘海" },
+                            { word: "braided bangs 辫子刘海" },
+                            { word: "long bangs 长刘海" },
+                            { word: "bangs pinned back 往后夹" },
+                            { word: "diagonal bangs 斜刘海" },
+                            { word: "dyed bangs 染刘海" },
+                            { word: "hair between eyes 眼睛之间的头发" },
+                            { word: "hair over one eye 一只眼睛上的头发" },
+                            { word: "hair over eyes 头发遮住眼睛" },
+                            { word: "hair behind ear 耳朵后面的头发" },
+                            { word: "hair between breasts 乳房之间的毛发" },
+                            { word: "hair over breasts 乳房上的头发" },
+                            { word: "hair censor 刘海 + 长发？" }
+                        ]
+                    }, {
+                        name: "发饰",
+                        child: [
+                            { word: "hair ornament 发饰" },
+                            { word: "hair bow 蝴蝶结" },
+                            { word: "hair ribbon 发带" },
+                            { word: "hairband 发带" },
+                            { word: "hair flower 头花" },
+                            { word: "hair bun 发髻" },
+                            { word: "hair bobbles 毛球" },
+                            { word: "hairclip 发夹" },
+                            { word: "single hair bun 单发髻" },
+                            { word: "x hair ornamentx 发饰" },
+                            { word: "black hairband 黑色发带" },
+                            { word: "hair scrunchie 发箍" },
+                            { word: "hair rings 发圈" },
+                            { word: "tied hair 扎头发" },
+                            { word: "hairpin 发夹" },
+                            { word: "white hairband 白色发带" },
+                            { word: "hair tie 发带" },
+                            { word: "frog hair ornament 青蛙发饰" },
+                            { word: "food-themed hair ornament 食物发饰" },
+                            { word: "tentacle hair 触手头发" },
+                            { word: "star hair ornament 星星发饰" },
+                            { word: "hair bell 发铃" },
+                            { word: "heart hair ornament 心形发饰" },
+                            { word: "red hairband 红色发带" },
+                            { word: "butterfly hair ornament 蝴蝶发饰" },
+                            { word: "hair stick 发棒" },
+                            { word: "snake hair ornament 蛇发饰" },
+                            { word: "lolita hairband 洛丽塔发带" },
+                            { word: "crescent hair ornament 新月发饰" },
+                            { word: "cone hair bun 锥形发髻" },
+                            { word: "feather hair ornament 羽毛头饰" },
+                            { word: "blue hairband 蓝色发带" },
+                            { word: "anchor hair ornament 锚发饰" },
+                            { word: "leaf hair ornament 叶发饰" },
+                            { word: "bunny hair ornament 兔子头饰" },
+                            { word: "skull hair ornament 骷髅头饰" },
+                            { word: "yellow hairband 黄色发带" },
+                            { word: "pink hairband 粉色发带" },
+                            { word: "dark blue hair 深蓝色头发" },
+                            { word: "bow hairband 蝴蝶结发带" },
+                            { word: "cat hair ornament 猫头饰" },
+                            { word: "musical note hair ornament 音符发饰" },
+                            { word: "carrot hair ornament 胡萝卜发饰" },
+                            { word: "purple hairband 紫色发带" },
+                            { word: "hair tucking 头发掖" },
+                            { word: "hair beads 发珠" },
+                            { word: "multiple hair bows 多个蝴蝶结" },
+                            { word: "hairpods 发夹" },
+                            { word: "bat hair ornament 蝙蝠发饰" },
+                            { word: "bone hair ornament 骨发饰" },
+                            { word: "orange hairband 橙色发带" },
+                            { word: "multi-tied hair 多扎头发" },
+                            { word: "snowflake hair ornament 雪花发饰" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '五官表情',
+                child: [
+                    {
+                        name: "表情相关",
+                        child: [
+                            { word: "food on face 食物在脸上（食物可替换）" },
+                            { word: "light blush 淡淡腮红" },
+                            { word: "facepaint 面纹" },
+                            { word: "makeup 浓妆" },
+                            { word: "cute face 可爱表情" },
+                            { word: "white colored eyelashes 白色睫毛" },
+                            { word: "longeyelashes 长睫毛" },
+                            { word: "white eyebrows 白色眉毛" },
+                            { word: "tsurime 吊眼角" },
+                            { word: "gradient_eyes 渐变眼" },
+                            { word: "beautiful detailed eyes 美丽的细节眼睛" },
+                            { word: "tareme 垂眼角" },
+                            { word: "slit pupils 猫眼" },
+                            { word: "heterochromia 异色瞳" },
+                            { word: "heterochromia blue red 红蓝眼" },
+                            { word: "aqua eyes 水汪汪大眼" },
+                            { word: "looking at viewer 看你" },
+                            { word: "eyeball 盯着看" },
+                            { word: "stare 凝视" },
+                            { word: "visible through hair 透过刘海看" },
+                            { word: "looking to the side 看旁边" },
+                            { word: "constricted pupils 收缩的瞳孔" },
+                            { word: "symbol-shaped pupils 符号形状的瞳孔" },
+                            { word: "heart in eye♥" },
+                            { word: "heart-shaped pupils 爱心瞳孔" },
+                            { word: "wink 眨眼" },
+                            { word: "mole under eye 眼下痣" },
+                            { word: "eyes closed 闭眼" },
+                            { word: "no_nose 没鼻子" },
+                            { word: "fake animal ears 动物耳朵" },
+                            { word: "animal ear fluff 动物耳绒毛" },
+                            { word: "animal_ears 动物耳朵" },
+                            { word: "fox_ears 狐狸耳朵" },
+                            { word: "bunny_ears 兔子耳朵" },
+                            { word: "cat_ears 猫耳" },
+                            { word: "dog_ears 狗耳" },
+                            { word: "mouse_ears 叔耳" },
+                            { word: "hair ear 头发上耳朵" },
+                            { word: "pointy ears 尖耳" },
+                            { word: "light smile 微笑" },
+                            { word: "seductive smile 诱惑笑" },
+                            { word: "grin 露齿而笑" },
+                            { word: "laughing 笑" },
+                            { word: "teeth 牙" },
+                            { word: "excited 兴奋" },
+                            { word: "embarrassed 害羞" },
+                            { word: "blush 脸红" },
+                            { word: "shy 害羞" },
+                            { word: "nose blush 害羞" },
+                            { word: "expressionless 无表情" },
+                            { word: "expressionless eyes 失神" },
+                            { word: "sleepy 困" },
+                            { word: "drunk 喝醉的" },
+                            { word: "tears 哭" },
+                            { word: "crying with eyes open 哭" },
+                            { word: "sad 悲伤的" },
+                            { word: "pout 别扭 努嘴" },
+                            { word: "sigh 叹气" },
+                            { word: "wide eyed 睁大眼睛" },
+                            { word: "angry 生气" },
+                            { word: "annoyed 苦恼的" },
+                            { word: "frown 皱眉" },
+                            { word: "smirk 认真" },
+                            { word: "serious 严肃" },
+                            { word: "jitome 鄙夷" },
+                            { word: "scowl 锐利" },
+                            { word: "crazy 疯狂的" },
+                            { word: "dark_persona 黑化的" },
+                            { word: "smirk 微笑" },
+                            { word: "smug 得意" },
+                            { word: "naughty_face 调皮脸" },
+                            { word: "one eye closed 一只眼睛闭上" },
+                            { word: "half-closed eyes 半闭眼睛" },
+                            { word: "nosebleed 鼻血" },
+                            { word: "eyelid pull 做鬼脸" },
+                            { word: "tongue 舌头" },
+                            { word: "tongue out 吐舌" },
+                            { word: "closed mouth 闭嘴" },
+                            { word: "open mouth 张嘴" },
+                            { word: "lipstick 口红" },
+                            { word: "fangs 尖牙" },
+                            { word: "clenched teeth 咬紧牙关" },
+                            { word: ":3u 猫嘴" },
+                            { word: ":p 向下吐舌头" },
+                            { word: ":q 向上吐舌头" },
+                            { word: ":t 不耐烦" },
+                            { word: ":d 杯型笑脸" }
+                        ]
+                    },
+                    {
+                        name: "R18",
+                        child: [
+                            { word: "naughty_face 下流的表情" },
+                            { word: "endured_face 忍耐的表情" },
+                            { word: "ahegao 阿黑颜" },
+                            { word: "blood on face 血在脸上" },
+                            { word: "saliva 唾液" }
+                        ]
+                    }
+
+                ]
+            }, {
+                name: '眼睛',
+                child: [
+                    {
+                        name: "颜色",
+                        child: [
+                            { word: "blue eyes 蓝色" },
+                            { word: "red eyes 红色" },
+                            { word: "brown eyes 棕色" },
+                            { word: "green eyes 绿色" },
+                            { word: "purple eyes 紫色" },
+                            { word: "yellow eyes 黄色" },
+                            { word: "pink eyes 粉红" },
+                            { word: "black eyes 黑色" },
+                            { word: "aqua eyes 水蓝色" },
+                            { word: "orange eyes 橙色" },
+                            { word: "grey eyes 灰色" },
+                            { word: "multicolored eyes 五彩" },
+                            { word: "white eyes 白色" },
+                            { word: "gradient eyes 渐变" }
+                        ]
+                    },
+                    {
+                        name: "状态",
+                        child: [
+                            { word: "closed eyes 闭上眼睛" },
+                            { word: "half-closed eyes 半闭眼" },
+                            { word: "crying with eyes open 睁着眼睛哭" },
+                            { word: "narrowed eyes 眯起眼睛" },
+                            { word: "hidden eyes 隐藏的眼睛" },
+                            { word: "heart-shaped eyes 心形眼睛" },
+                            { word: "button eyes 纽扣眼" },
+                            { word: "cephalopod eyes 头足类眼睛" },
+                            { word: "eyes visible through hair 透过头发看见眼睛" },
+                            { word: "glowing eyes 发光的眼睛" },
+                            { word: "empty eyes 空洞的眼睛" },
+                            { word: "rolling eyes 翻白眼" },
+                            { word: "blank eyes 空白的眼睛" },
+                            { word: "no eyes 没有眼睛" },
+                            { word: "sparkling eyes 闪闪发光的眼睛" },
+                            { word: "extra eyes 额外的眼睛" },
+                            { word: "crazy eyes 疯狂的眼睛" },
+                            { word: "solid circle eyes 实心圆眼" },
+                            { word: "solid oval eyes 实心椭圆形眼睛" },
+                            { word: "uneven eyes 不均匀的眼睛" },
+                            { word: "blood from eyes 眼睛里的血" }
+                        ]
+                    },
+                    {
+                        name: "其他",
+                        child: [
+                            { word: "eyeshadow 眼影" },
+                            { word: "red eyeshadow 红色眼影" },
+                            { word: "blue eyeshadow 蓝色眼影" },
+                            { word: "purple eyeshadow 紫色眼影" },
+                            { word: "pink eyeshadow 粉色眼影" },
+                            { word: "green eyeshadow 绿色眼影" },
+                            { word: "bags under eyes 眼袋" },
+                            { word: "ringed eyes 眼圈" },
+                            { word: "covered eyes 蒙住眼睛" },
+                            { word: "covering eyes 遮住眼睛" },
+                            { word: "shading eyes 遮住眼睛" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '身体',
+                child: [
+                    {
+                        name: "胸",
+                        child: [
+                            { word: "breasts 胸" },
+                            { word: "small breasts 小" },
+                            { word: "medium breasts 中" },
+                            { word: "large breasts 大" },
+                            { word: "huge breasts 超大" },
+                            { word: "alternate breast size 不同尺寸" },
+                            { word: "mole on breast 乳房上有痣" },
+                            { word: "between breasts 两胸之间" },
+                            { word: "breasts apart 胸部分开" },
+                            { word: "hanging breasts 晃来晃去" },
+                            { word: "bouncing breasts 弹来弹去" }
+                        ]
+                    },
+                    {
+                        name: "R18",
+                        child: [
+                            { word: "breasts out 露出胸部" },
+                            { word: "one breast out 露出一边" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '服装',
+                child: [
+                    {
+                        name: "衣服",
+                        child: [
+                            { word: "sailor collar 领子" },
+                            { word: "hat 帽子" },
+                            { word: "shirt 衬衫" },
+                            { word: "serafuku 水手服" },
+                            { word: "sailor suite 水手服" },
+                            { word: "sailor shirt 水手服" },
+                            { word: "shorts under skirt 水手服" },
+                            { word: "collared shirt 有领衬衣" },
+                            { word: "school uniform 学校制服" },
+                            { word: "seifuku 日本学生服" },
+                            { word: "business_suit 职场制服" },
+                            { word: "jacket 夹克" },
+                            { word: "suit 西装" },
+                            { word: "garreg mach monastery uniform 火焰纹章军服" },
+                            { word: "revealing dress 礼服长裙" },
+                            { word: "pink lucency full dress 礼服" },
+                            { word: "cleavage dress 露出胸口部分的连衣裙" },
+                            { word: "sleeveless dress 无袖连衣裙" },
+                            { word: "whitedress 白色连衣裙" },
+                            { word: "wedding_dress 婚纱" },
+                            { word: "Sailor dress 水手连衣裙" },
+                            { word: "sweater dress 毛衣裙" },
+                            { word: "ribbed sweater 罗纹毛衣" },
+                            { word: "sweater jacket 毛衣夹克" },
+                            { word: "dungarees 工装服" },
+                            { word: "brown cardigan 棕色开襟衫（外套）" },
+                            { word: "hoodie 连帽衫，卫衣" },
+                            { word: "robe 长袍" },
+                            { word: "cape 斗篷" },
+                            { word: "cardigan 羊毛衫" },
+                            { word: "apron 围裙" },
+                            { word: "gothic 哥特风格" },
+                            { word: "lolita_fashion 洛丽塔风格" },
+                            { word: "gothic_lolita 哥特洛丽塔风格" },
+                            { word: "western 西部风格" },
+                            { word: "tartan 格子花纹" },
+                            { word: "off_shoulder 露单肩" },
+                            { word: "bare_shoulders 露双肩" },
+                            { word: "barefoot 赤脚" },
+                            { word: "bare_legs 裸足" },
+                            { word: "striped 横条花纹的" },
+                            { word: "polka_dot 点状花纹的" },
+                            { word: "frills 皱边的" },
+                            { word: "lace 花边" },
+                            { word: "buruma 日本女生运动短裤" },
+                            { word: "sportswear 运动服" },
+                            { word: "gym_uniform 运动服" },
+                            { word: "tank_top 女用背心" },
+                            { word: "cropped jacket 裁剪短夹克" },
+                            { word: "black sports bra 运动胸罩" },
+                            { word: "crop top 漏脐装" },
+                            { word: "pajamas 睡衣" },
+                            { word: "japanese_clothes 和服" },
+                            { word: "obi 衣带 (和服用)" },
+                            { word: "mesh 网眼上衣" },
+                            { word: "sleeveless shirt 无袖上衣" },
+                            { word: "detached_sleeves 袖肩分离装" },
+                            { word: "white bloomers 白色灯笼裤" },
+                            { word: "high - waist shorts 高腰短裤" },
+                            { word: "pleated_skirt 百褶裙" },
+                            { word: "skirt 裙子" },
+                            { word: "miniskirt 迷你裙" },
+                            { word: "short shorts 热裤" },
+                            { word: "summer_dress 夏日长裙" },
+                            { word: "bloomers 灯笼裤" },
+                            { word: "shorts 短裤" },
+                            { word: "bike_shorts 自行车短裤" },
+                            { word: "dolphin shorts 海豚短裤" },
+                            { word: "belt 腰带" },
+                            { word: "bikini 比基尼（前加颜色）" },
+                            { word: "sling bikini 吊索比基尼" },
+                            { word: "bikini_top 比基尼乳罩" },
+                            { word: "bikini top only 上身比基尼" },
+                            { word: "side - tie bikini bottom 侧边系带比基尼下装" },
+                            { word: "side-tie_bikini 系带式比基尼" },
+                            { word: "friled bikini 褶边比基尼" },
+                            { word: "bikini under clothes 比基尼内衣" },
+                            { word: "swimsuit 泳装" },
+                            { word: "school swimsuit 学校泳衣" },
+                            { word: "one-piece swimsuit 连体泳衣" },
+                            { word: "competition swimsuit 竞技泳衣" },
+                            { word: "Sukumizu 死库水" }
+                        ]
+                    }, {
+                        name: "R18",
+                        child: [
+                            { word: "no bra 没胸罩" },
+                            { word: "bra 胸罩" },
+                            { word: "victorian bra 褶边文胸" },
+                            { word: "frilled bra 褶边文胸" },
+                            { word: "sexy lingerie 情趣内衣" },
+                            { word: "transparent underwear 透明内衣" },
+                            { word: "sarasah 胸贴布" },
+                            { word: "bustier 胸衣" },
+                            { word: "chemise 吊带胸衣" },
+                            { word: "underwear 内衣" },
+                            { word: "panties 内裤（前加颜色）" },
+                            { word: "striped panties 条纹内裤" },
+                            { word: "no panties 没内裤" },
+                            { word: "lowleg panties/low_leg panties 低腰式内裤" },
+                            { word: "side-tie panties 侧系带内裤" },
+                            { word: "string panties 高腰内裤" },
+                            { word: "thong 丁字裤" },
+                            { word: "fundoshi 日式丁字裤" },
+                            { word: "lingerie 女用贴身内衣裤" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '袜子&腿饰',
+                child: [
+                    {
+                        name: "袜子",
+                        child: [
+                            { word: "bare legs 裸腿" },
+                            { word: "garter straps 吊袜带" },
+                            { word: "garter belt 吊袜带" },
+                            { word: "socks 袜子" },
+                            { word: "kneehighs 过膝袜" },
+                            { word: "white kneehighs 白色过膝袜" },
+                            { word: "black kneehighs 黑色过膝袜" },
+                            { word: "over-kneehighs 过膝袜" },
+                            { word: "single kneehigh 单只过膝袜" },
+                            { word: "tabi 日式厚底短袜" },
+                            { word: "bobby socks 短袜" },
+                            { word: "loose socks 堆堆袜" },
+                            { word: "single sock 单袜" },
+                            { word: "no socks 没有袜子" },
+                            { word: "socks removed 脱掉袜子" },
+                            { word: "ankle socks 及踝袜" },
+                            { word: "striped socks 条纹袜" },
+                            { word: "blue socks 蓝袜子" },
+                            { word: "grey socks 灰袜子" },
+                            { word: "red socks 红袜子" },
+                            { word: "frilled socks 荷叶边袜子" }
+                        ]
+                    },
+                    {
+                        name: "长筒袜",
+                        child: [
+                            { word: "thighhighs 长筒袜" },
+                            { word: "black thighhighs 黑色长筒袜" },
+                            { word: "white thighhighs 白色长筒袜" },
+                            { word: "striped thighhighs 条纹长筒袜" },
+                            { word: "brown thighhighs 棕色长筒袜" },
+                            { word: "blue thighhighs 蓝色长筒袜" },
+                            { word: "red thighhighs 红色长筒袜" },
+                            { word: "purple thighhighs 紫色长筒袜" },
+                            { word: "pink thighhighs 粉色长筒袜" },
+                            { word: "grey thighhighs 灰色长筒袜" },
+                            { word: "thighhighs under boots 靴子长筒袜" },
+                            { word: "green thighhighs 绿色长筒袜" },
+                            { word: "yellow thighhighs 黄色长筒袜" },
+                            { word: "orange thighhighs 橙色长筒袜" },
+                            { word: "vertical-striped thighhighs 竖条纹长筒袜" },
+                            { word: "frilled thighhighs 褶边长筒袜" },
+                            { word: "fishnet thighhighs 渔网长筒袜" }
+                        ]
+                    },
+                    {
+                        name: "连裤袜",
+                        child: [
+                            { word: "pantyhose 连裤袜" },
+                            { word: "black pantyhose 黑色连裤袜" },
+                            { word: "white pantyhose 白色连裤袜" },
+                            { word: "thighband pantyhose 绑腿连裤袜" },
+                            { word: "brown pantyhose 棕色连裤袜" },
+                            { word: "fishnet pantyhose 渔网连裤袜" },
+                            { word: "striped pantyhose 竖条纹连裤袜" },
+                            { word: "vertical-striped pantyhose 竖条纹连裤袜" },
+                            { word: "grey pantyhose 灰色连裤袜" },
+                            { word: "blue pantyhose 蓝色连裤袜" },
+                            { word: "single leg pantyhose 单腿连裤袜" },
+                            { word: "purple pantyhose 紫色连裤袜" },
+                            { word: "red pantyhose 红色连裤袜" },
+                            { word: "fishnet legwear 渔网袜" }
+                        ]
+                    }, {
+                        name: "腿饰 & 组合",
+                        child: [
+                            { word: "bandaged leg 包扎腿" },
+                            { word: "bandaid on leg 腿上的绷带" },
+                            { word: "mechanical legs 机械腿" },
+                            { word: "leg belt 腿带" },
+                            { word: "leg tattoo 腿部纹身" },
+                            { word: "bound legs 绑腿" },
+                            { word: "leg lock 腿锁" },
+                            { word: "panties under pantyhose 连裤袜下的内裤" },
+                            { word: "panty & stocking with garterbelt 吊带袜内裤和长袜" },
+                            { word: "thighhighs over pantyhose 连裤袜加长筒袜" },
+                            { word: "socks over thighhighs 长筒袜加短袜" },
+                            { word: "panties over pantyhose 连裤袜上的内裤" },
+                            { word: "pantyhose under swimsuit 泳衣下连裤袜" },
+                            { word: "black garter belt 黑色吊袜带" },
+                            { word: "neck garter 吊袜带" },
+                            { word: "white garter straps 白色吊袜带" },
+                            { word: "black garter straps 黑色吊袜带" },
+                            { word: "ankle garter 脚踝吊袜带" }
+                        ]
+                    },
+                    {
+                        name: "裤袜",
+                        child: [
+                            { word: "no legwear 裸腿" },
+                            { word: "black legwear 黑色裤袜" },
+                            { word: "white legwear 白色裤袜" },
+                            { word: "tom legwear 撕裂的裤袜" },
+                            { word: "striped legwear 条纹裤袜" },
+                            { word: "asymmetrical legwear 不对称裤腿" },
+                            { word: "brown legwear 棕色裤袜" },
+                            { word: "uneven legwear 不均匀的裤腿" },
+                            { word: "toeless legwear 无趾裤袜" },
+                            { word: "print legwear 印花裤袜" },
+                            { word: "lace-trimmed legwear 蕾丝边裤袜" },
+                            { word: "red legwear 红色裤袜" },
+                            { word: "mismatched legwear 不匹配的腿饰" },
+                            { word: "legwear under shorts 短裤下的裤袜" },
+                            { word: "purple legwear 紫色裤袜" },
+                            { word: "grey legwear 灰色裤袜" },
+                            { word: "blue legwear 蓝色裤袜" },
+                            { word: "pink legwear 粉色裤袜" },
+                            { word: "aigyle legwear 菱形裤腿" },
+                            { word: "ribbon-trimmed legwear 丝带边饰裤袜" },
+                            { word: "american flag legwear 星条旗裤袜" },
+                            { word: "green legwear 绿色裤袜" },
+                            { word: "vertical-striped legwear 竖条纹裤袜" },
+                            { word: "frilled legwear 褶边裤袜" },
+                            { word: "stirrup legwear 马镫裤" },
+                            { word: "alternate legwear 备用裤袜" },
+                            { word: "seamed legwear 接缝裤袜" },
+                            { word: "yellow legwear 黄色裤袜" },
+                            { word: "multicolored legwear 五彩裤袜" },
+                            { word: "ribbed legwear 罗纹裤袜" },
+                            { word: "fur-trimmed legwear 毛皮裤袜" },
+                            { word: "see-through legwear 透视裤袜" },
+                            { word: "legwear garter 裤袜吊袜带" },
+                            { word: "two-tone legwear 双色裤袜" },
+                            { word: "latex legwear 乳胶裤袜" }
+                        ]
+                    },
+                    {
+                        name: "R18",
+                        child: [
+                            { word: "vibrator in thighhighs 长筒袜里塞跳蛋" },
+                            { word: "tom pantyhose 撕裂的连裤袜" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '鞋子',
+                child: [
+                    {
+                        name: "鞋子",
+                        child: [
+                            { word: "shoes 鞋子" },
+                            { word: "boots 靴子" },
+                            { word: "loafers 乐福鞋" },
+                            { word: "high heels 高跟鞋" },
+                            { word: "cross-laced_footwear 系带靴" },
+                            { word: "mary_janes 玛丽珍鞋" },
+                            { word: "uwabaki 女式学生鞋" },
+                            { word: "slippers 拖鞋" },
+                            { word: "knee_boots 马靴" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '装饰',
+                child: [
+                    {
+                        name: "装饰",
+                        child: [
+                            { word: "halo 光环" },
+                            { word: "mini_top_hat 迷你礼帽" },
+                            { word: "beret 贝雷帽" },
+                            { word: "hood 兜帽" },
+                            { word: "nurse cap 护士帽" },
+                            { word: "tiara 皇冠" },
+                            { word: "oni horns 鬼角" },
+                            { word: "demon horns 恶魔角" },
+                            { word: "hair ribbon 发带" },
+                            { word: "flower ribbon 花丝带" },
+                            { word: "hairband 发卡" },
+                            { word: "hairclip 发夹" },
+                            { word: "hair_ribbon 发带" },
+                            { word: "hair_flower 发花" },
+                            { word: "hair_ornament 头饰" },
+                            { word: "bowtie 蝴蝶结" },
+                            { word: "hair_bow 蝴蝶结发饰" },
+                            { word: "maid_headress 女仆头饰" },
+                            { word: "bow 服装饰品 / 头部饰品" },
+                            { word: "hair ornament 发饰" },
+                            { word: "heart hair ornament 心形" },
+                            { word: "bandaid hair ornament 创可贴" },
+                            { word: "hair bun 发包" },
+                            { word: "cone hair bun 锥形发髻" },
+                            { word: "double bun 双发髻" },
+                            { word: "semi-rimless eyewear 半无框的眼镜" },
+                            { word: "sunglasses 太阳镜" },
+                            { word: "goggles 风镜" },
+                            { word: "eyepatch 眼罩 (独眼)" },
+                            { word: "black blindfold 黑色眼罩" },
+                            { word: "headphones 耳机" },
+                            { word: "veil 面纱" },
+                            { word: "mouth mask 口罩" },
+                            { word: "glasses 眼镜" },
+                            { word: "earrings 耳环" },
+                            { word: "jewelry 首饰" },
+                            { word: "bell 铃铛" },
+                            { word: "ribbon_choker 颈带" },
+                            { word: "black choker 颈部饰品" },
+                            { word: "necklace 项链" },
+                            { word: "headphones around neck 耳机套脖子上" },
+                            { word: "collar 项圈" },
+                            { word: "sailor_collar 水手领" },
+                            { word: "neckerchief 领巾" },
+                            { word: "necktie 领带" },
+                            { word: "cross necklace 十字架" },
+                            { word: "pendant 吊坠" },
+                            { word: "jewelry 珠宝" },
+                            { word: "scarf 围巾" },
+                            { word: "armband 臂章" },
+                            { word: "armlet 臂环" },
+                            { word: "arm strap 臂带" },
+                            { word: "elbow gloves 肘部手套" },
+                            { word: "half gloves 露指手套" },
+                            { word: "fingerless_gloves 手镯" },
+                            { word: "gloves 手套" },
+                            { word: "fingerless gloves 五指手套" },
+                            { word: "chains 锁链" },
+                            { word: "shackles 手链" },
+                            { word: "cuffs 手铐" },
+                            { word: "handcuffs 手铐" },
+                            { word: "bracelet 手镯" },
+                            { word: "wristwatch 手表" },
+                            { word: "wristband 腕带" },
+                            { word: "wrist_cuffs 腕饰" },
+                            { word: "holding book 拿着书" },
+                            { word: "holding sword 拿着剑" },
+                            { word: "tennis racket 球拍" },
+                            { word: "cane 手杖" },
+                            { word: "backpack 双肩包" },
+                            { word: "school bag 书包" },
+                            { word: "satchel 肩背书包" },
+                            { word: "smartphone 手机" },
+                            { word: "bandaid 创可贴" }
+                        ]
+                    }
+                ]
+            }, {
+                name: '动作',
+                child: [
+                    {
+                        name: "动作",
+                        child: [
+                            { word: "head tilt 歪头" },
+                            { word: "turning around 回头" },
+                            { word: "looking back 回头" },
+                            { word: "looking down 向下看" },
+                            { word: "looking up 向上看" },
+                            { word: "smelling 闻" },
+                            { word: "hand to_mouth 手放在嘴边" },
+                            { word: "arm at side 手放头旁边" },
+                            { word: "arms behind head 手放脑后" },
+                            { word: "arms behind back 手放后面" },
+                            { word: "hand on own chest 手放在自己的胸前" },
+                            { word: "arms_crossed 手交叉于胸前" },
+                            { word: "hand on hip 手放臀" },
+                            { word: "hand on another's hip 手放臀" },
+                            { word: "hand_on_hip 单手插腰" },
+                            { word: "hands_on_hips 双手叉腰" },
+                            { word: "arms up 举手" },
+                            { word: "hands up 举手" },
+                            { word: "stretch 伸懒腰" },
+                            { word: "amputee 手盖脸" },
+                            { word: "leg hold 手把腿抓着" },
+                            { word: "grabbing 抓住" },
+                            { word: "holding 拿着" },
+                            { word: "fingersmile 用手指做出来笑脸" },
+                            { word: "hair_pull 拉头发" },
+                            { word: "hair scrunchie 头发" },
+                            { word: "w 手势" },
+                            { word: "V 耶" },
+                            { word: "peace symbol 耶" },
+                            { word: "thumbs_up 翘大拇指" },
+                            { word: "middle_finger 比出中指" },
+                            { word: "Cat_Pose 猫爪手势" },
+                            { word: "finger_gun 手枪手势" },
+                            { word: "shushing 嘘手势" },
+                            { word: "waving 招手" },
+                            { word: "salute 敬礼" },
+                            { word: "spread_arms 张手" },
+                            { word: "spread_legs 张开腿" },
+                            { word: "crossed_legs 二郎腿" },
+                            { word: "fetal_position 曲腿至胸" },
+                            { word: "leg_lift 抬一只脚" },
+                            { word: "legs_up 抬两只脚" },
+                            { word: "leaning forward 前倾" },
+                            { word: "fetal position 婴儿姿势" },
+                            { word: "against wall 靠着墙" },
+                            { word: "on_stomach 趴着" },
+                            { word: "squatting 蹲下" },
+                            { word: "lying 躺着" },
+                            { word: "sitting 坐" },
+                            { word: "sitting on 坐" },
+                            { word: "seiza 正坐" },
+                            { word: "wanzaiw-sitting 割坐" },
+                            { word: "Yokozuwari 侧身坐" },
+                            { word: "indian_style 盘腿" },
+                            { word: "leg_hug 抱腿" },
+                            { word: "walking 走" },
+                            { word: "running 跑" },
+                            { word: "straddle 跨坐" },
+                            { word: "straddling 跨坐" },
+                            { word: "kneeling 下跪" },
+                            { word: "smoking 抽烟" },
+                            { word: "arm_Support 用手支撑住" },
+                            { word: "caramelldansenicon" },
+                            { word: "princess_carry 公主抱" },
+                            { word: "fighting_stance 战斗姿态" },
+                            { word: "upside-down 颠倒的" },
+                            { word: "top-down_bottom-up 倒置 / 着臀部" },
+                            { word: "bent_over 翘臀姿势" },
+                            { word: "arched_back 弓身体" },
+                            { word: "back-to-back 背对背" },
+                            { word: "symmetrical_hand_pose 对手手" },
+                            { word: "eye_contact 眼对眼（对视）" },
+                            { word: "hug 拥抱" },
+                            { word: "lap_pillow 膝枕" },
+                            { word: "sleeping 睡觉" },
+                            { word: "bathing 洗澡" },
+                            { word: "mimikakik 掏耳勺" },
+                            { word: "holding_hands 牵牵手" }
+                        ]
+                    },
+                    {
+                        name: "头发相关",
+                        child: [
+                            { word: "hair blowing 吹头发" },
+                            { word: "adjusting hair 调整头发" },
+                            { word: "hand in own hair 手牵自己的头发" },
+                            { word: "holding hair 握头发" },
+                            { word: "tying hair 扎头发" },
+                            { word: "grabbing another's hair 抓别人的头发" },
+                            { word: "hands in hair 手在头发" },
+                            { word: "brushing hair 梳头" },
+                            { word: "washing hair 洗头" }
+                        ]
+                    }, {
+                        name: "R18",
+                        child: [
+                            { word: "all fours 四肢趴地" },
+                            { word: "symmetrical_docking2 女胸部贴在一起" },
+                            { word: "undressing 脱衣服" },
+                            { word: "skirt lift 掀起裙子" },
+                            { word: "shirt lift 掀起上衣" },
+                            { word: "adjusting_thighhigh 调整过膝袜" }
+                        ]
+                    }
+                ]
+            }, {
+                name: 'R18',
+                child: [
+                    {
+                        name: "R18",
+                        child: [
+                            { word: "tentacle触手" }, { word: "hairjob发交" }, { word: "oral/fellatio口交" }, { word: "deepthroat深喉" }, { word: "gokkun吃精" }, { word: "gag口塞" }, { word: "ballgag球塞" }, { word: "bitgag棍塞" }, { word: "ring_gag扩口器" }, { word: "cleave_gag用布勒住嘴" }, { word: "panty_gag用内裤塞口" }, { word: "tapegag胶带封口" }, { word: "facial颜射" }, { word: "leash宠物链" }, { word: "handjob用手做" }, { word: "groping摸索" }, { word: "areolae乳晕" }, { word: "nipples乳头" }, { word: "puffy_nipples大乳头" }, { word: "small_nipples小乳头" }, { word: "nipple_pull啦乳头" }, { word: "nipple_torture虐乳头" }, { word: "nipple_tweak捏乳头" }, { word: "nipple_piercing乳头穿孔" }, { word: "breast_grab摸乳" }, { word: "lactation哺乳（大范围）" }, { word: "breast_sucking/nipple_suck吸乳（中）" }, { word: "breast_feeding喂奶(小)" }, { word: "paizuri乳交" }, { word: "multiple_paizuri多P乳交" }, { word: "breast_smother把头塞入胸" }, { word: "piercing穿孔" }, { word: "navel_piercing肚脐穿孔" }, { word: "thigh_sex腿交" }, { word: "footjob足交" }, { word: "mound_of_venus腹部三角带" }, { word: "wide_hips宽盆骨" }, { word: "masturbation自慰" }, { word: "clothed_masturbation隔着衣服自慰" }, { word: "penis阳具/屌" }, { word: "testicles睾丸/蛋蛋" }, { word: "ejaculation射出" }, { word: "cum射精" }, { word: "cum_inside内射" }, { word: "cum_on_breast射在胸上" }, { word: "cum_on_hair射在头发上" }, { word: "cum_on_food射在食物上" }, { word: "tamakeri蛋疼" }, { word: "pussy/vaginal阴户（前者图片远大于后者）" }, { word: "pubic_hair阴毛" }, { word: "shaved_pussy剃过阴毛的（无毛B）" }, { word: "no_pussy没逼的" }, { word: "clitoris阴蒂" }, { word: "fat_mons肥逼" }, { word: "cameltoe骆驼脚趾逼（俗称馒头逼）" }, { word: "pussy_juice爱液" }, { word: "female_ejaculation潮吹" }, { word: "grinding性器摩擦" }, { word: "crotch_rub胯部摩擦" }, { word: "facesitting坐在脸上" }, { word: "cervix子宫口" }, { word: "cunnilingus舔阴" }, { word: "insertion插入物" }, { word: "anal_insertion菊花插入物" }, { word: "fruit_insertion用水果蔬菜" }, { word: "large_insertion巨大插入" }, { word: "penetration异物插入" }, { word: "fisting拳头插入" }, { word: "fingering手插入" }, { word: "multiple_insertions一穴多插" }, { word: "double_penetration双穴同插" }, { word: "triple_penetration三穴同插" }, { word: "double_vaginal双重入穴" }, { word: "peeing尿尿" }, { word: "have_to_pee憋尿" }, { word: "ass屁股" }, { word: "huge_ass大屁股" }, { word: "spread_ass用手张开屁股" }, { word: "buttjob臀交" }, { word: "spanked打屁股" }, { word: "anus菊花" }, { word: "anal爆菊" }, { word: "double_anal双重爆菊" }, { word: "anal_fingering手爆菊" }, { word: "anal_fisting拳爆菊" }, { word: "anilingus肛吻" }, { word: "enema灌肠" }, { word: "stomach_bulge肚子胀" }, { word: "x-ray/cross-section/internal_cumshot透视人体内部" }, { word: "wakamezake酒倒在阴部" }, { word: "public公共场所" }, { word: "humiliation羞耻play" }, { word: "bra_lift胸罩拉到胸上方" }, { word: "panties_around_one_leg内裤挂在一条腿上" }, { word: "caught被发现" }, { word: "walk-in进门被发现" }, { word: "body_writing身上有字" }, { word: "tally在身上计数" }, { word: "futanari双性" }, { word: "incest乱伦" }, { word: "twincest兄弟/姐妹/姐弟/兄妹" }, { word: "pegging女性使用假屌" }, { word: "femdom女奸男（逆推）" }, { word: "ganguro日本黑妹" }, { word: "bestiality人兽" }, { word: "gangbang轮奸" }, { word: "hreesome3P" }, { word: "group_sex/orgy/teamwork群P（多男x一女/性交派队/多女x1男）" }, { word: "tribadism磨豆腐" }, { word: "molestation性骚扰" }, { word: "voyeurism窥阴癖" }, { word: "exhibitionism裸露癖" }, { word: "rape强暴" }, { word: "about_to_be_raped将要被强暴" }, { word: "sex性爱" }, { word: "clothed_sex穿着衣服做爱" }, { word: "happy_sex快乐做爱" }, { word: "underwater_sex水中做爱" }, { word: "spitroast前后夹攻" }, { word: "cock_in_thighhigh插在过膝袜里" }, { word: "6969式" }, { word: "doggystyle狗爬式" }, { word: "leg_lock/upright_straddle跨坐式" }, { word: "missionary传教士体位" }, { word: "girl_on_top女上体位" }, { word: "cowgirl_position女上正骑" }, { word: "reverse_cowgirl女上反骑" }, { word: "virgin处女/破瓜" }, { word: "slave奴隶" }, { word: "shibari捆绑" }, { word: "bondage捆绑/奴役" }, { word: "bdsm绑缚与调教/支配与臣服/施虐与受虐" }, { word: "pillory/stocks枷锁" }, { word: "rope绳子" }, { word: "bound_arms手臂捆绑" }, { word: "bound_wrists手腕捆绑" }, { word: "crotch_rope胯下捆绑" }, { word: "hogtie曲膝捆绑" }, { word: "frogtie青蛙捆绑" }, { word: "suspension悬空捆绑" }, { word: "spreader_bar分腿捆绑" }, { word: "wooden_horse木马" }, { word: "anal_beads肛珠" }, { word: "dildo假屌" }, { word: "cock_ring屌环" }, { word: "egg_vibrator跳蛋" }, { word: "artificial_vagina人工阴道" }, { word: "hitachi_magic_wand按摩棒" }, { word: "dildo人造阴茎" }, { word: "double_dildo双头龙" }, { word: "vibrator带振动的自慰器" }, { word: "vibrator_in_thighhighs震动开关在过膝袜里" }, { word: "nyotaimori女体盛" }, { word: "vore吃人" }, { word: "amputee截肢" }, { word: "transformation肉体变形" }, { word: "mind_control思想操控" }, { word: "censored审核过的/有码" }, { word: "uncensored未审核的/无码" }, { word: "asian亚洲" }, { word: "faceless_male无脸男" }, { word: "blood血" }
+                        ]
+                    }]
+            }
+        ];
+
+        // 当前选中的提示词
+        let selectedPrompts = [];
+        // 当前激活的Tab索引
+        let activeTabIndex = 0;
+
+        // 初始化Tab栏
+        function initTabBar() {
+            const tabBar = document.getElementById('tabBar');
+            tabBar.innerHTML = '';
+
+            keysWord.forEach((item, index) => {
+                const tabItem = document.createElement('button');
+                tabItem.className = 'tab-item';
+                tabItem.textContent = '#' + item.name;
+                tabItem.dataset.index = index;
+
+                if (index === activeTabIndex) {
+                    tabItem.classList.add('active');
+                }
+
+                tabItem.addEventListener('click', () => {
+                    switchTab(index);
+                });
+
+                tabBar.appendChild(tabItem);
+            });
+        }
+
+        // 切换Tab
+        function switchTab(index) {
+            activeTabIndex = index;
+            // 更新Tab激活状态
+            document.querySelectorAll('.tab-item').forEach((item, i) => {
+                if (i === index) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            // 渲染对应内容
+            renderContent(index);
+        }
+
+        // 渲染Tab内容
+        function renderContent(tabIndex) {
+            const contentContainer = document.getElementById('contentContainer');
+            const currentData = keysWord[tabIndex];
+
+            if (!currentData || !currentData.child.length) {
+                contentContainer.innerHTML = '<div class="empty-tip">暂无内容</div>';
+                return;
+            }
+
+            contentContainer.innerHTML = '';
+
+            // 渲染二级分类
+            currentData.child.forEach(secondLevel => {
+                // 二级标题
+                const secondLevelEl = document.createElement('div');
+                secondLevelEl.className = 'second-level-title';
+                secondLevelEl.textContent = secondLevel.name;
+                contentContainer.appendChild(secondLevelEl);
+
+                // 标签容器
+                const tagContainer = document.createElement('div');
+                tagContainer.className = 'tag-container';
+
+                // 渲染标签按钮
+                secondLevel.child.forEach(tagItem => {
+                    const tagBtn = document.createElement('button');
+                    tagBtn.className = 'tag-btn';
+                    tagBtn.textContent = tagItem.word;
+
+                    // 标记已选中的标签
+                    if (selectedPrompts.includes(tagItem.word)) {
+                        tagBtn.classList.add('active');
+                    }
+
+                    // 点击事件
+                    tagBtn.addEventListener('click', () => {
+                        if (selectedPrompts.includes(tagItem.word)) {
+                            // 移除
+                            selectedPrompts = selectedPrompts.filter(p => p !== tagItem.word);
+                            tagBtn.classList.remove('active');
+                        } else {
+                            // 添加
+                            selectedPrompts.push(tagItem.word);
+                            tagBtn.classList.add('active');
+                        }
+                        // 发送更新消息
+                        sendPromptUpdate();
+                    });
+
+                    tagContainer.appendChild(tagBtn);
+                });
+
+                contentContainer.appendChild(tagContainer);
+            });
+        }
+
+        // 发送提示词更新
+        function sendPromptUpdate() {
+            const finalPrompt = selectedPrompts.join(', ');
+            window.parent.postMessage({
+                type: 'PROMPT_UPDATE',
+                prompt: finalPrompt
+            }, '*');
+        }
+
+        // 初始化提示词
+        function initPrompt(initialPrompt = "") {
+            if (initialPrompt) {
+                selectedPrompts = initialPrompt.split(",").map(p => p.trim()).filter(p => p);
+            }
+            // 重新渲染当前Tab的标签选中状态
+            renderContent(activeTabIndex);
+        }
+
+        // 监听父窗口消息
+        window.addEventListener('message', (e) => {
+            try {
+                const data = e.data;
+                if (data.type === 'INIT_PROMPT') {
+                    initPrompt(data.prompt || "");
+                } else if (data.type === 'RESIZE_PANEL') {
+                    document.body.style.height = '100%';
+                }
+            } catch (e) {
+                console.error('处理父窗口消息失败:', e);
+            }
+        });
+
+        // 初始化
+        initTabBar();
+        renderContent(activeTabIndex);
+
+        // 通知父窗口面板就绪
+        setTimeout(() => {
+            window.parent.postMessage({type: 'PROMPT_PANEL_READY'}, '*');
+        }, 100);
+    </script>
+</body>
+</html>
+`;
+
+// ========== 注册ComfyUI扩展 ==========
+app.registerExtension({
+    name: "luy.PromptPicker",
+    async beforeRegisterNodeDef(nodeType, nodeData, app) {
+        // 匹配你的节点名称
+        if (nodeData.name === "PromptPickerNode" || nodeData.name === "Luy-PromptPickerNode") {
+            console.log("初始化提示词选择器节点扩展");
+
+            const onNodeCreated = nodeType.prototype.onNodeCreated;
+
+            nodeType.prototype.onNodeCreated = function() {
+                const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
+                const node = this;
+
+                // 初始化提示词数据
+                this.promptData = "";
+                this._promptPanelReady = false;
+                this._resizeObserver = null;
+
+                // 找到final_prompt输入框
+                this.promptWidget = this.widgets.find(w => w.name === "final_prompt");
+                if (this.promptWidget) {
+                    this.promptData = this.promptWidget.value || "";
+                }
+
+                // 创建iframe承载提示词面板
+                const iframe = document.createElement("iframe");
+                iframe.style.width = "100%";
+                iframe.style.height = "100%";
+                iframe.style.border = "none";
+                iframe.style.borderRadius = "8px";
+                iframe.style.backgroundColor = "#ffffff";
+                iframe.style.pointerEvents = "auto";
+                iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
+
+                // 生成Blob URL加载HTML
+                try {
+                    const blob = new Blob([PROMPT_PICKER_HTML], { type: 'text/html;charset=utf-8' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    iframe.src = blobUrl;
+                    iframe._blobUrl = blobUrl;
+                } catch (e) {
+                    console.error("创建iframe失败:", e);
+                    alert("创建提示词面板失败: " + e.message);
+                }
+
+                // 添加DOM Widget到节点
+                const promptWidget = this.addDOMWidget(
+                    "prompt_panel",
+                    "提示词选择面板",
+                    iframe,
+                    {
+                        getValue: () => node.promptData || "",
+                        setValue: (v) => {
+                            node.promptData = v;
+                            if (node.promptWidget) {
+                                node.promptWidget.value = v;
+                                node.promptWidget.inputEl.value = v;
+                            }
+                        }
+                    }
+                );
+
+                // 设置面板尺寸
+                promptWidget.computeSize = function(width) {
+                    const w = width || 700;
+                    return [w, 800];
+                };
+
+                if (promptWidget.element) {
+                    promptWidget.element.style.pointerEvents = "auto";
+                }
+
+                this.promptIframe = iframe;
+
+                // 初始化ResizeObserver
+                this.initResizeObserver = function() {
+                    if (this._resizeObserver) {
+                        try {
+                            this._resizeObserver.disconnect();
+                        } catch (e) {
+                            console.warn("断开ResizeObserver失败:", e);
+                        }
+                    }
+
+                    let observeTarget = promptWidget?.element || this.element || iframe;
+                    if (observeTarget && window.ResizeObserver) {
+                        this._resizeObserver = new ResizeObserver(entries => {
+                            if (this._promptPanelReady && this.promptIframe && this.promptIframe.contentWindow) {
+                                this.promptIframe.contentWindow.postMessage({
+                                    type: 'RESIZE_PANEL'
+                                }, '*');
+                            }
+                        });
+
+                        try {
+                            this._resizeObserver.observe(observeTarget);
+                        } catch (e) {
+                            console.error("初始化ResizeObserver失败:", e);
+                        }
+                    }
+                };
+
+                // 处理iframe消息
+                const handleMessage = (e) => {
+                    if (e.source !== iframe.contentWindow) return;
+
+                    const data = e.data;
+                    console.log("收到提示词面板消息:", data.type);
+
+                    if (data.type === 'PROMPT_PANEL_READY') {
+                        // 面板就绪，初始化提示词
+                        this._promptPanelReady = true;
+                        iframe.contentWindow.postMessage({
+                            type: 'INIT_PROMPT',
+                            prompt: this.promptData
+                        }, '*');
+
+                        // 初始化尺寸监听
+                        setTimeout(() => {
+                            this.initResizeObserver();
+                        }, 1000);
+
+                    } else if (data.type === 'PROMPT_UPDATE') {
+                        // 更新提示词
+                        this.promptData = data.prompt;
+                        if (this.promptWidget) {
+                            this.promptWidget.value = data.prompt;
+                            this.promptWidget.inputEl.value = data.prompt;
+                        }
+                        promptWidget.value = data.prompt;
+
+                        // 标记节点为脏
+                        this.flags = this.flags || {};
+                        this.flags.dirty = true;
+                        if (app && app.graph) {
+                            app.graph.setDirtyCanvas(true, true);
+                        }
+                    }
+                };
+
+                window.addEventListener('message', handleMessage);
+
+                // 监听输入框变化
+                const origOnWidgetChanged = this.onWidgetChanged;
+                this.onWidgetChanged = function(name, value, oldValue, widget) {
+                    if (origOnWidgetChanged) {
+                        origOnWidgetChanged.apply(this, arguments);
+                    }
+
+                    if (name === "final_prompt" && this._promptPanelReady) {
+                        this.promptData = value;
+                        iframe.contentWindow.postMessage({
+                            type: 'INIT_PROMPT',
+                            prompt: value
+                        }, '*');
+                    }
+                };
+
+                // 清理函数
+                const origOnRemoved = this.onRemoved;
+                this.onRemoved = function() {
+                    window.removeEventListener('message', handleMessage);
+
+                    if (this._resizeObserver) {
+                        try {
+                            this._resizeObserver.disconnect();
+                        } catch (e) {
+                            console.warn("断开ResizeObserver失败:", e);
+                        }
+                        this._resizeObserver = null;
+                    }
+
+                    if (iframe._blobUrl) {
+                        try {
+                            URL.revokeObjectURL(iframe._blobUrl);
+                        } catch (e) {
+                            console.warn("清理Blob URL失败:", e);
+                        }
+                    }
+
+                    if (origOnRemoved) {
+                        origOnRemoved.apply(this, arguments);
+                    }
+                };
+
+                // 设置节点初始大小
+                this.setSize([700, 800]);
+
+                return r;
+            };
+        }
+    }
+});
+
+console.log("提示词选择器节点扩展已加载");

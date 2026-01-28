@@ -64,7 +64,8 @@ CUSTOM_DISPLAY_NAMES = {
     "PainterFluxImageEdit": "Luy-Flux2图像编辑",
     "PainterAudioCut":"Luy-音频裁剪节点",
     "ImageCropNode":"Luy-图片裁剪节点",
-    "ImageEditNode":"Luy-图片编辑节点"
+    "ImageEditNode":"Luy-图片编辑节点",
+    "PromptPickerNode": "Luy-SDXL提示词选择器"
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）
