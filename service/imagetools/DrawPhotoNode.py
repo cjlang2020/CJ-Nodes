@@ -23,7 +23,7 @@ class MouseDrawNode:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("draw_image",)
     FUNCTION = "generate_image"
-    CATEGORY = "luy"
+    CATEGORY = "luy/图片处理"
 
     def generate_image(self, canvas_width, canvas_height, draw_data="empty"):
         """

@@ -25,7 +25,7 @@ class ImageCropNode:
     RETURN_TYPES = ("IMAGE",)
     RETURN_NAMES = ("cropped_image",)
     FUNCTION = "process_crop"
-    CATEGORY = "luy/图片处理"
+    CATEGORY = "luy"
 
     def process_crop(self, canvas_width, canvas_height, crop_data="empty"):
         """
