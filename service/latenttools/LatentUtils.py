@@ -10,7 +10,7 @@ import json
 import os
 from comfy.comfy_types import IO, ComfyNodeABC, InputTypeDict, FileLocator
 
-class EmptyLatentImage:
+class LuyEmptyLatentImage:
     def __init__(self):
         self.device = comfy.model_management.intermediate_device()
 

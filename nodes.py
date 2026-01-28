@@ -11,7 +11,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {}
 CUSTOM_DISPLAY_NAMES = {
     "Any2Number": "Luy-Any2Number",
     "Any2String": "Luy-Any2String",
-    "EmptyLatentImage": "Luy-创建空Latent",
+    "LuyEmptyLatentImage": "Luy-空Latent",
     "LuyLoadLatent": "Luy-加载Latent",
     "LuySaveLatent": "Luy-保存Latent",
     "ImagePathScanner": "Luy-读取文件夹下图片路径",
