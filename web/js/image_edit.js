@@ -180,7 +180,7 @@ const EDIT_HTML = `
         </div>
         <!-- 模糊画笔工具 -->
         <div class="tool-group">
-            <button id="smudge-btn" class="tool-btn">模糊画笔</button>
+            <button id="smudge-btn" class="tool-btn">模糊</button>
             <label>强度:</label>
             <input type="range" id="smudge-strength" min="0.1" max="5" step="0.1" value="0.5">
             <span id="smudge-strength-val" class="range-value">0.5</span>
