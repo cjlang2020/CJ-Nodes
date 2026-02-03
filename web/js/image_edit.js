@@ -130,6 +130,15 @@ const EDIT_HTML = `
             display: none;
             transform: translate(-50%, -50%);
         }
+        /* 形状预览框 */
+        #shape-preview {
+            position: absolute;
+            border: 2px dashed #ff6600;
+            pointer-events: none;
+            z-index: 25;
+            display: none;
+            background: transparent;
+        }
         #status {
             padding: 4px 10px;
             background: #2c3e50;
@@ -159,12 +168,22 @@ const EDIT_HTML = `
             <button id="erase-btn" class="tool-btn">橡皮擦</button>
             <label>颜色:</label>
             <input type="color" id="draw-color" value="#000000">
+            <label>色相:</label>
+            <input type="range" id="draw-hue" min="0" max="360" value="0">
+            <span id="draw-hue-val" class="range-value">0°</span>
             <label>大小:</label>
             <input type="range" id="draw-size" min="1" max="200" value="5">
             <span id="draw-size-val" class="range-value">5</span>
             <label>透明度:</label>
             <input type="range" id="draw-alpha" min="0.1" max="1" step="0.1" value="1">
             <span id="draw-alpha-val" class="range-value">1.0</span>
+        </div>
+        <!-- 模糊画笔工具 -->
+        <div class="tool-group">
+            <button id="smudge-btn" class="tool-btn">模糊画笔</button>
+            <label>强度:</label>
+            <input type="range" id="smudge-strength" min="0.1" max="5" step="0.1" value="0.5">
+            <span id="smudge-strength-val" class="range-value">0.5</span>
         </div>
         <!-- 液化工具：简化版 -->
         <div class="tool-group">
@@ -173,6 +192,12 @@ const EDIT_HTML = `
             <input type="range" id="liquify-strength" min="0.1" max="1" step="0.1" value="0.5">
             <span id="liquify-strength-val" class="range-value">0.5</span>
         </div>
+        <!-- 形状工具 -->
+        <div class="tool-group">
+            <button id="rect-btn" class="tool-btn">矩形</button>
+            <button id="circle-btn" class="tool-btn">圆形</button>
+            <button id="line-btn" class="tool-btn">直线</button>
+        </div>
     </div>
 
     <div id="canvas-container">
@@ -180,6 +205,8 @@ const EDIT_HTML = `
         <div id="crop-rect"></div>
         <!-- 笔触预览圆圈 -->
         <div id="brush-preview"></div>
+        <!-- 形状预览框 -->
+        <div id="shape-preview"></div>
     </div>
 
     <div id="status">🟢 就绪 | 可直接绘画或上传图片 | 清除：清空画布 | 重置：恢复初始尺寸</div>
@@ -207,11 +234,19 @@ const EDIT_HTML = `
             isCropSelected: false, // 是否选择了裁剪区域
             // 画笔状态
             drawColor: '#000000',
+            drawHue: 0,
             drawSize: 5,
             drawAlpha: 1.0,
+            // 模糊画笔状态
+            smudgeStrength: 0.5,
+            lastSmudgePos: null,
             // 液化状态
             liquifyStrength: 0.5,
             lastLiquifyPos: null,
+            // 形状工具状态
+            shapeStartX: 0,
+            shapeStartY: 0,
+            shapePreview: null,
             // 最终编辑数据
             finalImageBase64: "",
             cropWidth: 512,
@@ -294,14 +329,14 @@ const EDIT_HTML = `
                     state.tempImageData = state.ctx.getImageData(0, 0, w, h);
                     // 发送更新后的数据
                     sendToParent(true);
-                    setStatus(\`📐 画布已调整并等比缩放内容 | \${w}x\${h}\`);
+                    setStatus('📐 画布已调整并等比缩放内容 | ' + w + 'x' + h);
                 };
                 img.src = savedImage;
             }
 
             updateCanvasScale();
             if (!savedImage) {
-                setStatus(\`⚙️ 画布初始化完成 | \${w}x\${h} | 可以直接绘画或上传图片\`);
+                setStatus('⚙️ 画布初始化完成 | ' + w + 'x' + h + ' | 可以直接绘画或上传图片');
             }
         }
 
@@ -325,10 +360,10 @@ const EDIT_HTML = `
             const dispH = state.canvasH * state.scale;
             state.offsetX = (contW - dispW) / 2 + padL;
             state.offsetY = (contH - dispH) / 2 + padT;
-            state.canvas.style.width = \`\${dispW}px\`;
-            state.canvas.style.height = \`\${dispH}px\`;
-            state.canvas.style.left = \`\${state.offsetX}px\`;
-            state.canvas.style.top = \`\${state.offsetY}px\`;
+state.canvas.style.width = dispW + 'px';
+            state.canvas.style.height = dispH + 'px';
+            state.canvas.style.left = state.offsetX + 'px';
+            state.canvas.style.top = state.offsetY + 'px';
             state.canvas.style.position = 'absolute';
         }
 
@@ -367,18 +402,26 @@ const EDIT_HTML = `
             if (state.applyCropBtn) state.applyCropBtn.disabled = true;
 
             // 笔触预览和裁剪框互斥显示
-            if (tool === 'draw' || tool === 'liquify' || tool === 'erase') {
+            if (tool === 'draw' || tool === 'smudge' || tool === 'liquify' || tool === 'erase') {
                 updateBrushPreviewSize();
                 state.brushPreview.style.display = 'block';
+                if (state.shapePreview) state.shapePreview.style.display = 'none';
+                if (state.cropRect) state.cropRect.style.display = 'none';
+            } else if (tool === 'rect' || tool === 'circle' || tool === 'line') {
+                // 形状工具使用形状预览
+                state.brushPreview.style.display = 'none';
+                initShapePreview();
                 if (state.cropRect) state.cropRect.style.display = 'none';
             } else if (tool === 'crop') {
                 state.brushPreview.style.display = 'none';
+                if (state.shapePreview) state.shapePreview.style.display = 'none';
                 // 裁剪工具激活时显示裁剪框（如果有选择区域）
                 if (state.isCropSelected && state.cropRect) {
                     state.cropRect.style.display = 'block';
                 }
             } else {
                 state.brushPreview.style.display = 'none';
+                if (state.shapePreview) state.shapePreview.style.display = 'none';
                 if (state.cropRect) state.cropRect.style.display = 'none';
             }
 
@@ -386,22 +429,38 @@ const EDIT_HTML = `
             switch(tool) {
                 case 'crop':
                     document.getElementById('crop-btn').classList.add('active');
-                    setStatus(\`✂️ 裁剪工具 | 拖拽选择裁剪区域，点击「应用裁剪」确认\`);
+                    setStatus('✂️ 裁剪工具 | 拖拽选择裁剪区域，点击「应用裁剪」确认');
                     break;
                 case 'draw':
                     document.getElementById('draw-btn').classList.add('active');
-                    setStatus(\`🖌️ 画笔工具 | 颜色:\${state.drawColor} 大小:\${state.drawSize}\`);
+                    setStatus('🖌️ 画笔工具 | 颜色:' + state.drawColor + ' 大小:' + state.drawSize);
+                    break;
+                case 'smudge':
+                    document.getElementById('smudge-btn').classList.add('active');
+                    setStatus('🎨 模糊画笔 | 大小:' + state.drawSize + ' 强度:' + state.smudgeStrength);
                     break;
                 case 'liquify':
                     document.getElementById('liquify-btn').classList.add('active');
-                    setStatus(\`🌀 液化工具 | 大小:\${state.drawSize} 强度:\${state.liquifyStrength}\`);
+                    setStatus('🌀 液化工具 | 大小:' + state.drawSize + ' 强度:' + state.liquifyStrength);
                     break;
                 case 'erase':
                     document.getElementById('erase-btn').classList.add('active');
-                    setStatus(\`🧽 橡皮擦工具 | 大小:\${state.drawSize}\`);
+                    setStatus('🧽 橡皮擦工具 | 大小:' + state.drawSize);
+                    break;
+                case 'rect':
+                    document.getElementById('rect-btn').classList.add('active');
+                    setStatus('⬜ 矩形工具 | 颜色:' + state.drawColor + ' 线宽:' + state.drawSize);
+                    break;
+                case 'circle':
+                    document.getElementById('circle-btn').classList.add('active');
+                    setStatus('⭕ 圆形工具 | 颜色:' + state.drawColor + ' 线宽:' + state.drawSize);
+                    break;
+                case 'line':
+                    document.getElementById('line-btn').classList.add('active');
+                    setStatus('📏 直线工具 | 颜色:' + state.drawColor + ' 线宽:' + state.drawSize);
                     break;
                 default:
-                    setStatus(\`🟢 就绪 | 选择工具开始编辑（裁剪/画笔/液化/橡皮擦）| 清除：清空画布 | 重置：恢复初始尺寸\`);
+                    setStatus('🟢 就绪 | 选择工具开始编辑（裁剪/画笔/液化/橡皮擦/矩形/圆形/直线）| 清除：清空画布 | 重置：恢复初始尺寸');
             }
         }
 
@@ -412,8 +471,8 @@ const EDIT_HTML = `
             if (!state.brushPreview) return;
             const size = state.drawSize;
             const displaySize = size * state.scale * 2;
-            state.brushPreview.style.width = \`\${displaySize}px\`;
-            state.brushPreview.style.height = \`\${displaySize}px\`;
+state.brushPreview.style.width = displaySize + 'px';
+            state.brushPreview.style.height = displaySize + 'px';
         }
 
         // ==============================================
@@ -423,8 +482,8 @@ const EDIT_HTML = `
             if (!state.brushPreview || state.currentTool === 'none' || state.currentTool === 'crop') return;
             // 笔触预览扣工具栏高度，保证视觉与鼠标重合
             const adjustedY = clientY - state.toolbarHeight;
-            state.brushPreview.style.left = \`\${clientX}px\`;
-            state.brushPreview.style.top = \`\${adjustedY}px\`;
+state.brushPreview.style.left = clientX + 'px';
+            state.brushPreview.style.top = adjustedY + 'px';
         }
 
         // ==============================================
@@ -438,10 +497,10 @@ const EDIT_HTML = `
             const x2 = state.cropX2 * state.scale + state.offsetX;
             const y2 = state.cropY2 * state.scale + state.offsetY;
             // 设置裁剪框样式，保证可见
-            state.cropRect.style.left = \`\${Math.min(x1, x2)}px\`;
-            state.cropRect.style.top = \`\${Math.min(y1, y2)}px\`;
-            state.cropRect.style.width = \`\${Math.abs(x2 - x1)}px\`;
-            state.cropRect.style.height = \`\${Math.abs(y2 - y1)}px\`;
+state.cropRect.style.left = Math.min(x1, x2) + 'px';
+            state.cropRect.style.top = Math.min(y1, y2) + 'px';
+            state.cropRect.style.width = Math.abs(x2 - x1) + 'px';
+            state.cropRect.style.height = Math.abs(y2 - y1) + 'px';
             state.cropRect.style.display = 'block';
             // 启用应用裁剪按钮
             if (state.applyCropBtn) state.applyCropBtn.disabled = false;
@@ -478,7 +537,7 @@ const EDIT_HTML = `
                     }, '*');
                 }
             } catch (e) {
-                setStatus(\`❌ 数据发送失败: \${e.message}\`);
+                setStatus('❌ 数据发送失败: ' + e.message);
             }
         }
 
@@ -515,7 +574,7 @@ const EDIT_HTML = `
 
             // 发送裁剪后数据到后端
             sendToParent(true);
-            setStatus(\`✅ 裁剪完成 | 新尺寸: \${state.cropWidth}x\${state.cropHeight}\`);
+            setStatus('✅ 裁剪完成 | 新尺寸: ' + state.cropWidth + 'x' + state.cropHeight);
         }
 
         // ==============================================
@@ -525,14 +584,14 @@ const EDIT_HTML = `
             // 完全清空画布，填充白色背景
             state.ctx.fillStyle = '#ffffff';
             state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
-            
+
             // 清除所有状态
             state.isUploaded = false;
             state.originalImage = null;
             state.tempImageData = null;
             state.cropWidth = state.canvasW;
             state.cropHeight = state.canvasH;
-            
+
             // 创建新的空白背景图片用于橡皮擦
             const blankCanvas = document.createElement('canvas');
             blankCanvas.width = state.canvasW;
@@ -542,9 +601,9 @@ const EDIT_HTML = `
             blankCtx.fillRect(0, 0, state.canvasW, state.canvasH);
             state.originalImage = new Image();
             state.originalImage.src = blankCanvas.toDataURL();
-            
+
             sendToParent(false);
-            setStatus(\`🧹 画布已完全清除 | 所有内容已清空\`);
+            setStatus('🧹 画布已完全清除 | 所有内容已清空');
         }
 
         // ==============================================
@@ -553,7 +612,7 @@ const EDIT_HTML = `
         function execReset() {
             // 如果尺寸没有变化，不需要重置
             if (state.canvasW === state.initialW && state.canvasH === state.initialH) {
-                setStatus(\`ℹ️ 画布尺寸已是初始尺寸 (\${state.initialW}x\${state.initialH})\`);
+                setStatus('ℹ️ 画布尺寸已是初始尺寸 (' + state.initialW + 'x' + state.initialH + ')');
                 return;
             }
 
@@ -604,7 +663,7 @@ const EDIT_HTML = `
             if (state.applyCropBtn) state.applyCropBtn.disabled = true;
             state.isCropSelected = false;
 
-            setStatus(\`🔄 已重置为初始尺寸 | \${state.initialW}x\${state.initialH}\`);
+            setStatus('🔄 已重置为初始尺寸 | ' + state.initialW + 'x' + state.initialH);
         }
 
         // ==============================================
@@ -617,6 +676,110 @@ const EDIT_HTML = `
             state.ctx.lineCap = 'round';
             state.ctx.lineJoin = 'round';
             state.ctx.beginPath();
+        }
+
+        // ==============================================
+        // 颜色转换工具：HSV转HEX
+        // h: 0-360, s: 0-100, v: 0-100
+        // ==============================================
+        function hsvToHex(h, s, v) {
+            s /= 100;
+            v /= 100;
+            const c = v * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = v - c;
+            let r, g, b;
+
+            if (h >= 0 && h < 60) { r = c; g = x; b = 0; }
+            else if (h >= 60 && h < 120) { r = x; g = c; b = 0; }
+            else if (h >= 120 && h < 180) { r = 0; g = c; b = x; }
+            else if (h >= 180 && h < 240) { r = 0; g = x; b = c; }
+            else if (h >= 240 && h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+
+            const toHex = (n) => {
+                const hex = Math.round((n + m) * 255).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            };
+
+            return '#' + toHex(r) + toHex(g) + toHex(b);
+        }
+
+        // ==============================================
+        // 模糊画笔工具：像素混合涂抹（类似PS的Smudge工具）
+        // ==============================================
+        function execSmudge(x, y) {
+            if (!state.tempImageData || !state.canvas || !state.lastSmudgePos) return;
+            const size = state.drawSize;
+            const strength = state.smudgeStrength;
+            const imgData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+            const pixels = imgData.data;
+            const width = state.canvasW;
+            const height = state.canvasH;
+            const radiusSq = size * size;
+
+            // 计算鼠标移动方向
+            const dxMove = x - state.lastSmudgePos.x;
+            const dyMove = y - state.lastSmudgePos.y;
+            const moveDist = Math.sqrt(dxMove * dxMove + dyMove * dyMove);
+            if (moveDist < 0.5) return; // 移动过小时不执行
+
+            // 归一化移动方向
+            const dirX = dxMove / moveDist;
+            const dirY = dyMove / moveDist;
+
+            // 创建临时缓冲区存储新像素值
+            const newPixels = new Uint8ClampedArray(pixels);
+
+            // 遍历画笔范围内的所有像素
+            for (let dy = -size; dy <= size; dy++) {
+                for (let dx = -size; dx <= size; dx++) {
+                    const currX = Math.floor(x + dx);
+                    const currY = Math.floor(y + dy);
+
+                    // 边界检查
+                    if (currX < 0 || currX >= width || currY < 0 || currY >= height) continue;
+
+                    // 计算到圆心的距离
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq > radiusSq) continue;
+
+                    // 圆形衰减：圆心最强，边缘最弱
+                    const decay = 1.0 - (distSq / radiusSq);
+                    const finalStrength = strength * decay * 0.3; // 降低整体强度使效果更自然
+
+                    // 计算源像素位置（沿移动方向反方向取样，产生涂抹效果）
+                    const sampleDist = size * 0.5 * finalStrength;
+                    const srcX = Math.floor(currX - dirX * sampleDist);
+                    const srcY = Math.floor(currY - dirY * sampleDist);
+
+                    // 源像素边界检查
+                    if (srcX < 0 || srcX >= width || srcY < 0 || srcY >= height) continue;
+
+                    // 混合当前像素和源像素
+                    const currIdx = (currY * width + currX) * 4;
+                    const srcIdx = (srcY * width + srcX) * 4;
+
+                    // 线性混合当前像素和源像素
+                    const blendFactor = finalStrength;
+                    newPixels[currIdx] = pixels[currIdx] * (1 - blendFactor) + pixels[srcIdx] * blendFactor;
+                    newPixels[currIdx + 1] = pixels[currIdx + 1] * (1 - blendFactor) + pixels[srcIdx + 1] * blendFactor;
+                    newPixels[currIdx + 2] = pixels[currIdx + 2] * (1 - blendFactor) + pixels[srcIdx + 2] * blendFactor;
+                    newPixels[currIdx + 3] = pixels[currIdx + 3] * (1 - blendFactor) + pixels[srcIdx + 3] * blendFactor;
+                }
+            }
+
+            // 将混合后的像素写回图像数据
+            for (let i = 0; i < pixels.length; i++) {
+                pixels[i] = newPixels[i];
+            }
+
+            // 将变形后的像素写回Canvas
+            state.ctx.putImageData(imgData, 0, 0);
+            // 更新临时图片数据（下次操作基于最新状态）
+            state.tempImageData = state.ctx.getImageData(0, 0, width, height);
+            // 更新上一帧涂抹位置
+            state.lastSmudgePos = {x, y};
         }
 
         // ==============================================
@@ -720,6 +883,151 @@ const EDIT_HTML = `
         }
 
         // ==============================================
+        // 形状工具：初始化形状预览
+        // ==============================================
+        function initShapePreview() {
+            state.shapePreview = document.getElementById('shape-preview');
+        }
+
+        // ==============================================
+        // 更新形状预览
+        // ==============================================
+        function updateShapePreview(startX, startY, endX, endY) {
+            if (!state.shapePreview) return;
+
+            const tool = state.currentTool;
+            if (tool !== 'rect' && tool !== 'circle' && tool !== 'line') {
+                state.shapePreview.style.display = 'none';
+                return;
+            }
+
+            state.shapePreview.style.display = 'block';
+            state.shapePreview.style.border = 'none';
+            state.shapePreview.style.background = 'none';
+            state.shapePreview.style.borderRadius = '0';
+
+            const x1 = Math.min(startX, endX);
+            const y1 = Math.min(startY, endY);
+            const x2 = Math.max(startX, endX);
+            const y2 = Math.max(startY, endY);
+            const width = x2 - x1;
+            const height = y2 - y1;
+
+            // 计算显示坐标
+            const dispX = x1 * state.scale + state.offsetX;
+            const dispY = y1 * state.scale + state.offsetY;
+            const dispW = width * state.scale;
+            const dispH = height * state.scale;
+
+            if (tool === 'rect') {
+                // 矩形预览 - 空心线框
+                state.shapePreview.style.left = dispX + 'px';
+                state.shapePreview.style.top = dispY + 'px';
+                state.shapePreview.style.width = dispW + 'px';
+                state.shapePreview.style.height = dispH + 'px';
+                state.shapePreview.style.border = '2px dashed #ff6600';
+                state.shapePreview.style.background = 'transparent';
+                state.shapePreview.style.borderRadius = '0';
+                state.shapePreview.style.transform = 'none';
+            } else if (tool === 'circle') {
+                // 圆形预览 - 空心线框
+                state.shapePreview.style.left = dispX + 'px';
+                state.shapePreview.style.top = dispY + 'px';
+                state.shapePreview.style.width = dispW + 'px';
+                state.shapePreview.style.height = dispH + 'px';
+                state.shapePreview.style.border = '2px dashed #ff6600';
+                state.shapePreview.style.background = 'transparent';
+                state.shapePreview.style.borderRadius = '50%';
+                state.shapePreview.style.transform = 'none';
+            } else if (tool === 'line') {
+                // 直线预览
+                const dx = endX - startX;
+                const dy = endY - startY;
+                const length = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                const startDispX = startX * state.scale + state.offsetX;
+                const startDispY = startY * state.scale + state.offsetY;
+
+                state.shapePreview.style.left = startDispX + 'px';
+                state.shapePreview.style.top = startDispY + 'px';
+                state.shapePreview.style.width = length * state.scale + 'px';
+                state.shapePreview.style.height = Math.max(2, state.drawSize * state.scale) + 'px';
+                state.shapePreview.style.border = 'none';
+                state.shapePreview.style.background = state.drawColor;
+                state.shapePreview.style.borderRadius = '0';
+                state.shapePreview.style.transformOrigin = '0 50%';
+                state.shapePreview.style.transform = 'rotate(' + angle + 'deg)';
+            }
+        }
+
+        // ==============================================
+        // 隐藏形状预览
+        // ==============================================
+        function hideShapePreview() {
+            if (state.shapePreview) {
+                state.shapePreview.style.display = 'none';
+            }
+        }
+
+        // ==============================================
+        // 绘制矩形（空心）
+        // ==============================================
+        function drawRect(startX, startY, endX, endY) {
+            const x = Math.min(startX, endX);
+            const y = Math.min(startY, endY);
+            const w = Math.abs(endX - startX);
+            const h = Math.abs(endY - startY);
+
+            state.ctx.save();
+            state.ctx.strokeStyle = state.drawColor;
+            state.ctx.lineWidth = state.drawSize;
+            state.ctx.lineCap = 'round';
+            state.ctx.lineJoin = 'round';
+            state.ctx.globalAlpha = state.drawAlpha;
+            state.ctx.beginPath();
+            state.ctx.rect(x, y, w, h);
+            state.ctx.stroke();
+            state.ctx.restore();
+        }
+
+        // ==============================================
+        // 绘制圆形（空心）
+        // ==============================================
+        function drawCircle(startX, startY, endX, endY) {
+            const centerX = (startX + endX) / 2;
+            const centerY = (startY + endY) / 2;
+            const radiusX = Math.abs(endX - startX) / 2;
+            const radiusY = Math.abs(endY - startY) / 2;
+
+            state.ctx.save();
+            state.ctx.strokeStyle = state.drawColor;
+            state.ctx.lineWidth = state.drawSize;
+            state.ctx.lineCap = 'round';
+            state.ctx.globalAlpha = state.drawAlpha;
+            state.ctx.beginPath();
+            state.ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+            state.ctx.stroke();
+            state.ctx.restore();
+        }
+
+        // ==============================================
+        // 绘制直线
+        // ==============================================
+        function drawLine(startX, startY, endX, endY) {
+            state.ctx.save();
+            state.ctx.strokeStyle = state.drawColor;
+            state.ctx.lineWidth = state.drawSize;
+            state.ctx.lineCap = 'round';
+            state.ctx.globalAlpha = state.drawAlpha;
+            state.ctx.beginPath();
+            state.ctx.moveTo(startX, startY);
+            state.ctx.lineTo(endX, endY);
+            state.ctx.stroke();
+            state.ctx.restore();
+        }
+
+        // ==============================================
         // 初始化事件监听：所有交互逻辑绑定
         // ==============================================
         function initEvent() {
@@ -744,7 +1052,7 @@ const EDIT_HTML = `
                         state.cropHeight = img.height;
                         // 上传图片后更新尺寸widget
                         sendToParent(true);
-                        setStatus(\`✅ 图片上传成功 | 原始尺寸: \${img.width}x\${img.height}\`);
+                        setStatus('✅ 图片上传成功 | 原始尺寸: ' + img.width + 'x' + img.height);
                     };
                     img.src = ev.target.result;
                 };
@@ -754,8 +1062,12 @@ const EDIT_HTML = `
             // 2. 工具按钮点击
             document.getElementById('crop-btn').onclick = () => switchTool('crop');
             document.getElementById('draw-btn').onclick = () => switchTool('draw');
+            document.getElementById('smudge-btn').onclick = () => switchTool('smudge');
             document.getElementById('liquify-btn').onclick = () => switchTool('liquify');
             document.getElementById('erase-btn').onclick = () => switchTool('erase');
+            document.getElementById('rect-btn').onclick = () => switchTool('rect');
+            document.getElementById('circle-btn').onclick = () => switchTool('circle');
+            document.getElementById('line-btn').onclick = () => switchTool('line');
 
             // 3. 新增：应用裁剪按钮点击事件
             document.getElementById('apply-crop-btn').addEventListener('click', () => {
@@ -776,15 +1088,25 @@ const EDIT_HTML = `
             const drawColor = document.getElementById('draw-color');
             const drawSize = document.getElementById('draw-size');
             const drawAlpha = document.getElementById('draw-alpha');
+            const drawHue = document.getElementById('draw-hue');
             const drawSizeVal = document.getElementById('draw-size-val');
             const drawAlphaVal = document.getElementById('draw-alpha-val');
+            const drawHueVal = document.getElementById('draw-hue-val');
             drawColor.oninput = (e) => { state.drawColor = e.target.value; switchTool('draw'); };
+            drawHue.oninput = (e) => {
+                state.drawHue = parseInt(e.target.value);
+                drawHueVal.textContent = state.drawHue + '°';
+                // 根据色相更新颜色
+                state.drawColor = hsvToHex(state.drawHue, 100, 100);
+                drawColor.value = state.drawColor;
+                switchTool('draw');
+            };
             drawSize.oninput = (e) => {
                 state.drawSize = parseInt(e.target.value);
                 drawSizeVal.textContent = state.drawSize;
                 updateBrushPreviewSize();
-                // 所有绘画类工具共用同一个大小
-                if (state.currentTool === 'draw' || state.currentTool === 'liquify' || state.currentTool === 'erase') {
+                // 所有绘画类工具共用同一个大小（包括形状工具）
+                if (state.currentTool === 'draw' || state.currentTool === 'liquify' || state.currentTool === 'erase' || state.currentTool === 'rect' || state.currentTool === 'circle' || state.currentTool === 'line') {
                     switchTool(state.currentTool);
                 }
             };
@@ -794,7 +1116,16 @@ const EDIT_HTML = `
                 switchTool('draw');
             };
 
-            // 5. 液化参数调节（实时更新，使用统一画笔大小）
+            // 5. 模糊画笔参数调节（实时更新）
+            const smudgeStrength = document.getElementById('smudge-strength');
+            const smudgeStrengthVal = document.getElementById('smudge-strength-val');
+            smudgeStrength.oninput = (e) => {
+                state.smudgeStrength = parseFloat(e.target.value);
+                smudgeStrengthVal.textContent = state.smudgeStrength.toFixed(1);
+                switchTool('smudge');
+            };
+
+            // 6. 液化参数调节（实时更新，使用统一画笔大小）
             const liquifyStrength = document.getElementById('liquify-strength');
             const liquifyStrengthVal = document.getElementById('liquify-strength-val');
             liquifyStrength.oninput = (e) => {
@@ -823,11 +1154,20 @@ const EDIT_HTML = `
                         state.ctx.beginPath();
                         state.ctx.moveTo(x, y);
                         break;
+                    case 'smudge':
+                        execSmudge(x, y);
+                        break;
                     case 'liquify':
                         execLiquify(x, y);
                         break;
                     case 'erase':
                         execErase(x, y, true);
+                        break;
+                    case 'rect':
+                    case 'circle':
+                    case 'line':
+                        // 更新形状预览
+                        updateShapePreview(state.shapeStartX, state.shapeStartY, x, y);
                         break;
                 }
             });
@@ -855,16 +1195,28 @@ const EDIT_HTML = `
                         state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
                         state.lastLiquifyPos = {x, y};
                         break;
+                    case 'smudge':
+                        state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+                        state.lastSmudgePos = {x, y};
+                        break;
                     case 'erase':
                         execErase(x, y, false);
+                        break;
+                    case 'rect':
+                    case 'circle':
+                    case 'line':
+                        // 记录形状起始位置
+                        state.shapeStartX = x;
+                        state.shapeStartY = y;
                         break;
                 }
             });
 
-            // 鼠标松开：仅停止操作，不再自动裁剪
-            document.addEventListener('mouseup', () => {
+            // 鼠标松开：绘制形状或停止操作
+            document.addEventListener('mouseup', (e) => {
                 if (!state.isMouseDown) return;
                 state.isMouseDown = false;
+                const [x, y] = getCanvasXY(e.clientX, e.clientY);
                 switch(state.currentTool) {
                     case 'crop':
                         // 裁剪工具松开鼠标仅更新裁剪框，不执行裁剪
@@ -872,8 +1224,27 @@ const EDIT_HTML = `
                         break;
                     case 'draw':
                     case 'liquify':
+                    case 'smudge':
                     case 'erase':
                         sendToParent(false); // 发送编辑后数据，不更新尺寸
+                        break;
+                    case 'rect':
+                        // 绘制矩形
+                        drawRect(state.shapeStartX, state.shapeStartY, x, y);
+                        hideShapePreview();
+                        sendToParent(false);
+                        break;
+                    case 'circle':
+                        // 绘制圆形
+                        drawCircle(state.shapeStartX, state.shapeStartY, x, y);
+                        hideShapePreview();
+                        sendToParent(false);
+                        break;
+                    case 'line':
+                        // 绘制直线
+                        drawLine(state.shapeStartX, state.shapeStartY, x, y);
+                        hideShapePreview();
+                        sendToParent(false);
                         break;
                 }
             });
@@ -881,7 +1252,7 @@ const EDIT_HTML = `
             // 9. 鼠标进入画布：恢复绘制状态（修复鼠标离开画布后绘制中断的问题）
             canvas.addEventListener('mouseenter', (e) => {
                 if (e.buttons === 1 && state.isMouseDown === false &&
-                    (state.currentTool === 'draw' || state.currentTool === 'liquify' || state.currentTool === 'erase')) {
+                    (state.currentTool === 'draw' || state.currentTool === 'liquify' || state.currentTool === 'smudge' || state.currentTool === 'erase' || state.currentTool === 'rect' || state.currentTool === 'circle' || state.currentTool === 'line')) {
                     state.isMouseDown = true;
                     const [x, y] = getCanvasXY(e.clientX, e.clientY);
                     if (state.currentTool === 'draw') {
@@ -890,8 +1261,15 @@ const EDIT_HTML = `
                     } else if (state.currentTool === 'liquify') {
                         state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
                         state.lastLiquifyPos = {x, y};
+                    } else if (state.currentTool === 'smudge') {
+                        state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+                        state.lastSmudgePos = {x, y};
                     } else if (state.currentTool === 'erase') {
                         execErase(x, y, false);
+                    } else if (state.currentTool === 'rect' || state.currentTool === 'circle' || state.currentTool === 'line') {
+                        // 形状工具记录起始位置
+                        state.shapeStartX = x;
+                        state.shapeStartY = y;
                     }
                 }
             });
