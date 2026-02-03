@@ -229,9 +229,27 @@ preset_prompts = {
     "Creative - Summarize Video": "Summarize the key events and narrative points in this video.",
     "Creative - Short Story": "Write a short, imaginative story inspired by this @ or video.",
     "Creative - Refine & Expand Prompt": "Refine and enhance the following user prompt for creative text-to-@ generation. Keep the meaning and keywords, make it more expressive and visually rich. Output **only the improved prompt text itself**, without any reasoning steps, thinking process, or additional commentary.",
-    "Vision - *Bounding Box": 'Locate every instance that belongs to the following categories: "#". Report bbox coordinates in {"bbox_2d": [x1, y1, x2, y2], "label": "string"} JSON format as a List.'
+    "Vision - *Bounding Box": 'Locate every instance that belongs to the following categories: "#". Report bbox coordinates in {"bbox_2d": [x1, y1, x2, y2], "label": "string"} JSON format as a List.',
 }
 preset_tags = list(preset_prompts.keys())
+
+AITOOLS_V_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "aitools", "V")
+
+def load_preset_prompts():
+    global preset_prompts, preset_tags
+    try:
+        for filename in os.listdir(AITOOLS_V_DIR):
+            if filename.endswith(".txt"):
+                key = filename[:-4]
+                filepath = os.path.join(AITOOLS_V_DIR, filename)
+                with open(filepath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                preset_prompts[key] = content
+        preset_tags = list(preset_prompts.keys())
+    except Exception as e:
+        print(f"[llama-cpp_vlm] Failed to load preset prompts from {AITOOLS_V_DIR}: {e}")
+
+load_preset_prompts()
 
 def image2base64(image):
     img = Image.fromarray(image)
@@ -940,8 +958,13 @@ class llama_run_simple:
         out2 = []
         user_content = []
 
-        if custom_prompt.strip() and "*" not in preset_prompt:
+        if custom_prompt.strip() and "*" not in preset_prompt and "@" not in preset_prompt:
             user_content.append({"type": "text", "text": custom_prompt})
+        elif "@" in preset_prompt and custom_prompt.strip():
+            p = preset_prompts[preset_prompt].replace("{}", custom_prompt.strip()).replace("@", "image")
+            if ChineseReply:
+                p = p + ",\n请使用中文回答。"
+            user_content.append({"type": "text", "text": p})
         else:
             p = preset_prompts[preset_prompt].replace("#", custom_prompt.strip()).replace("@", "image")
             if ChineseReply:
