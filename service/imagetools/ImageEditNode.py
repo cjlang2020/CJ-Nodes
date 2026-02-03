@@ -14,10 +14,8 @@ class ImageEditNode:
     def INPUT_TYPES(s):
         return {
             "required": {
-                # 画布宽高（由前端自动更新为裁剪/编辑后的实际尺寸）
                 "canvas_width": ("INT", {"default": 768, "min": 1, "max": 4096}),
                 "canvas_height": ("INT", {"default": 1360, "min": 1, "max": 4096}),
-                # 隐藏参数：存储最终编辑后的图片Base64和裁剪信息
                 "edit_data": ("STRING", {"default": "empty"})
             }
         }
@@ -29,7 +27,7 @@ class ImageEditNode:
 
     def process_edit(self, canvas_width, canvas_height, edit_data="empty"):
         """
-        直接处理前端编辑后的最终Base64图片，简化解析逻辑
+        处理前端编辑后的最终Base64图片
         """
         try:
             # 初始化默认纯白画布

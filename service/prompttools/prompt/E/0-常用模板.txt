@@ -1,5 +1,7 @@
 高清细化##8K 高清、丰富细节（8K Ultra HD, Abundant Details）
 老照片修复##优化数字文件画质、去除模糊与噪点、直方图均衡化、反锐化蒙版、色彩分级优化、白平衡校正、微对比度增强及校正镜头畸变（Digital File Quality Optimization, Deblurring and Noise Reduction, Histogram Equalization, Unsharp Mask (USM), Color Grading Optimization, White Balance Correction, Micro-Contrast Enhancement and Lens Distortion Correction）
 人像冷白皮##人像冷调白肤光影优化（Portrait Retouching with Cool Tone, Bright Skin & Light and Shadow Optimization）
+数字CG风格##数字CG风格，UES渲染，超广角构图，充满神秘感且细节繁复的云雾缭绕，天空被云雾覆盖，狂肆虐，张力十足，刚下过雨，恢宏浩荡，极具压迫感的景象，低饱和，强透视，极具视觉冲击力，光影交错，真实光线反射，墨绿灰白色调，白处冷亮说利，灰处沉郁如墨，东方古玄幻修仙氛围，8K摄影画质，原比例
+游戏CG风格##增加游戏CG风格，极具艺术感、震撼人心，暗部叠加，特写镜头，超高清,增加落叶飞溅，前景落叶虚化，动态模糊背景动态虚化，阳光明媚，蓝天白云，光影交错，仰拍特写镜头，画面冷色调，突出速度感和视觉冲击力，强透视。
 动漫转真实##将主体转化为真实场景
 真实转动漫##将主体转化为动漫场景
