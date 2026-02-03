@@ -59,7 +59,9 @@ CUSTOM_DISPLAY_NAMES = {
     "PainterFluxImageEdit": "Luy-Flux2图像编辑",
     "PainterAudioCut":"Luy-音频裁剪节点",
     "ImageEditNode":"Luy-绘画节点",
-    "PromptPickerNode": "Luy-SDXL提示词选择器"
+    "PromptPickerNode": "Luy-SDXL提示词选择器",
+    "llama_run":"Luy-LlamaCpp反推",
+    "llama_run_simple":"Luy-LlamaCpp反推(简化版)"
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）
@@ -84,8 +86,22 @@ def load_nodes_from_file(file_path):
 
         # 创建并加载模块
         module = importlib.util.module_from_spec(spec)
-        # 关键修复2：设置模块package属性，解决相对导入问题
-        module.__package__ = "cj_nodes.service"
+
+        # 计算相对于SERVICE_DIR的路径，构建正确的包路径
+        relative_path = os.path.relpath(file_path, SERVICE_DIR)
+        relative_dir = os.path.dirname(relative_path)
+        if relative_dir == '.':
+            # 文件在service根目录
+            module.__package__ = "cj_nodes.service"
+        else:
+            # 文件在service的子目录中
+            subpackage = relative_dir.replace(os.sep, '.').replace('/', '.').replace('\\', '.')
+            module.__package__ = f"cj_nodes.service.{subpackage}"
+            # 添加父目录到sys.path，确保相对导入能找到模块
+            parent_dir = os.path.dirname(file_path)
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
+
         spec.loader.exec_module(module)
 
         # 遍历模块中的所有类并添加到映射
