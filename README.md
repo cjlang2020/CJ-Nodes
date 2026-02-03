@@ -14,6 +14,7 @@ https://hf-mirror.com/Qwen/Qwen3-4B-Instruct-2507-FP8
 
 https://hf-mirror.com/apple/FastVLM-1.5B
 
+提示词大全
 ![示例图片](doc/1.png)
 
 提示词选择
@@ -28,21 +29,18 @@ https://hf-mirror.com/apple/FastVLM-1.5B
 
 ![示例图片](doc/4.png)
 
-涂鸦的图片直接送入编码器，不要做姿势转化（自己画的肯定转化不了，哈哈）
-
-![示例图片](doc/5.png)
-
-右键点击开始涂鸦
-
-![示例图片](doc/6.png)
-
-鼠标绘制好后，点击发送图片即可
-
+涂鸦
 ![示例图片](doc/7.png)
-
 
 读取和写入lora的关键触发词，避免小本子记录
 ![示例图片](doc/8.png)
 
 
+镜头方向控制
+![示例图片](doc/9.png)
 
+显存优化集成
+![示例图片](doc/10.png)
+
+文本读写
+![示例图片](doc/11.png)
