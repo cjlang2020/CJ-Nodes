@@ -554,8 +554,16 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
 
             // 获取裁剪区域的图片数据
             const cropImageData = state.ctx.getImageData(x1, y1, x2 - x1, y2 - y1);
-            // 重新初始化Canvas为裁剪尺寸（不保存初始尺寸）
-            initCanvas(x2 - x1, y2 - y1, false);
+
+            // 重新初始化Canvas为裁剪尺寸
+            state.canvas = document.getElementById('edit-canvas');
+            state.ctx = state.canvas.getContext('2d');
+            state.canvas.width = x2 - x1;
+            state.canvas.height = y2 - y1;
+            state.canvasW = x2 - x1;
+            state.canvasH = y2 - y1;
+            state.canvas.style.display = 'block';
+
             // 绘制裁剪后的图片
             state.ctx.putImageData(cropImageData, 0, 0);
             // 更新裁剪尺寸和原始图（橡皮擦后续还原用）
@@ -564,6 +572,10 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
             const tempImg = new Image();
             tempImg.onload = () => { state.originalImage = tempImg; };
             tempImg.src = getCanvasBase64();
+            state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+
+            // 更新画布缩放和居中
+            updateCanvasScale();
 
             // 裁剪完成后隐藏裁剪框
             if (state.cropRect) state.cropRect.style.display = 'none';
