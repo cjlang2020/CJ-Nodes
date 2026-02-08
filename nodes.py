@@ -61,7 +61,8 @@ CUSTOM_DISPLAY_NAMES = {
     "ImageEditNode":"Luy-绘画节点",
     "PromptPickerNode": "Luy-SDXL提示词选择器",
     "llama_run":"Luy-LlamaCpp反推",
-    "llama_run_simple":"Luy-LlamaCpp反推(简化版)"
+    "llama_run_simple":"Luy-LlamaCpp反推(简化版)",
+    "SDXLPromptPickerNode": "Luy-SDXL角色提示词"
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）

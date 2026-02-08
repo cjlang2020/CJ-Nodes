@@ -233,23 +233,21 @@ preset_prompts = {
 }
 preset_tags = list(preset_prompts.keys())
 
-AITOOLS_V_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "aitools", "V")
 
-def load_preset_prompts():
+def load_text_presets(pathvt):
     global preset_prompts, preset_tags
+    AITOOLS_T_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "aitools", pathvt)
     try:
-        for filename in os.listdir(AITOOLS_V_DIR):
+        for filename in os.listdir(AITOOLS_T_DIR):
             if filename.endswith(".txt"):
                 key = filename[:-4]
-                filepath = os.path.join(AITOOLS_V_DIR, filename)
+                filepath = os.path.join(AITOOLS_T_DIR, filename)
                 with open(filepath, "r", encoding="utf-8") as f:
                     content = f.read()
                 preset_prompts[key] = content
         preset_tags = list(preset_prompts.keys())
     except Exception as e:
-        print(f"[llama-cpp_vlm] Failed to load preset prompts from {AITOOLS_V_DIR}: {e}")
-
-load_preset_prompts()
+        print(f"[llama-cpp_vlm] Failed to load text presets from {AITOOLS_T_DIR}: {e}")
 
 def image2base64(image):
     img = Image.fromarray(image)
@@ -624,7 +622,7 @@ class llama_run:
         all_llms = folder_paths.get_filename_list("LLM")
         model_list = [f for f in all_llms if "mmproj" not in f.lower()]
         mmproj_list = ["None"]+[f for f in all_llms if "mmproj" in f.lower()]
-
+        load_text_presets("V")
         return {
             "required": {
                 "model": (model_list,{"default": "Qwen3-VL-4B-Instruct-abliterated-Q5_K_M.gguf"}),
@@ -862,152 +860,6 @@ class llama_run:
         return (out1, out2, uid)
 
 
-class llama_run_simple:
-    @classmethod
-    def INPUT_TYPES(s):
-        all_llms = folder_paths.get_filename_list("LLM")
-        model_list = [f for f in all_llms if "mmproj" not in f.lower()]
-        mmproj_list = ["None"]+[f for f in all_llms if "mmproj" in f.lower()]
-
-        return {
-            "required": {
-                "model": (model_list,{"default": "Qwen3-VL-4B-Instruct-abliterated-Q5_K_M.gguf"}),
-                "mmproj": (mmproj_list, {"default": "mmproj-BF16.gguf"}),
-                "chat_handler": (chat_handlers, {"default": "Qwen3-VL"}),
-                "n_ctx": ("INT", {
-                    "default": 8192,
-                    "min": 2000, "max": 327680, "step": 128,
-                    "tooltip": "Context length limit."
-                }),
-                "vram_limit": ("INT", {
-                    "default": -1,
-                    "min": -1, "max": 1024, "step": 1,
-                    "tooltip": "VRAM usage limit in GB (-1 = no limit)"
-                }),
-                "preset_prompt": (preset_tags, {"default": preset_tags[1]}),
-                "ChineseReply": ("BOOLEAN", {"default": False}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
-            },
-            "hidden": {
-                "unique_id": "UNIQUE_ID",
-            },
-            "optional": {
-                "images": ("IMAGE",),
-                "queue_handler": (any_type, {"tooltip": "Used to control the execution order of instruct nodes."}),
-            },
-        }
-
-    RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("output", "output_list", "state_uid")
-    OUTPUT_IS_LIST = (False, True, False)
-    FUNCTION = "run"
-    CATEGORY = "luy/llama-cpp"
-
-    def sanitize_messages(self, messages):
-        clean_messages = messages.copy()
-        for msg in clean_messages:
-            content = msg.get("content")
-            if isinstance(content, list):
-                for item in content:
-                    if isinstance(item, dict) and item.get("type") == "image_url":
-                        item["image_url"]["url"] = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAADElEQVQImWP4//8/AAX+Av5Y8msOAAAAAElFTkSuQmCC"
-        return clean_messages
-
-    def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
-            preset_prompt, ChineseReply, custom_prompt, unique_id, images=None, queue_handler=None):
-        custom_config = {
-            "model": model,
-            "mmproj": mmproj,
-            "chat_handler": chat_handler,
-            "n_ctx": n_ctx,
-            "vram_limit": vram_limit,
-            "image_min_tokens": 0,
-            "image_max_tokens": 0
-        }
-
-        if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
-            print("[llama-cpp_vlm] Loading model...")
-            LLAMA_CPP_STORAGE.load_model(custom_config)
-
-        llama_model = LLAMA_CPP_STORAGE
-
-        if not llama_model.llm:
-            raise RuntimeError("The model has been unloaded or failed to load!")
-
-        parameters = {
-            "max_tokens": 2048,
-            "top_k": 30,
-            "top_p": 0.9,
-            "min_p": 0.05,
-            "typical_p": 1.0,
-            "temperature": 0.8,
-            "repeat_penalty": 1.0,
-            "frequency_penalty": 0.0,
-            "presence_penalty": 1.0,
-            "mirostat_mode": 0,
-            "mirostat_eta": 0.1,
-            "mirostat_tau": 5.0,
-            "state_uid": -1
-        }
-
-        _parameters = parameters.copy()
-        _parameters.pop("state_uid", None)
-        uid = unique_id.rpartition('.')[-1]
-        messages = []
-        out1 = ""
-        out2 = []
-        user_content = []
-
-        if custom_prompt.strip() and "*" not in preset_prompt and "@" not in preset_prompt:
-            user_content.append({"type": "text", "text": custom_prompt})
-        elif "@" in preset_prompt and custom_prompt.strip():
-            p = preset_prompts[preset_prompt].replace("{}", custom_prompt.strip()).replace("@", "image")
-            if ChineseReply:
-                p = p + ",\n请使用中文回答。"
-            user_content.append({"type": "text", "text": p})
-        else:
-            p = preset_prompts[preset_prompt].replace("#", custom_prompt.strip()).replace("@", "image")
-            if ChineseReply:
-                p = p + ",\n请使用中文回答。"
-            user_content.append({"type": "text", "text": p})
-
-        if images is not None:
-            if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:
-                raise ValueError("Image input detected, but the loaded model is not configured with a mmproj module.")
-
-            image_content = {
-                "type": "image_url",
-                "image_url": {"url": ""}
-            }
-            user_content.append(image_content)
-            messages.append({"role": "user", "content": user_content})
-
-            for i, image in enumerate(cqdm(images)):
-                if mm.processing_interrupted():
-                    raise mm.InterruptProcessingException()
-                data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-                for item in user_content:
-                    if item.get("type") == "image_url":
-                        item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
-                        break
-                output = llama_model.llm.create_chat_completion(messages=messages, seed=0, **_parameters)
-                text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-                out2.append(text)
-                if len(images) > 1:
-                    out1 += f"====== Image {i+1} ======\n{text}\n\n"
-                else:
-                    out1 = text
-
-        else:
-            messages.append({"role": "user", "content": user_content})
-            output = llama_model.llm.create_chat_completion(messages=messages, seed=0, **_parameters)
-            out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-            out2 = [out1]
-
-        del messages
-        gc.collect()
-        return (out1, out2, uid)
-
 
 class bboxes_to_bbox:
     @classmethod
@@ -1201,8 +1053,7 @@ NODE_CLASS_MAPPINGS = {
     "bboxes_to_bbox": bboxes_to_bbox,
     "remove_code_block": remove_code_block,
     "PromptEnhancerPreset": PromptEnhancerPreset,
-    "llama_run": llama_run,
-    "llama_run_simple": llama_run_simple,
+    "llama_run": llama_run
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -1215,6 +1066,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "bboxes_to_bbox": "BBoxes to BBox",
     "remove_code_block": "Unpack Code Block",
     "PromptEnhancerPreset": "Prompt Enhancer Preset",
-    "llama_run": "Llama-cpp Run",
-    "llama_run_simple": "Llama-cpp Run Simple",
+    "llama_run": "Llama-cpp Run"
 }

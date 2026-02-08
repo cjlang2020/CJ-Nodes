@@ -1,0 +1,1 @@
+Analyze this image in exhaustive JSON detail，Do not describe any text-related content in the output section.
