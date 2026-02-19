@@ -236,7 +236,7 @@ const EDIT_HTML = `
             <div class="color-item"><button class="color-btn" style="background:#8B4513" data-color="#8B4513" title="深棕-柏油道路/主路"></button><span class="color-label">道路</span></div>
             <div class="color-item"><button class="color-btn" style="background:#FFA500" data-color="#FFA500" title="橙色-木质建筑/民居"></button><span class="color-label">建筑</span></div>
             <div class="color-item"><button class="color-btn" style="background:#708090" data-color="#708090" title="灰蓝-钢筋混凝土建筑/高楼"></button><span class="color-label">高楼</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#000000" data-color="#000000" title="黑色-建筑屋顶/栏杆"></button><span class="color-label">黑色</span></div>
+            <div class="color-item"><button class="color-btn" style="background:#000000" data-color="#000000" title="黑色-建筑屋顶/栏杆"></button><span class="color-label">建筑</span></div>
         </div>
         <!-- 形状工具 -->
         <div class="tool-group">
