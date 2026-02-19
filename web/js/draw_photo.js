@@ -339,7 +339,7 @@ const EDIT_HTML = `
             // 获取工具栏高度（仅用于笔触预览位置计算）
             state.toolbarHeight = document.getElementById('main-toolbar').offsetHeight;
             // 填充白色背景
-            state.ctx.fillStyle = '#ffffff';
+state.ctx.fillStyle = '#EEEEEE';
             state.ctx.fillRect(0, 0, w, h);
             // 如果没有上传图片，创建一个空白背景的原始图像引用
             if (!state.originalImage) {
@@ -347,7 +347,7 @@ const EDIT_HTML = `
                 blankCanvas.width = w;
                 blankCanvas.height = h;
                 const blankCtx = blankCanvas.getContext('2d');
-                blankCtx.fillStyle = '#ffffff';
+                blankCtx.fillStyle = '#EEEEEE';
                 blankCtx.fillRect(0, 0, w, h);
                 const blankImg = new Image();
                 blankImg.onload = () => { state.originalImage = blankImg; };
@@ -639,8 +639,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         // 清除功能：完全清除画布上的所有内容（包括上传的图片）
         // ==============================================
         function execClear() {
-            // 完全清空画布，填充白色背景
-            state.ctx.fillStyle = '#ffffff';
+// 完全清空画布，填充默认背景色
+            state.ctx.fillStyle = '#EEEEEE';
             state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
 
             // 清除所有状态
@@ -654,8 +654,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
             const blankCanvas = document.createElement('canvas');
             blankCanvas.width = state.canvasW;
             blankCanvas.height = state.canvasH;
-            const blankCtx = blankCanvas.getContext('2d');
-            blankCtx.fillStyle = '#ffffff';
+const blankCtx = blankCanvas.getContext('2d');
+            blankCtx.fillStyle = '#EEEEEE';
             blankCtx.fillRect(0, 0, state.canvasW, state.canvasH);
             state.originalImage = new Image();
             state.originalImage.src = blankCanvas.toDataURL();
@@ -925,10 +925,10 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                     );
                 }
             } else {
-                // 没有上传图片：绘制白色擦除画笔痕迹
+// 没有上传图片：绘制默认背景色擦除画笔痕迹
                 state.ctx.save();
                 state.ctx.beginPath();
-                state.ctx.fillStyle = '#ffffff';
+                state.ctx.fillStyle = '#EEEEEE';
                 if (isContinuous) {
                     state.ctx.arc(x, y, halfSize, 0, Math.PI * 2);
                     state.ctx.fill();
