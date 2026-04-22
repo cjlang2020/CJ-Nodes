@@ -1,3 +1,6 @@
 *.pyc
 __pycache__
 services/__pycache__
+.omc
+**/.omc/**
+**/__pycache__/**

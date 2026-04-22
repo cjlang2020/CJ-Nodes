@@ -1,137 +1,39 @@
-import json
-import os
-import re
+"""
+多功能AI节点 - 统一的文本处理节点
+使用共享基础模块重构
+"""
 import folder_paths
-import gc
 import comfy.model_management as mm
-import folder_paths
-from llama_cpp import Llama
-from llama_cpp.llama_chat_format import (Qwen3VLChatHandler)
-
-def load_config():
-    config_path = os.path.join(os.path.dirname(__file__), "model_config.json")
-    if os.path.exists(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"prompts": {}, "models": {}}
-
-def get_chat_handler(model_type):
-    match model_type:
-        case "Qwen3-VL":
-            return Qwen3VLChatHandler
-        case "None":
-            return None
-        case _:
-            raise ValueError(f'Unknow model type: "{model_type}"')
-
-# 加载配置并初始化LLM路径
-config_data = load_config()
-llm_extensions = ['.gguf']
-folder_paths.folder_names_and_paths["LLM"] = ([os.path.join(folder_paths.models_dir, "LLM")], llm_extensions)
-
-# ======================== 核心改造区域 START ========================
-# 定义固定读取目录（你指定的 T 目录，原始字符串防止转义报错）
-PROMPT_FILE_DIR =  os.path.join(os.path.dirname(__file__), "T")
-# 初始化预设prompt字典 文件名=key，文件内容=value
-prompt_types_dict = {}
-
-# 过滤Windows非法文件名字符+系统无效文件
-INVALID_CHARS = r'\/:*?"<>|'
-EXCLUDE_FILES = ['.DS_Store', 'Thumbs.db', 'desktop.ini']
-
-def is_valid_file(file_name):
-    """校验是否为有效可读取的prompt文件"""
-    if file_name in EXCLUDE_FILES:
-        return False
-    # 排除隐藏文件/临时文件
-    if file_name.startswith(('.', '~')):
-        return False
-    return True
+from aitools_base import (
+    BaseModelManager,
+    PromptManager,
+    clean_think_content,
+    clean_prompt_keywords,
+    register_llm_folder
+)
 
 
-def get_model(config):
-    model = config["model"]
-    mmproj_model = config["mmproj_model"]
-    model_type = config.get("model_type", "Qwen3-VL")
-    think_mode = config.get("think_mode", False)
-    n_ctx = config.get("n_ctx", 8192)
-    n_gpu_layers = config.get("n_gpu_layers", -1)
+# 确保LLM目录已注册
+register_llm_folder()
 
-    model_path = os.path.join(folder_paths.models_dir, 'LLM', model)
-    chat_handler = None
-    if mmproj_model and mmproj_model != "None":
-        mmproj_path = os.path.join(folder_paths.models_dir, 'LLM', mmproj_model)
-        if model_type == "None":
-            raise ValueError('"model_type" cannot be None!')
-        print(f"Loading mmproj from {mmproj_path}")
-        handler = get_chat_handler(model_type)
-        if model_type == "Qwen3-VL":
-            chat_handler = handler(clip_model_path=mmproj_path, use_think_prompt=think_mode, verbose=False)
-        else:
-            chat_handler = handler(clip_model_path=mmproj_path, verbose=False)
-    print(f"Loading model from {model_path}")
-    # 使用默认参数，只调整必要的
-    llm = Llama(
-        model_path,
-        chat_handler=chat_handler,
-        n_gpu_layers=n_gpu_layers,
-        n_ctx=n_ctx,
-        verbose=False,
-        # 其他参数使用默认值
-        top_k=30,
-        top_p=0.9,
-        min_p=0.05,
-        typical_p=1.0,
-        temperature=0.8,
-        repeat_penalty=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=1.0,
-        mirostat_mode=0,
-        mirostat_eta=0.1,
-        mirostat_tau=5.0
-    )
-    return (chat_handler, llm)
+# 初始化提示词管理器（T目录用于文本提示词）
+prompt_manager = PromptManager("T")
 
 
-# 读取指定目录下的所有有效文件，生成字典
-if os.path.exists(PROMPT_FILE_DIR) and os.path.isdir(PROMPT_FILE_DIR):
-    for file_item in os.listdir(PROMPT_FILE_DIR):
-        file_abspath = os.path.join(PROMPT_FILE_DIR, file_item)
-        # 严格只处理【文件】，跳过文件夹/快捷方式，且过滤无效文件
-        if os.path.isfile(file_abspath) and is_valid_file(file_item):
-            try:
-                # 读取文件内容，utf8编码+容错，自动去除首尾空白符
-                with open(file_abspath, 'r', encoding='utf-8', errors='ignore') as f:
-                    file_content = f.read().strip()
-                # 核心赋值：文件名 = key ， 文件内容 = value
-                prompt_types_dict[file_item] = file_content
-                print(f"✅ 成功加载T目录prompt文件：{file_item}")
-            except Exception as e:
-                print(f"⚠️ 读取T目录prompt文件失败 {file_abspath} : {str(e)[:80]}")
-else:
-    print(f"⚠️ prompt目录不存在或非法：{PROMPT_FILE_DIR}，请检查路径！")
-
-# 生成下拉选单的标签列表，为空时给默认值防止节点报错
-prompt_types = list(prompt_types_dict.keys()) if prompt_types_dict else ["请在T目录放入提示词文件"]
-# ======================== 核心改造区域 END ========================
-
-class MultiFunAINode:
-    def __init__(self):
-        super().__init__()
-        self.prompt = ""
-        self.tokenizers = {}
-        self.models = {}
-        self.current_config = None  # 初始化配置跟踪
+class MultiFunAINode(BaseModelManager):
+    """多功能AI处理节点"""
 
     @classmethod
     def INPUT_TYPES(cls):
+        prompt_types = prompt_manager.get_prompt_types()
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("LLM"), {"default": "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"}),
+                "model": (folder_paths.get_filename_list("LLM"),
+                          {"default": "Qwen3-4B-Instruct-2507-Q5_K_M.gguf"}),
                 "keep_model_loaded": ("BOOLEAN", {"default": True}),
                 "max_tokens": ("INT", {"default": 1200, "min": 0, "max": 4096, "step": 1}),
-                "choice_type": (prompt_types, {"default": prompt_types[0] if prompt_types else ""}),
-                "prompt": ("STRING", {"multiline": True, "default": "",}),
+                "choice_type": (prompt_types, {"default": prompt_types[0]}),
+                "prompt": ("STRING", {"multiline": True, "default": ""}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1}),
             },
             "optional": {}
@@ -145,78 +47,56 @@ class MultiFunAINode:
     def process_prompt(self, model, keep_model_loaded, max_tokens, choice_type, prompt, seed):
         mm.soft_empty_cache()
 
-        # 1. 强化禁用think模式的配置（增加显式抑制参数）
-        llmamodel_config = {
+        # 模型配置
+        model_config = {
             "model": model,
-            "model_type": "llama",
+            "model_type": "None",  # 纯文本模型
             "think_mode": False,
             "n_ctx": 8192,
             "n_gpu_layers": -1,
-            "keep_model_loaded": keep_model_loaded,
-            "enable_thinking": False,  # 新增：传递额外抑制参数
-            "no_thinking": True      # 新增：兼容工具函数的其他禁用标识
         }
 
-        adjusted_config = llmamodel_config.copy()
-        adjusted_config["mmproj_model"] = adjusted_config.get("mmproj_model", None)
-
-        parameters = {
+        # 推理参数
+        inference_params = {
             "max_tokens": max_tokens,
-            "temperature": 0.7,  # 降低随机性，减少模型额外输出
-            "stop": ["```"]       # 遇到think标签起始符立即停止生成
+            "temperature": 0.7,
+            "top_k": 30,
+            "top_p": 0.9,
+            "min_p": 0.05,
+            "repeat_penalty": 1.0,
+            "stop": ["```"]
         }
 
-        # 2. 重新初始化模型（确保配置生效）
-        if not hasattr(self, "llm") or self.current_config != adjusted_config:
-            if hasattr(self, "llm"):
-                self.llm.close()
-                try:
-                    self.chat_handler._exit_stack.close()
-                except Exception:
-                    pass
-            self.current_config = adjusted_config
-            self.chat_handler, self.llm = get_model(adjusted_config)
+        # 加载模型
+        llm, _ = self.get_or_reload_model(model_config)
 
-        # 3. 净化提示词（移除可能触发think的内容）【核心修改：读取T目录的文件内容】
-        # 替换原从config读取，改为从我们加载的文件字典读取
-        prompt_full = prompt_types_dict.get(choice_type, "")
-        # 过滤提示词中的思维链引导语句
-        prompt_full = re.sub(r"思考|分析|推理|步骤|```[\s\S]*?```", "", prompt_full)
-        # 强制添加禁用think的指令
+        # 构建提示词
+        prompt_content = prompt_manager.get_prompt_content(choice_type)
+        prompt_content = clean_prompt_keywords(prompt_content)
+
         system_prompt = "直接输出结果，不要包含任何思考过程、注释或```think```标签。"
-        final_prompt = f"{system_prompt}\n{prompt_full}{prompt}/no_think"
+        final_prompt = f"{system_prompt}\n{prompt_content}{prompt}/no_think"
 
         messages = [{"role": "user", "content": final_prompt}]
 
-        # 增加推理异常捕获，防止节点崩溃
+        # 推理
         try:
-            output = self.llm.create_chat_completion(
+            output = llm.create_chat_completion(
                 messages=messages,
-                seed=seed,** parameters
+                seed=seed,
+                **inference_params
             )
         except Exception as e:
-            text = f"模型推理失败：{str(e)[:150]}"
-            print(f"❌ LLM推理错误: {str(e)}")
-            return (text,)
+            error_msg = f"模型推理失败：{str(e)[:150]}"
+            print(f"[错误] LLM推理失败: {str(e)}")
+            return (error_msg,)
 
         # 清理资源
         if not keep_model_loaded:
-            self.llm.close()
-            try:
-                self.chat_handler._exit_stack.close()
-            except Exception:
-                pass
-            del self.llm, self.chat_handler
-            gc.collect()
-            mm.soft_empty_cache()
+            self.cleanup()
 
-        # 4. 强制过滤输出中的think内容
+        # 处理输出
         text = output['choices'][0]['message']['content']
-        # 移除所有```think```块及内容
-        text = re.sub(r"```[\s\S]*?think[\s\S]*?```", "", text, flags=re.IGNORECASE)
-        # 移除残留的标签碎片
-        text = re.sub(r"```|think|\u200b", "", text)
-        # 清理首尾空白和符号
-        text = text.lstrip(": ").lstrip().rstrip()
+        text = clean_think_content(text)
 
         return (text,)

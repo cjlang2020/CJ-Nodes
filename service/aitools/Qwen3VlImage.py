@@ -1,133 +1,40 @@
-import os
-import json
-import torch
+"""
+Qwen3-VL 图像/视频处理节点
+使用共享基础模块重构
+"""
 import numpy as np
-from PIL import Image
 import folder_paths
 import comfy.model_management as mm
-
-from PIL import Image
-import folder_paths
-from llama_cpp import Llama
-from llama_cpp.llama_chat_format import (Qwen3VLChatHandler)
-
-def load_config():
-    config_path = os.path.join(os.path.dirname(__file__), "model_config.json")
-    if os.path.exists(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"prompts": {}, "models": {}}
-
-def get_chat_handler(model_type):
-    match model_type:
-        case "Qwen3-VL":
-            return Qwen3VLChatHandler
-        case "None":
-            return None
-        case _:
-            raise ValueError(f'Unknow model type: "{model_type}"')
-
-def get_model(config):
-    model = config["model"]
-    mmproj_model = config["mmproj_model"]
-    model_type = config.get("model_type", "Qwen3-VL")
-    think_mode = config.get("think_mode", False)
-    n_ctx = config.get("n_ctx", 8192)
-    n_gpu_layers = config.get("n_gpu_layers", -1)
-
-    model_path = os.path.join(folder_paths.models_dir, 'LLM', model)
-    chat_handler = None
-    if mmproj_model and mmproj_model != "None":
-        mmproj_path = os.path.join(folder_paths.models_dir, 'LLM', mmproj_model)
-        if model_type == "None":
-            raise ValueError('"model_type" cannot be None!')
-        print(f"Loading mmproj from {mmproj_path}")
-        handler = get_chat_handler(model_type)
-        if model_type == "Qwen3-VL":
-            chat_handler = handler(clip_model_path=mmproj_path, use_think_prompt=think_mode, verbose=False)
-        else:
-            chat_handler = handler(clip_model_path=mmproj_path, verbose=False)
-    print(f"Loading model from {model_path}")
-    # 使用默认参数，只调整必要的
-    llm = Llama(
-        model_path,
-        chat_handler=chat_handler,
-        n_gpu_layers=n_gpu_layers,
-        n_ctx=n_ctx,
-        verbose=False,
-        # 其他参数使用默认值
-        top_k=30,
-        top_p=0.9,
-        min_p=0.05,
-        typical_p=1.0,
-        temperature=0.8,
-        repeat_penalty=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=1.0,
-        mirostat_mode=0,
-        mirostat_eta=0.1,
-        mirostat_tau=5.0
-    )
-    return (chat_handler, llm)
+from aitools_base import (
+    BaseModelManager,
+    PromptManager,
+    scale_image,
+    image2base64,
+    register_llm_folder,
+    clean_think_content
+)
 
 
-config_data = load_config()
-llm_extensions = ['.gguf']
-folder_paths.folder_names_and_paths["LLM"] = ([os.path.join(folder_paths.models_dir, "LLM")], llm_extensions)
+# 确保LLM目录已注册
+register_llm_folder()
+
+# 初始化提示词管理器
+PROMPT_FILE_DIR = "V"
+prompt_manager = PromptManager(PROMPT_FILE_DIR)
 
 
-# ======================== 核心修复+优化区域 START ========================
-# 1. 定义prompt文件目录（使用原始字符串避免转义，确认此路径是纯文件目录，不含文件内容！）
-PROMPT_FILE_DIR = os.path.join(os.path.dirname(__file__), "V")
-# 初始化预设prompt字典
-preset_prompts = {}
+class ImageDeal(BaseModelManager):
+    """图像/视频处理节点"""
 
-# 2. 过滤Windows非法文件名字符（防止文件命名错误导致路径异常）
-INVALID_CHARS = r'\/:*?"<>|'
-# 3. 定义需要排除的文件（隐藏文件、系统文件、临时文件）
-EXCLUDE_FILES = ['.DS_Store', 'Thumbs.db', 'desktop.ini']
-
-def is_valid_file(file_name):
-    """校验是否为有效可读取的prompt文件"""
-    if file_name in EXCLUDE_FILES:
-        return False
-    # 排除隐藏文件（开头带.或~）
-    if file_name.startswith(('.', '~')):
-        return False
-    return True
-
-# 读取指定目录下的所有有效文件，生成 preset_prompts：文件名=key，文件内容=value
-if os.path.exists(PROMPT_FILE_DIR) and os.path.isdir(PROMPT_FILE_DIR):
-    # 遍历目录下所有项，严格区分【文件】和【文件夹】
-    for file_item in os.listdir(PROMPT_FILE_DIR):
-        # 拼接完整路径（仅用文件名拼接，避免内容混入）
-        file_abspath = os.path.join(PROMPT_FILE_DIR, file_item)
-        # 只处理【文件】，跳过文件夹/快捷方式等
-        if os.path.isfile(file_abspath) and is_valid_file(file_item):
-            try:
-                # 读取文件内容，utf-8编码+忽略编码错误，自动去除首尾空白符
-                with open(file_abspath, 'r', encoding='utf-8', errors='ignore') as f:
-                    file_content = f.read().strip()
-                # 核心赋值：纯文件名作为key，文件内容作为value
-                preset_prompts[file_item] = file_content
-                print(f"成功加载prompt文件：{file_item}")
-            except Exception as e:
-                # 容错：单个文件读取失败不影响整体，打印详细日志
-                print(f"【警告】读取prompt文件失败 {file_abspath} ，错误原因：{str(e)[:100]}")
-else:
-    print(f"【警告】prompt目录不存在或不是有效目录：{PROMPT_FILE_DIR}，请检查路径！")
-
-# 生成下拉选单的标签列表（为空时给默认值，避免节点报错）
-preset_tags = list(preset_prompts.keys()) if preset_prompts else ["请在V目录下放prompt文件"]
-# ======================== 核心修复+优化区域 END ========================
-
-class ImageDeal:
     @classmethod
     def INPUT_TYPES(s):
+        preset_tags = prompt_manager.get_prompt_types()
         return {
             "required": {
-                "model": (folder_paths.get_filename_list("LLM"), {"default": "Qwen3-VL-4B-Instruct-Q5_K_M.gguf"}),
-                "mmproj_model": (["None"] + folder_paths.get_filename_list("LLM"), {"default": "mmproj-BF16.gguf"}),
+                "model": (folder_paths.get_filename_list("LLM"),
+                         {"default": "Qwen3-VL-4B-Instruct-Q5_K_M.gguf"}),
+                "mmproj_model": (["None"] + folder_paths.get_filename_list("LLM"),
+                                {"default": "mmproj-BF16.gguf"}),
                 "keep_model_loaded": ("BOOLEAN", {"default": True}),
                 "max_tokens": ("INT", {"default": 800, "min": 0, "max": 4096, "step": 1}),
                 "preset_prompt": (preset_tags, {"default": preset_tags[0] if preset_tags else ""}),
@@ -153,46 +60,33 @@ class ImageDeal:
                 max_frames, video_size, seed, images=None):
         mm.soft_empty_cache()
 
-        # 模型配置与加载
-        llmamodel_config = {
-            "model": model, "mmproj_model": mmproj_model, "model_type": "Qwen3-VL",
-            "think_mode": False, "n_ctx": 8192, "n_gpu_layers": -1, "keep_model_loaded": keep_model_loaded
+        # 模型配置
+        model_config = {
+            "model": model,
+            "mmproj_model": mmproj_model,
+            "model_type": "Qwen3-VL",
+            "think_mode": False,
+            "n_ctx": 8192,
+            "n_gpu_layers": -1,
         }
-        if not hasattr(self, "llm") or self.current_config != llmamodel_config:
-            if hasattr(self, "llm"):
-                self.llm.close()
-                try: self.chat_handler._exit_stack.close()
-                except Exception: pass
-            self.current_config = llmamodel_config
-            self.chat_handler, self.llm = get_model(llmamodel_config)
+
+        # 加载模型
+        llm, chat_handler = self.get_or_reload_model(model_config)
 
         # 构建消息
         messages = []
-        system_prompts = "请将输入的图片序列当做视频而不是静态帧序列, " + system_prompt if video_input else system_prompt
+        system_prompts = ("请将输入的图片序列当做视频而不是静态帧序列, " + system_prompt
+                         if video_input else system_prompt)
         if system_prompts.strip():
             messages.append({"role": "system", "content": system_prompts})
 
-        user_content = []
-        if custom_prompt.strip():
-            if preset_prompt.startswith('@') and preset_prompt in preset_prompts:
-                preset_text = preset_prompts[preset_prompt]
-                preset_text = preset_text.replace('{', '{{').replace('}', '}}').replace('{{}}', '{}')
-                final_text = preset_text.format(custom_prompt)
-                user_content.append({"type": "text", "text": final_text})
-            else:
-                user_content.append({"type": "text", "text": custom_prompt})
-        else:
-            if preset_prompt in preset_prompts and preset_prompt != "请在V目录下放prompt文件":
-                # 保留原逻辑：自动替换preset_text里的@字符为 video/image
-                preset_text = preset_prompts[preset_prompt]
-                preset_text = preset_text.replace("@", "video" if video_input else "image")
-                user_content.append({"type": "text", "text": preset_text})
-            else:
-                user_content.append({"type": "text", "text": ""})
+        # 构建用户内容
+        user_content = prompt_manager.build_final_prompt(preset_prompt, custom_prompt, video_input)
 
+        # 处理图像
         if images is not None:
-            if not hasattr(self.chat_handler, "clip_model_path"):
-                 raise ValueError("未配置视觉模块（mmproj），请加载对应的mmproj_model文件！")
+            if not hasattr(chat_handler, "clip_model_path"):
+                raise ValueError("未配置视觉模块（mmproj），请加载对应的mmproj_model文件！")
 
             frames = images
             if video_input:
@@ -201,20 +95,44 @@ class ImageDeal:
 
             for image in frames:
                 try:
-                    data = image2base64(scale_image(image, video_size)) if video_input else image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-                    user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}})
+                    if video_input:
+                        data = image2base64(scale_image(image, video_size))
+                    else:
+                        img_array = np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8)
+                        data = image2base64(img_array)
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{data}"}
+                    })
                 except Exception as e:
-                    print(f"【警告】图片转base64失败，错误原因：{str(e)[:50]}")
+                    print(f"[警告] 图片转base64失败: {str(e)[:50]}")
                     continue
 
         messages.append({"role": "user", "content": user_content})
 
-        # 推理与裁剪处理
+        # 推理参数
+        inference_params = {
+            "max_tokens": max_tokens,
+            "temperature": 0.7,
+            "top_k": 30,
+            "top_p": 0.9,
+        }
+
+        # 推理
         try:
-            output = self.llm.create_chat_completion(messages=messages, seed=seed, max_tokens=max_tokens)
+            output = llm.create_chat_completion(
+                messages=messages,
+                seed=seed,
+                **inference_params
+            )
             text = output['choices'][0]['message']['content']
+            text = clean_think_content(text)
         except Exception as e:
             text = f"推理失败，错误原因：{str(e)[:200]}"
-            print(f"【错误】LLM推理失败：{str(e)}")
+            print(f"[错误] LLM推理失败：{str(e)}")
+
+        # 清理资源
+        if not keep_model_loaded:
+            self.cleanup()
 
         return (text,)

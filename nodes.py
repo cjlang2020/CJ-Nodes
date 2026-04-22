@@ -62,7 +62,10 @@ CUSTOM_DISPLAY_NAMES = {
     "PromptPickerNode": "Luy-SDXL提示词选择器",
     "llama_run":"Luy-LlamaCpp反推",
     "llama_run_simple":"Luy-LlamaCpp反推(简化版)",
-    "SDXLPromptPickerNode": "Luy-SDXL角色提示词"
+    "SDXLPromptPickerNode": "Luy-SDXL角色提示词",
+    "LuySaveImage": "Luy-保存图片到本地",
+    "LlamaCppAPINode": "Luy-LlamaCpp本地API",
+    "LlamaCppAPIRefreshPrompts": "Luy-刷新提示词模板",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）
@@ -88,20 +91,18 @@ def load_nodes_from_file(file_path):
         # 创建并加载模块
         module = importlib.util.module_from_spec(spec)
 
-        # 计算相对于SERVICE_DIR的路径，构建正确的包路径
-        relative_path = os.path.relpath(file_path, SERVICE_DIR)
-        relative_dir = os.path.dirname(relative_path)
-        if relative_dir == '.':
-            # 文件在service根目录
-            module.__package__ = "cj_nodes.service"
-        else:
-            # 文件在service的子目录中
-            subpackage = relative_dir.replace(os.sep, '.').replace('/', '.').replace('\\', '.')
-            module.__package__ = f"cj_nodes.service.{subpackage}"
-            # 添加父目录到sys.path，确保相对导入能找到模块
-            parent_dir = os.path.dirname(file_path)
-            if parent_dir not in sys.path:
-                sys.path.insert(0, parent_dir)
+        # 关键修复：将文件所在目录及其父目录添加到sys.path，确保相对导入能工作
+        file_dir = os.path.dirname(file_path)
+        if file_dir not in sys.path:
+            sys.path.insert(0, file_dir)
+
+        # 同时添加service目录，确保跨目录导入能工作
+        parent_of_file_dir = os.path.dirname(file_dir)
+        if parent_of_file_dir not in sys.path:
+            sys.path.insert(0, parent_of_file_dir)
+
+        # 不设置__package__，让相对导入基于sys.path解析
+        module.__package__ = None
 
         spec.loader.exec_module(module)
 

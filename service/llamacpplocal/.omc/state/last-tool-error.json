@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/AI/ComfyUI_ROB1802/ComfyUI/custom_nodes/CJ-Nodes/service/llamacpplocal\\\" && python -c \\\"\\nimport sys\\nsys.path.insert(0, '.')\\nfrom llamacpp_api_node import NODE_CLASS_MAPPINGS, NO...",
+  "error": "Exit code 1\nTraceback (most recent call last):\r\n  File \"<string>\", line 4, in <module>\r\n  File \"D:\\AI\\ComfyUI_ROB1802\\ComfyUI\\custom_nodes\\CJ-Nodes\\service\\llamacpplocal\\.\\llamacpp_api_node.py\", line 8, in <module>\r\n    import folder_paths\r\nModuleNotFoundError: No module named 'folder_paths'",
+  "timestamp": "2026-04-17T09:33:58.609Z",
+  "retry_count": 1
+}

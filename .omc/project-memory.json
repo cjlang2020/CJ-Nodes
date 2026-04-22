@@ -1,0 +1,157 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1776851102301,
+  "projectRoot": "D:\\AI\\ComfyUI_ROB1802\\ComfyUI\\custom_nodes\\CJ-Nodes",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "doc": {
+      "path": "doc",
+      "purpose": null,
+      "fileCount": 11,
+      "lastAccessed": 1776851102274,
+      "keyFiles": [
+        "1.png",
+        "10.png",
+        "11.png",
+        "2.png",
+        "3.png"
+      ]
+    },
+    "service": {
+      "path": "service",
+      "purpose": null,
+      "fileCount": 6,
+      "lastAccessed": 1776851102274,
+      "keyFiles": [
+        "DualCLIPLoader.py",
+        "LuyWanImageToVideoSVIPro.py",
+        "QwenEditAddLlamaTemplate.py",
+        "QwenMultiangleCameraNode.py",
+        "VisClipCopy.py"
+      ]
+    },
+    "web": {
+      "path": "web",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1776851102275,
+      "keyFiles": [
+        "data.js",
+        "index.html",
+        "index.js",
+        "manifest.json"
+      ]
+    },
+    "__pycache__": {
+      "path": "__pycache__",
+      "purpose": null,
+      "fileCount": 8,
+      "lastAccessed": 1776851102276,
+      "keyFiles": [
+        "file_nodes.cpython-312.pyc",
+        "morse_nodes.cpython-312.pyc",
+        "nodes.cpython-310.pyc",
+        "nodes.cpython-312.pyc",
+        "nodes.cpython-313.pyc"
+      ]
+    },
+    "web\\src": {
+      "path": "web\\src",
+      "purpose": "Source code",
+      "fileCount": 0,
+      "lastAccessed": 1776851102277,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "service\\llama-cpp\\llamacpp_image.py",
+      "accessCount": 28,
+      "lastAccessed": 1776867850580,
+      "type": "file"
+    },
+    {
+      "path": "service\\llama-cpp\\base.py",
+      "accessCount": 24,
+      "lastAccessed": 1776867810743,
+      "type": "file"
+    },
+    {
+      "path": "service\\llama-cpp\\nodes.py",
+      "accessCount": 23,
+      "lastAccessed": 1776867850593,
+      "type": "file"
+    },
+    {
+      "path": "service\\llama-cpp\\llamacpp.py",
+      "accessCount": 5,
+      "lastAccessed": 1776854888724,
+      "type": "file"
+    },
+    {
+      "path": "service\\llama-cpp\\llamacpp_text.py",
+      "accessCount": 4,
+      "lastAccessed": 1776854911493,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1776852257992,
+      "type": "directory"
+    },
+    {
+      "path": "service\\llama-cpp",
+      "accessCount": 1,
+      "lastAccessed": 1776852093712,
+      "type": "directory"
+    },
+    {
+      "path": "service\\llama-cpp\\__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1776852231243,
+      "type": "file"
+    },
+    {
+      "path": "nodes.py",
+      "accessCount": 1,
+      "lastAccessed": 1776852268605,
+      "type": "file"
+    },
+    {
+      "path": "C:\\Users\\Lang\\.claude\\plans\\typed-napping-eagle.md",
+      "accessCount": 1,
+      "lastAccessed": 1776852322644,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
