@@ -94,8 +94,8 @@
   "hotPaths": [
     {
       "path": "service\\llama-cpp\\llamacpp_image.py",
-      "accessCount": 28,
-      "lastAccessed": 1776867850580,
+      "accessCount": 33,
+      "lastAccessed": 1776935043409,
       "type": "file"
     },
     {
@@ -150,6 +150,12 @@
       "path": "C:\\Users\\Lang\\.claude\\plans\\typed-napping-eagle.md",
       "accessCount": 1,
       "lastAccessed": 1776852322644,
+      "type": "file"
+    },
+    {
+      "path": "service\\aitools\\MultiFunAINode.py",
+      "accessCount": 1,
+      "lastAccessed": 1776934981195,
       "type": "file"
     }
   ],

@@ -50,6 +50,7 @@ class llama_run_simple:
                 "ChineseReply": ("BOOLEAN", {"default": False}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
                 "unload_model": ("BOOLEAN", {"default": True, "tooltip": "Unload model after inference. If True, calls clean_state to release resources."}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1, "tooltip": "Random seed for ensuring execution each run."}),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -67,7 +68,7 @@ class llama_run_simple:
     CATEGORY = "luy/llama-cpp"
 
     def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
-            preset_prompt, ChineseReply, custom_prompt, unload_model, unique_id, images=None, queue_handler=None):
+            preset_prompt, ChineseReply, custom_prompt, unload_model, seed, unique_id, images=None, queue_handler=None):
         custom_config = {
             "model": model,
             "mmproj": mmproj,
