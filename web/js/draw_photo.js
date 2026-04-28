@@ -1486,10 +1486,7 @@ app.registerExtension({
 
                 // 加载编辑界面
                 try {
-                    const blob = new Blob([EDIT_HTML], { type: 'text/html;charset=utf-8' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    iframe.src = blobUrl;
-                    iframe._blobUrl = blobUrl;
+                    iframe.src = "/CJ-Nodes/image-editor.html";
                 } catch (e) {
                     console.error("❌ 创建编辑面板失败:", e);
                     alert("图片编辑节点初始化失败: " + e.message);
@@ -1570,7 +1567,6 @@ app.registerExtension({
                 this.onRemoved = function() {
                     window.removeEventListener('message', handleMessage);
                     if (this._resizeObserver) this._resizeObserver.disconnect();
-                    if (iframe._blobUrl) URL.revokeObjectURL(iframe._blobUrl);
                     if (origOnRemoved) origOnRemoved.apply(this, arguments);
                 };
 

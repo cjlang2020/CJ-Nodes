@@ -1,5 +1,4 @@
 import { app } from "../../../../scripts/app.js";
-import { VIEWER_HTML } from "./viewer_inline.js";
 
 /**
  * ComfyUI Extension for Qwen Multiangle Camera Node
@@ -25,14 +24,8 @@ app.registerExtension({
                 iframe.style.borderRadius = "8px";
                 iframe.style.display = "block";
 
-                // Create blob URL from inline HTML
-                const blob = new Blob([VIEWER_HTML], { type: 'text/html' });
-                const blobUrl = URL.createObjectURL(blob);
-                iframe.src = blobUrl;
-
-                iframe.addEventListener('load', () => {
-                    iframe._blobUrl = blobUrl;
-                });
+                // Use server route instead of blob URL
+                iframe.src = "/CJ-Nodes/viewer-inline.html";
 
                 // Add widget
                 const widget = this.addDOMWidget("viewer", "CAMERA_3D_VIEW", iframe, {
@@ -188,9 +181,6 @@ app.registerExtension({
                     window.removeEventListener('message', onMessage);
                     if (resizeTimeout) {
                         clearTimeout(resizeTimeout);
-                    }
-                    if (iframe._blobUrl) {
-                        URL.revokeObjectURL(iframe._blobUrl);
                     }
                     if (originalOnRemoved) {
                         originalOnRemoved.apply(this, arguments);

@@ -41,13 +41,6 @@ app.registerExtension({
                         ctx.roundRect(x, y, size, size, 4);
                         ctx.fill();
                         ctx.stroke();
-
-                        // Draw inner highlight
-                        ctx.strokeStyle = "rgba(255,255,255,0.3)";
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.roundRect(x + 2, y + 2, size - 4, size - 4, 2);
-                        ctx.stroke();
                         ctx.restore();
                     }
                 };
@@ -61,7 +54,7 @@ app.registerExtension({
                 iframe.style.borderRadius = "8px";
                 iframe.style.display = "block";
 
-                // Create blob URL from inline HTML
+                // Use blob URL for original functionality
                 const blob = new Blob([VIEWER_HTML], { type: 'text/html' });
                 const blobUrl = URL.createObjectURL(blob);
                 iframe.src = blobUrl;

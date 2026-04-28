@@ -1,8 +1,7 @@
 import { app } from "../../../../scripts/app.js";
-const sdxl = window.location.origin+"/extensions/CJ-Nodes/js/sdxl_prompt.js"
+const sdxl = window.location.origin+"/CJ-Nodes/js/sdxl_prompt.js"
 
-// ========== 提示词面板HTML模板（左右分栏紧凑布局） ==========
-const PROMPT_PICKER_HTML = `
+// ========== 注册ComfyUI扩展 ==========
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -356,12 +355,9 @@ app.registerExtension({
                 iframe.style.pointerEvents = "auto";
                 iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
 
-                // 生成Blob URL加载HTML
+                // 加载编辑界面
                 try {
-                    const blob = new Blob([PROMPT_PICKER_HTML], { type: 'text/html;charset=utf-8' });
-                    const blobUrl = URL.createObjectURL(blob);
-                    iframe.src = blobUrl;
-                    iframe._blobUrl = blobUrl;
+                    iframe.src = "/CJ-Nodes/prompt-picker.html";
                 } catch (e) {
                     console.error("创建iframe失败:", e);
                     alert("创建提示词面板失败: " + e.message);
@@ -492,14 +488,6 @@ app.registerExtension({
                             console.warn("断开ResizeObserver失败:", e);
                         }
                         this._resizeObserver = null;
-                    }
-
-                    if (iframe._blobUrl) {
-                        try {
-                            URL.revokeObjectURL(iframe._blobUrl);
-                        } catch (e) {
-                            console.warn("清理Blob URL失败:", e);
-                        }
                     }
 
                     if (origOnRemoved) {

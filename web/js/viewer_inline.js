@@ -1,4 +1,4 @@
-const currentOrigin = window.location.origin+"/extensions/CJ-Nodes/js/three.min.js"
+const currentOrigin = window.location.origin+"/CJ-Nodes/js/three.min.js"
 export const VIEWER_HTML = `
 <!DOCTYPE html>
 <html>

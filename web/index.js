@@ -120,7 +120,7 @@ class PromptSelectoDialog extends ComfyDialog {
 
     createLayout() {
         this.iframeElement = $el("iframe", {
-            src: "extensions/CJ-Nodes/index.html",
+            src: "/CJ-Nodes/index.html",
             style: {
                 width: "100%",
                 height: "100%",

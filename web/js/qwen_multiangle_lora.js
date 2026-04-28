@@ -25,7 +25,7 @@ app.registerExtension({
                 iframe.style.borderRadius = "8px";
                 iframe.style.display = "block";
 
-                // Create blob URL from inline HTML
+                // Use blob URL for original functionality
                 const blob = new Blob([VIEWER_HTML], { type: 'text/html' });
                 const blobUrl = URL.createObjectURL(blob);
                 iframe.src = blobUrl;
