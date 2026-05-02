@@ -1,0 +1,7 @@
+白天 (day)
+黄昏 (dusk)
+夜晚 (night)
+春 (in spring)
+夏 (in summer)
+秋 (in autumn)
+冬 (in winter)

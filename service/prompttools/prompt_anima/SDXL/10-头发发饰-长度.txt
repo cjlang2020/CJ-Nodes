@@ -1,0 +1,8 @@
+很短 (very short hair)
+短发 (short hair)
+中发 (medium hair)
+长发 (long hair)
+很长 (very long hair)
+特别长 (absurdly long hair)
+头发过肩 (hair over shoulder)
+有长有短 (alternate hair length)
