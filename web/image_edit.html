@@ -882,57 +882,93 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         }
 
         // ==============================================
-        // 液化工具：像素跟随鼠标移动（方向完全一致，中心最强）
+        // 双线性插值采样（子像素精度，消除锯齿）
+        // ==============================================
+        function sampleBilinear(pixels, w, h, x, y) {
+            if (x < 0) x = 0;
+            if (x >= w) x = w - 0.001;
+            if (y < 0) y = 0;
+            if (y >= h) y = h - 0.001;
+            const x1 = Math.floor(x);
+            const y1 = Math.floor(y);
+            const fx = x - x1;
+            const fy = y - y1;
+            const x2 = Math.min(w - 1, x1 + 1);
+            const y2 = Math.min(h - 1, y1 + 1);
+            const i00 = (y1 * w + x1) * 4;
+            const i10 = (y1 * w + x2) * 4;
+            const i01 = (y2 * w + x1) * 4;
+            const i11 = (y2 * w + x2) * 4;
+            const w00 = (1 - fx) * (1 - fy);
+            const w10 = fx * (1 - fy);
+            const w01 = (1 - fx) * fy;
+            const w11 = fx * fy;
+            return [
+                pixels[i00]*w00 + pixels[i10]*w10 + pixels[i01]*w01 + pixels[i11]*w11,
+                pixels[i00+1]*w00 + pixels[i10+1]*w10 + pixels[i01+1]*w01 + pixels[i11+1]*w11,
+                pixels[i00+2]*w00 + pixels[i10+2]*w10 + pixels[i01+2]*w01 + pixels[i11+2]*w11,
+                pixels[i00+3]*w00 + pixels[i10+3]*w10 + pixels[i01+3]*w01 + pixels[i11+3]*w11
+            ];
+        }
+
+        // ==============================================
+        // 液化工具：逐帧推移（类似Photoshop Forward Warp）
+        // 每帧从当前画布快照采样，对画笔区域内像素施加鼠标位移偏移
+        // 像素自然累积推移，形成推拉变形效果
         // ==============================================
         function execLiquify(x, y) {
-            if (!state.tempImageData || !state.canvas || !state.lastLiquifyPos) return;
+            if (!state.canvas || !state.lastLiquifyPos) return;
             const size = state.drawSize;
             const strength = state.liquifyStrength;
-            const imgData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
-            const pixels = imgData.data;
             const width = state.canvasW;
             const height = state.canvasH;
-            // 计算鼠标移动向量
+
             const dxMove = x - state.lastLiquifyPos.x;
             const dyMove = y - state.lastLiquifyPos.y;
             const moveDist = Math.sqrt(dxMove * dxMove + dyMove * dyMove);
-            if (moveDist < 0.1) return; // 移动过小时不执行，优化性能
-            const radiusSq = size * size;
-            // 遍历液化画笔范围内的所有像素
-            for (let dy = -size; dy <= size; dy++) {
-                for (let dx = -size; dx <= size; dx++) {
-                    const currX = Math.floor(x + dx);
-                    const currY = Math.floor(y + dy);
-                    // 边界检查，避免越界
-                    if (currX < 0 || currX >= width || currY < 0 || currY >= height) continue;
-                    // 计算到圆心的距离平方，判断是否在画笔范围内
+            if (moveDist < 0.5) return;
+
+            // 读取当前画布作为本次位移的源（每帧更新，位移自然累积）
+            const srcData = state.ctx.getImageData(0, 0, width, height);
+            const srcPixels = srcData.data;
+
+            // 目标缓冲区
+            const dstData = state.ctx.getImageData(0, 0, width, height);
+            const dstPixels = dstData.data;
+
+            const radius = size;
+            const radiusSq = radius * radius;
+            const sigma = radius / 2.5;
+            const sigmaSq2 = 2 * sigma * sigma;
+            const bx = Math.floor(x);
+            const by = Math.floor(y);
+
+            // 对画笔范围内的每个像素进行逆映射位移
+            for (let dy = -radius; dy <= radius; dy++) {
+                for (let dx = -radius; dx <= radius; dx++) {
                     const distSq = dx * dx + dy * dy;
                     if (distSq > radiusSq) continue;
-                    // 圆形衰减计算：圆心1.0 → 边缘0.0，平方衰减更自然
-                    const decay = 1.0 - (distSq / radiusSq);
-                    const finalStrength = strength * decay;
-                    // 像素偏移量（与鼠标移动方向完全一致）
-                    const offsetX = dxMove * finalStrength;
-                    const offsetY = dyMove * finalStrength;
-                    // 修正源像素坐标：保证像素跟随鼠标移动
-                    const srcX = Math.floor(currX - offsetX);
-                    const srcY = Math.floor(currY - offsetY);
-                    // 源像素边界检查
-                    if (srcX < 0 || srcX >= width || srcY < 0 || srcY >= height) continue;
-                    // 赋值像素（RGBA四通道）
-                    const srcIdx = (srcY * width + srcX) * 4;
-                    const tarIdx = (currY * width + currX) * 4;
-                    pixels[tarIdx] = state.tempImageData.data[srcIdx];
-                    pixels[tarIdx + 1] = state.tempImageData.data[srcIdx + 1];
-                    pixels[tarIdx + 2] = state.tempImageData.data[srcIdx + 2];
-                    pixels[tarIdx + 3] = state.tempImageData.data[srcIdx + 3];
+                    const px = bx + dx;
+                    const py = by + dy;
+                    if (px < 0 || px >= width || py < 0 || py >= height) continue;
+
+                    // 高斯衰减
+                    const gaussWeight = Math.exp(-distSq / sigmaSq2);
+                    // 位移量 = 鼠标增量 × 衰减 × 强度
+                    const offX = dxMove * gaussWeight * strength;
+                    const offY = dyMove * gaussWeight * strength;
+
+                    // 逆映射：从源图 (px - offX, py - offY) 采样
+                    const dstIdx = (py * width + px) * 4;
+                    const s = sampleBilinear(srcPixels, width, height, px - offX, py - offY);
+                    dstPixels[dstIdx]     = s[0];
+                    dstPixels[dstIdx + 1] = s[1];
+                    dstPixels[dstIdx + 2] = s[2];
+                    dstPixels[dstIdx + 3] = s[3];
                 }
             }
-            // 将变形后的像素写回Canvas
-            state.ctx.putImageData(imgData, 0, 0);
-            // 更新临时图片数据（下次操作基于最新状态）
-            state.tempImageData = state.ctx.getImageData(0, 0, width, height);
-            // 更新上一帧液化位置
+
+            state.ctx.putImageData(dstData, 0, 0);
             state.lastLiquifyPos = {x, y};
         }
 
@@ -1308,7 +1344,6 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         break;
                     case 'liquify':
                         saveCanvasState();
-                        state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
                         state.lastLiquifyPos = {x, y};
                         break;
                     case 'smudge':
@@ -1378,7 +1413,6 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         initDrawStyle();
                         state.ctx.moveTo(x, y);
                     } else if (state.currentTool === 'liquify') {
-                        state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
                         state.lastLiquifyPos = {x, y};
                     } else if (state.currentTool === 'smudge') {
                         state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
