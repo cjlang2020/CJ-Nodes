@@ -176,6 +176,7 @@
             user-select: none;
             background: #f8f8f8;
             display: none;
+            cursor: grab;
         }
         #crop-rect {
             position: absolute;
@@ -307,7 +308,7 @@
         <div id="shape-preview"></div>
     </div>
 
-    <div id="status">🟢 就绪 | 可直接绘画或上传图片 | 清除：清空画布 | 重置：恢复初始尺寸</div>
+    <div id="status">🟢 就绪 | 可直接绘画或上传图片 | 清除：清空画布 | 重置：恢复初始尺寸 | 滚轮缩放+中键平移</div>
 
     <script>
         // 全局状态管理
@@ -354,7 +355,16 @@
             maxUndo: 30,
             cropRect: null,
             applyCropBtn: null, // 应用裁剪按钮
-            resizeObserver: null
+            resizeObserver: null,
+            // 缩放和平移状态
+            zoom: 1.0,
+            panX: 0,
+            panY: 0,
+            isPanning: false,
+            panStartX: 0,
+            panStartY: 0,
+            panStartPanX: 0,
+            panStartPanY: 0
         };
 
         // ==============================================
@@ -388,6 +398,10 @@
             state.canvas.style.display = 'block';
             state.brushPreview = document.getElementById('brush-preview');
             state.undoBtn = document.getElementById('undo-btn');
+            // 重置缩放到 1（新画布没必要保持旧缩放）
+            state.zoom = 1.0;
+            state.panX = 0;
+            state.panY = 0;
             // 获取裁剪框和应用裁剪按钮DOM
             state.cropRect = document.getElementById('crop-rect');
             state.applyCropBtn = document.getElementById('apply-crop-btn');
@@ -454,13 +468,16 @@
             const padB = parseFloat(containerStyle.paddingBottom) || 0;
             const contW = container.clientWidth - padL - padR;
             const contH = container.clientHeight - padT - padB;
-            const scaleX = contW / state.canvasW;
-            const scaleY = contH / state.canvasH;
-            state.scale = Math.min(scaleX, scaleY, 1);
+            const fitScaleX = contW / state.canvasW;
+            const fitScaleY = contH / state.canvasH;
+            const fitScale = Math.min(fitScaleX, fitScaleY);
+            state.scale = fitScale * state.zoom;
             const dispW = state.canvasW * state.scale;
             const dispH = state.canvasH * state.scale;
-            state.offsetX = (contW - dispW) / 2 + padL;
-            state.offsetY = (contH - dispH) / 2 + padT;
+            const baseLeft = (contW - dispW) / 2 + padL;
+            const baseTop = (contH - dispH) / 2 + padT;
+            state.offsetX = baseLeft + state.panX;
+            state.offsetY = baseTop + state.panY;
 state.canvas.style.width = dispW + 'px';
             state.canvas.style.height = dispH + 'px';
             state.canvas.style.left = state.offsetX + 'px';
@@ -628,7 +645,12 @@ state.canvas.style.width = dispW + 'px';
                     setStatus('📏 直线工具 | 颜色:' + state.drawColor + ' 线宽:' + state.drawSize);
                     break;
                 default:
-                    setStatus('🟢 就绪 | 选择工具开始编辑（裁剪/画笔/液化/橡皮擦/矩形/圆形/直线）| 清除：清空画布 | 重置：恢复初始尺寸');
+                    setStatus('🟢 就绪 | 选择工具开始编辑（裁剪/画笔/液化/橡皮擦/矩形/圆形/直线）| 滚轮缩放/中键平移 | 清除：清空画布 | 重置：恢复初始尺寸');
+            }
+            // 根据工具切换鼠标样式
+            if (state.canvas) {
+                const drawTools = ['draw','smudge','liquify','erase','rect','circle','line','crop'];
+                state.canvas.style.cursor = drawTools.includes(tool) ? 'crosshair' : 'grab';
             }
         }
 
@@ -1412,8 +1434,18 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
 
             // 6. 橡皮擦工具使用统一画笔大小，无需额外配置
 
-            // 7. 鼠标移动：更新预览/裁剪框/实时操作
+            // 7. 鼠标移动：更新预览/裁剪框/实时操作 + 中键平移
             document.addEventListener('mousemove', (e) => {
+                // 中键平移
+                if (state.isPanning) {
+                    state.panX = state.panStartPanX + (e.clientX - state.panStartX);
+                    state.panY = state.panStartPanY + (e.clientY - state.panStartY);
+                    updateCanvasScale();
+                    if (state.currentTool === 'crop' && state.isCropSelected) {
+                        updateCropRect();
+                    }
+                    return;
+                }
                 // 实时更新笔触预览位置
                 updateBrushPreviewPos(e.clientX, e.clientY);
                 if (!state.isMouseDown) return;
@@ -1450,9 +1482,19 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
 
             // 8. Canvas核心鼠标交互：按下/松开
             const canvas = document.getElementById('edit-canvas');
-            // 鼠标按下
+            // 鼠标按下（左键=工具，中键=平移）
             canvas.addEventListener('mousedown', (e) => {
                 e.preventDefault();
+                // 中键（button=1）：开始平移
+                if (e.button === 1) {
+                    state.isPanning = true;
+                    state.panStartX = e.clientX;
+                    state.panStartY = e.clientY;
+                    state.panStartPanX = state.panX;
+                    state.panStartPanY = state.panY;
+                    state.canvas.style.cursor = 'grabbing';
+                    return;
+                }
                 state.isMouseDown = true;
                 const [x, y] = getCanvasXY(e.clientX, e.clientY);
                 switch(state.currentTool) {
@@ -1490,8 +1532,14 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                 }
             });
 
-            // 鼠标松开：绘制形状或停止操作
+            // 鼠标松开：平移中止 或 绘制形状/停止操作
             document.addEventListener('mouseup', (e) => {
+                // 停止中键平移
+                if (state.isPanning) {
+                    state.isPanning = false;
+                    state.canvas.style.cursor = '';
+                    return;
+                }
                 if (!state.isMouseDown) return;
                 state.isMouseDown = false;
                 const [x, y] = getCanvasXY(e.clientX, e.clientY);
@@ -1574,6 +1622,32 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                 });
                 state.resizeObserver.observe(document.getElementById('canvas-container'));
             }
+
+            // 12. 鼠标滚轮缩放（以鼠标所在图片位置为中心）
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const oldScale = state.scale;
+                const rect = state.canvas.getBoundingClientRect();
+                // 当前鼠标指向的画布坐标
+                const canvasPX = (e.clientX - rect.left) / oldScale;
+                const canvasPY = (e.clientY - rect.top) / oldScale;
+                // 计算新缩放（滚轮上=放大，下=缩小）
+                const factor = e.deltaY > 0 ? 1 / 1.12 : 1.12;
+                state.zoom = Math.max(0.1, Math.min(20, state.zoom * factor));
+                // 重新布局（此时 pan 不变，画布会以新缩放重新居中）
+                updateCanvasScale();
+                // 调整 pan 值使 canvasPX,canvasPY 在屏幕上保持原位
+                const newRect = state.canvas.getBoundingClientRect();
+                state.panX += (e.clientX - newRect.left) - canvasPX * state.scale;
+                state.panY += (e.clientY - newRect.top) - canvasPY * state.scale;
+                updateCanvasScale();
+                // 更新裁剪框位置
+                if (state.currentTool === 'crop' && state.isCropSelected) {
+                    updateCropRect();
+                }
+                updateBrushPreviewSize();
+                setStatus('🔍 缩放: ' + Math.round(state.zoom * 100) + '% | 滚轮缩放/中键平移');
+            }, { passive: false });
         }
 
         // ==============================================
