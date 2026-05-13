@@ -52,6 +52,18 @@
             background: #2ecc71;
             box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
         }
+        /* 撤销按钮特殊样式 */
+        #undo-btn {
+            background: #f39c12;
+        }
+        #undo-btn:hover:not(:disabled) {
+            background: #e67e22;
+        }
+        #undo-btn:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
         /* 清除按钮特殊样式 */
         #clear-btn {
             background: #e67e22;
@@ -155,6 +167,7 @@
             <button id="upload-btn" class="tool-btn">上传图片</button>
             <button id="crop-btn" class="tool-btn">裁剪画面</button>
             <button id="apply-crop-btn" class="tool-btn" disabled>应用裁剪</button>
+            <button id="undo-btn" class="tool-btn" disabled>撤销 Ctrl+Z</button>
             <button id="clear-btn" class="tool-btn">清除画布</button>
             <button id="reset-btn" class="tool-btn">重置大小</button>
         </div>
@@ -248,6 +261,9 @@
             cropWidth: 512,
             cropHeight: 512,
             brushPreview: null,
+            // 撤销历史栈
+            undoStack: [],
+            maxUndo: 30,
             cropRect: null,
             applyCropBtn: null, // 应用裁剪按钮
             resizeObserver: null
@@ -283,6 +299,7 @@
             }
             state.canvas.style.display = 'block';
             state.brushPreview = document.getElementById('brush-preview');
+            state.undoBtn = document.getElementById('undo-btn');
             // 获取裁剪框和应用裁剪按钮DOM
             state.cropRect = document.getElementById('crop-rect');
             state.applyCropBtn = document.getElementById('apply-crop-btn');
@@ -383,6 +400,73 @@ state.canvas.style.width = dispW + 'px';
         // ==============================================
         function setStatus(text) {
             document.getElementById('status').textContent = text;
+        }
+
+        // ==============================================
+        // 保存画布状态到撤销栈
+        // ==============================================
+        function saveCanvasState() {
+            if (!state.ctx || !state.canvas) return;
+            try {
+                const imageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+                state.undoStack.push({
+                    imageData: imageData,
+                    width: state.canvasW,
+                    height: state.canvasH
+                });
+                if (state.undoStack.length > state.maxUndo) {
+                    state.undoStack.shift();
+                }
+                if (state.undoBtn) state.undoBtn.disabled = false;
+            } catch (e) {
+                console.warn('saveCanvasState error:', e);
+            }
+        }
+
+        // ==============================================
+        // 撤销上一步操作
+        // ==============================================
+        function execUndo() {
+            if (state.undoStack.length === 0) return;
+            const entry = state.undoStack.pop();
+
+            const sizeChanged = entry.width !== state.canvasW || entry.height !== state.canvasH;
+
+            if (sizeChanged) {
+                state.canvas.width = entry.width;
+                state.canvas.height = entry.height;
+                state.canvasW = entry.width;
+                state.canvasH = entry.height;
+                state.cropWidth = entry.width;
+                state.cropHeight = entry.height;
+                state.isCropSelected = false;
+                if (state.cropRect) state.cropRect.style.display = 'none';
+                if (state.applyCropBtn) state.applyCropBtn.disabled = true;
+                updateCanvasScale();
+                // 尺寸变化时更新原始图像引用
+                if (!state.originalImage) {
+                    const blankCanvas = document.createElement('canvas');
+                    blankCanvas.width = entry.width;
+                    blankCanvas.height = entry.height;
+                    const blankCtx = blankCanvas.getContext('2d');
+                    blankCtx.fillStyle = '#ffffff';
+                    blankCtx.fillRect(0, 0, entry.width, entry.height);
+                    state.originalImage = new Image();
+                    state.originalImage.src = blankCanvas.toDataURL();
+                }
+            }
+
+            state.ctx.putImageData(entry.imageData, 0, 0);
+            // 同步临时数据（模糊/液化依赖）
+            state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
+            // 同步原始图像（橡皮擦依赖）
+            const img = new Image();
+            img.onload = () => { state.originalImage = img; };
+            img.src = getCanvasBase64();
+
+            sendToParent(sizeChanged);
+            if (state.undoBtn) state.undoBtn.disabled = state.undoStack.length === 0;
+            setStatus('↩️ 已撤销 | 剩余历史: ' + state.undoStack.length + '步');
         }
 
         // ==============================================
@@ -542,6 +626,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         // ==============================================
         function execCrop() {
             if (!state.isCropSelected) return;
+            saveCanvasState();
             // 保证裁剪区域有效（最小10px，避免空裁剪）
             const x1 = Math.max(0, Math.min(state.canvasW, state.cropX1));
             const y1 = Math.max(0, Math.min(state.canvasH, state.cropY1));
@@ -580,6 +665,9 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
             // 重置裁剪选择状态
             state.isCropSelected = false;
 
+            // 裁剪改变了尺寸，清空历史栈（旧快照尺寸不匹配）
+            state.undoStack = [];
+            if (state.undoBtn) state.undoBtn.disabled = true;
             // 发送裁剪后数据到后端
             sendToParent(true);
             setStatus('✅ 裁剪完成 | 新尺寸: ' + state.cropWidth + 'x' + state.cropHeight);
@@ -589,6 +677,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         // 清除功能：完全清除画布上的所有内容（包括上传的图片）
         // ==============================================
         function execClear() {
+            saveCanvasState();
             // 完全清空画布，填充白色背景
             state.ctx.fillStyle = '#ffffff';
             state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
@@ -623,6 +712,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                 setStatus('ℹ️ 画布尺寸已是初始尺寸 (' + state.initialW + 'x' + state.initialH + ')');
                 return;
             }
+
+            saveCanvasState();
 
             // 保存当前画布内容
             let savedImage = null;
@@ -1050,6 +1141,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                 reader.onload = (ev) => {
                     const img = new Image();
                     img.onload = () => {
+                        // 保存当前画布状态以便撤销上传
+                        saveCanvasState();
                         // 不保存初始尺寸，不保留原有内容，完全按照图片大小调整画布
                         initCanvas(img.width, img.height, false, false);
                         state.ctx.drawImage(img, 0, 0);
@@ -1090,6 +1183,19 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
             // 3.2 重置按钮点击事件
             document.getElementById('reset-btn').addEventListener('click', () => {
                 execReset();
+            });
+
+            // 3.3 撤销按钮点击事件
+            document.getElementById('undo-btn').addEventListener('click', () => {
+                execUndo();
+            });
+
+            // 3.4 Ctrl+Z 快捷键撤销
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                    e.preventDefault();
+                    execUndo();
+                }
             });
 
             // 4. 画笔参数调节（实时更新）
@@ -1196,23 +1302,28 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         updateCropRect();
                         break;
                     case 'draw':
+                        saveCanvasState();
                         initDrawStyle();
                         state.ctx.moveTo(x, y);
                         break;
                     case 'liquify':
+                        saveCanvasState();
                         state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
                         state.lastLiquifyPos = {x, y};
                         break;
                     case 'smudge':
+                        saveCanvasState();
                         state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
                         state.lastSmudgePos = {x, y};
                         break;
                     case 'erase':
+                        saveCanvasState();
                         execErase(x, y, false);
                         break;
                     case 'rect':
                     case 'circle':
                     case 'line':
+                        saveCanvasState();
                         // 记录形状起始位置
                         state.shapeStartX = x;
                         state.shapeStartY = y;
