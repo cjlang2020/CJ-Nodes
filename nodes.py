@@ -48,7 +48,6 @@ CUSTOM_DISPLAY_NAMES = {
     "MultiFrameVideo":"Luy-多帧视频处理",
     "VisClipCopyImageReference":"Luy-视觉参考",
     "LuyWanImageToVideoSVIPro":"Luy-图像转视频SVIPlus",
-    "QwenMultiangleCameraNode": "Luy-镜头视角控制（柯基版）",
     "QwenPlusMultiangleCameraNode": "Luy-镜头视角控制（魔改版）",
     "QwenLoraMultiangleCameraNode": "Luy-镜头视角控制（Lora标准版）",
     "QwenMultiangleLightningNode":"Luy-多角度光照控制节点",
