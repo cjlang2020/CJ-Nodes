@@ -337,7 +337,6 @@
             drawAlpha: 1.0,
             // 模糊画笔状态
             smudgeStrength: 0.5,
-            lastSmudgePos: null,
             // 液化状态
             liquifyStrength: 0.5,
             lastLiquifyPos: null,
@@ -606,7 +605,7 @@ state.canvas.style.width = dispW + 'px';
                     break;
                 case 'smudge':
                     document.getElementById('smudge-btn').classList.add('active');
-                    setStatus('🎨 模糊画笔 | 大小:' + state.drawSize + ' 强度:' + state.smudgeStrength);
+                    setStatus('🌫️ 高斯模糊 | 大小:' + state.drawSize + ' 强度:' + state.smudgeStrength);
                     break;
                 case 'liquify':
                     document.getElementById('liquify-btn').classList.add('active');
@@ -894,80 +893,118 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         }
 
         // ==============================================
-        // 模糊画笔工具：像素混合涂抹（类似PS的Smudge工具）
+        // 可分离高斯卷积核（水平+垂直两遍，O(2n) 性能）
         // ==============================================
-        function execSmudge(x, y) {
-            if (!state.tempImageData || !state.canvas || !state.lastSmudgePos) return;
-            const size = state.drawSize;
-            const strength = state.smudgeStrength;
-            const imgData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
-            const pixels = imgData.data;
-            const width = state.canvasW;
-            const height = state.canvasH;
-            const radiusSq = size * size;
+        function separableGaussianBlur(imageData, w, h, sigma) {
+            const halfK = Math.ceil(sigma * 2.5);
+            const kernelSize = halfK * 2 + 1;
+            const kernel = new Float64Array(kernelSize);
+            let sum = 0;
+            for (let i = 0; i < kernelSize; i++) {
+                const x = i - halfK;
+                kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+                sum += kernel[i];
+            }
+            for (let i = 0; i < kernelSize; i++) kernel[i] /= sum;
 
-            // 计算鼠标移动方向
-            const dxMove = x - state.lastSmudgePos.x;
-            const dyMove = y - state.lastSmudgePos.y;
-            const moveDist = Math.sqrt(dxMove * dxMove + dyMove * dyMove);
-            if (moveDist < 0.5) return; // 移动过小时不执行
+            const src = imageData.data;
+            const tmp = new Uint8ClampedArray(src.length);
+            const dst = new Uint8ClampedArray(src.length);
 
-            // 归一化移动方向
-            const dirX = dxMove / moveDist;
-            const dirY = dyMove / moveDist;
-
-            // 创建临时缓冲区存储新像素值
-            const newPixels = new Uint8ClampedArray(pixels);
-
-            // 遍历画笔范围内的所有像素
-            for (let dy = -size; dy <= size; dy++) {
-                for (let dx = -size; dx <= size; dx++) {
-                    const currX = Math.floor(x + dx);
-                    const currY = Math.floor(y + dy);
-
-                    // 边界检查
-                    if (currX < 0 || currX >= width || currY < 0 || currY >= height) continue;
-
-                    // 计算到圆心的距离
-                    const distSq = dx * dx + dy * dy;
-                    if (distSq > radiusSq) continue;
-
-                    // 圆形衰减：圆心最强，边缘最弱
-                    const decay = 1.0 - (distSq / radiusSq);
-                    const finalStrength = strength * decay * 0.3; // 降低整体强度使效果更自然
-
-                    // 计算源像素位置（沿移动方向反方向取样，产生涂抹效果）
-                    const sampleDist = size * 0.5 * finalStrength;
-                    const srcX = Math.floor(currX - dirX * sampleDist);
-                    const srcY = Math.floor(currY - dirY * sampleDist);
-
-                    // 源像素边界检查
-                    if (srcX < 0 || srcX >= width || srcY < 0 || srcY >= height) continue;
-
-                    // 混合当前像素和源像素
-                    const currIdx = (currY * width + currX) * 4;
-                    const srcIdx = (srcY * width + srcX) * 4;
-
-                    // 线性混合当前像素和源像素
-                    const blendFactor = finalStrength;
-                    newPixels[currIdx] = pixels[currIdx] * (1 - blendFactor) + pixels[srcIdx] * blendFactor;
-                    newPixels[currIdx + 1] = pixels[currIdx + 1] * (1 - blendFactor) + pixels[srcIdx + 1] * blendFactor;
-                    newPixels[currIdx + 2] = pixels[currIdx + 2] * (1 - blendFactor) + pixels[srcIdx + 2] * blendFactor;
-                    newPixels[currIdx + 3] = pixels[currIdx + 3] * (1 - blendFactor) + pixels[srcIdx + 3] * blendFactor;
+            // 水平方向卷积
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    let r = 0, g = 0, b = 0, a = 0;
+                    for (let k = 0; k < kernelSize; k++) {
+                        const sx = Math.min(w - 1, Math.max(0, x + k - halfK));
+                        const idx = (y * w + sx) * 4;
+                        const kw = kernel[k];
+                        r += src[idx] * kw;
+                        g += src[idx + 1] * kw;
+                        b += src[idx + 2] * kw;
+                        a += src[idx + 3] * kw;
+                    }
+                    const idx = (y * w + x) * 4;
+                    tmp[idx] = r; tmp[idx + 1] = g; tmp[idx + 2] = b; tmp[idx + 3] = a;
                 }
             }
 
-            // 将混合后的像素写回图像数据
-            for (let i = 0; i < pixels.length; i++) {
-                pixels[i] = newPixels[i];
+            // 垂直方向卷积
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    let r = 0, g = 0, b = 0, a = 0;
+                    for (let k = 0; k < kernelSize; k++) {
+                        const sy = Math.min(h - 1, Math.max(0, y + k - halfK));
+                        const idx = (sy * w + x) * 4;
+                        const kw = kernel[k];
+                        r += tmp[idx] * kw;
+                        g += tmp[idx + 1] * kw;
+                        b += tmp[idx + 2] * kw;
+                        a += tmp[idx + 3] * kw;
+                    }
+                    const idx = (y * w + x) * 4;
+                    dst[idx] = r; dst[idx + 1] = g; dst[idx + 2] = b; dst[idx + 3] = a;
+                }
             }
 
-            // 将变形后的像素写回Canvas
-            state.ctx.putImageData(imgData, 0, 0);
-            // 更新临时图片数据（下次操作基于最新状态）
-            state.tempImageData = state.ctx.getImageData(0, 0, width, height);
-            // 更新上一帧涂抹位置
-            state.lastSmudgePos = {x, y};
+            return new ImageData(dst, w, h);
+        }
+
+        // ==============================================
+        // 高斯模糊画笔：在画笔圆范围内应用高斯模糊 + 圆形软边缘混合
+        // ==============================================
+        function execGaussianBlur(x, y) {
+            if (!state.canvas) return;
+
+            const size = state.drawSize;
+            const strength = state.smudgeStrength;
+            const width = state.canvasW;
+            const height = state.canvasH;
+
+            // 模糊半径（σ）随画笔大小和强度缩放
+            const sigma = Math.max(0.5, (size / 8) * strength);
+            const brushRadius = Math.ceil(size / 2);
+            const bx = Math.floor(x);
+            const by = Math.floor(y);
+
+            // 提取画笔圆形区域的 bounding box
+            const rgnX = Math.max(0, bx - brushRadius);
+            const rgnY = Math.max(0, by - brushRadius);
+            const rgnW = Math.min(width, bx + brushRadius) - rgnX;
+            const rgnH = Math.min(height, by + brushRadius) - rgnY;
+            if (rgnW <= 0 || rgnH <= 0) return;
+
+            // 对区域应用高斯模糊
+            const srcData = state.ctx.getImageData(rgnX, rgnY, rgnW, rgnH);
+            const blurred = separableGaussianBlur(srcData, rgnW, rgnH, sigma);
+
+            // 用圆形软遮罩将模糊结果与原图混合（边缘平滑过渡）
+            const dstData = state.ctx.getImageData(rgnX, rgnY, rgnW, rgnH);
+            const dst = dstData.data;
+            const blr = blurred.data;
+            const cx = x - rgnX;
+            const cy = y - rgnY;
+            const rSq = brushRadius * brushRadius;
+            const edgeSigma = brushRadius / 2.5;
+
+            for (let py = 0; py < rgnH; py++) {
+                for (let px = 0; px < rgnW; px++) {
+                    const dx = px - cx;
+                    const dy = py - cy;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq > rSq) continue;
+
+                    // 高斯衰减权重（中心→边缘平滑过渡）
+                    const falloff = Math.exp(-distSq / (2 * edgeSigma * edgeSigma));
+                    const idx = (py * rgnW + px) * 4;
+                    dst[idx]     = blr[idx] * falloff + dst[idx] * (1 - falloff);
+                    dst[idx + 1] = blr[idx + 1] * falloff + dst[idx + 1] * (1 - falloff);
+                    dst[idx + 2] = blr[idx + 2] * falloff + dst[idx + 2] * (1 - falloff);
+                    dst[idx + 3] = 255;
+                }
+            }
+
+            state.ctx.putImageData(dstData, rgnX, rgnY);
         }
 
         // ==============================================
@@ -1394,7 +1431,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         state.ctx.moveTo(x, y);
                         break;
                     case 'smudge':
-                        execSmudge(x, y);
+                        execGaussianBlur(x, y);
                         break;
                     case 'liquify':
                         execLiquify(x, y);
@@ -1437,8 +1474,6 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         break;
                     case 'smudge':
                         saveCanvasState();
-                        state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
-                        state.lastSmudgePos = {x, y};
                         break;
                     case 'erase':
                         saveCanvasState();
@@ -1504,8 +1539,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                     } else if (state.currentTool === 'liquify') {
                         state.lastLiquifyPos = {x, y};
                     } else if (state.currentTool === 'smudge') {
-                        state.tempImageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
-                        state.lastSmudgePos = {x, y};
+                        // 高斯模糊无需额外初始化
                     } else if (state.currentTool === 'erase') {
                         execErase(x, y, false);
                     } else if (state.currentTool === 'rect' || state.currentTool === 'circle' || state.currentTool === 'line') {
