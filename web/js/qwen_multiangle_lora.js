@@ -1,5 +1,4 @@
 import { app } from "../../../../scripts/app.js";
-import { VIEWER_HTML } from "./camera_viewer.js";
 
 /**
  * ComfyUI Extension for Qwen Multiangle Camera Node
@@ -26,7 +25,7 @@ app.registerExtension({
                 iframe.style.display = "block";
 
                 // Use server route like the plus version
-                iframe.src = "/CJ-Nodes/viewer-inline.html";
+                iframe.src = "/CJ-Nodes/qwen_multiangle.html";
 
                 // Add widget
                 const widget = this.addDOMWidget("viewer", "CAMERA_3D_VIEW", iframe, {

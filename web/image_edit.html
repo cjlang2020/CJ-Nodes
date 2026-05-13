@@ -1,7 +1,3 @@
-import { app } from "../../../../scripts/app.js";
-
-// 图片编辑界面HTML模板（裁剪应用按钮+精准对齐+液化正向）
-const EDIT_HTML = `
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -149,31 +145,6 @@ const EDIT_HTML = `
         }
         #image-input { display: none; }
         #upload-btn { background: #2ecc71; }
-        .color-btn {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #fff;
-            border-radius: 4px;
-            cursor: pointer;
-            margin: 0 2px;
-            transition: transform 0.1s;
-        }
-        .color-btn:hover { transform: scale(1.1); }
-        .color-btn.active { border: 2px solid #ffff00; box-shadow: 0 0 6px rgba(255,255,0,0.8); }
-        .color-label { font-size: 10px; color: #aaa; white-space: nowrap; }
-        #color-presets {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 4px;
-            border-right: 1px solid #555;
-            padding-right: 12px;
-            max-width: 100%;
-        }
-        #color-presets .color-item {
-            display: flex;
-            align-items: center;
-            gap: 2px;
-        }
     </style>
 </head>
 <body>
@@ -216,27 +187,6 @@ const EDIT_HTML = `
             <label>强度:</label>
             <input type="range" id="liquify-strength" min="0.1" max="1" step="0.1" value="0.5">
             <span id="liquify-strength-val" class="range-value">0.5</span>
-        </div>
-        <!-- 颜色预设按钮 -->
-        <div id="color-presets">
-            <div class="color-item"><button class="color-btn" style="background:#1E5631" data-color="#1E5631" title="墨绿-成年树木/树干"></button><span class="color-label">树木</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#4CAF50" data-color="#4CAF50" title="翠绿-树叶/树冠"></button><span class="color-label">树冠</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#8FBC8F" data-color="#8FBC8F" title="浅绿-普通草地"></button><span class="color-label">草地</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#FFB6C1" data-color="#FFB6C1" title="粉红-蔷薇/樱花"></button><span class="color-label">花</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#87CEEB" data-color="#87CEEB" title="天蓝-晴朗天空"></button><span class="color-label">天空</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#4682B4" data-color="#4682B4" title="宝蓝-流动河流"></button><span class="color-label">河流</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#B0E0E6" data-color="#B0E0E6" title="浅蓝-平静湖水/池塘"></button><span class="color-label">湖水</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#00BFFF" data-color="#00BFFF" title="蔚蓝-海洋/大海"></button><span class="color-label">海洋</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#696969" data-color="#696969" title="深灰-山脉主体"></button><span class="color-label">山脉</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#A0522D" data-color="#A0522D" title="棕褐-泥土/普通山石"></button><span class="color-label">泥土</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#E6E6FA" data-color="#E6E6FA" title="淡紫-薄云雾/晨雾"></button><span class="color-label">云雾</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#FFFFFF" data-color="#FFFFFF" title="白色-云朵（晴天）"></button><span class="color-label">云朵</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#FFD700" data-color="#FFD700" title="金色-太阳（正午）"></button><span class="color-label">太阳</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#F5D6B4" data-color="#F5D6B4" title="浅肤色-人物（白种/黄种）"></button><span class="color-label">人物</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#8B4513" data-color="#8B4513" title="深棕-柏油道路/主路"></button><span class="color-label">道路</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#FFA500" data-color="#FFA500" title="橙色-木质建筑/民居"></button><span class="color-label">建筑</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#708090" data-color="#708090" title="灰蓝-钢筋混凝土建筑/高楼"></button><span class="color-label">高楼</span></div>
-            <div class="color-item"><button class="color-btn" style="background:#000000" data-color="#000000" title="黑色-建筑屋顶/栏杆"></button><span class="color-label">建筑</span></div>
         </div>
         <!-- 形状工具 -->
         <div class="tool-group">
@@ -339,7 +289,7 @@ const EDIT_HTML = `
             // 获取工具栏高度（仅用于笔触预览位置计算）
             state.toolbarHeight = document.getElementById('main-toolbar').offsetHeight;
             // 填充白色背景
-state.ctx.fillStyle = '#EEEEEE';
+            state.ctx.fillStyle = '#ffffff';
             state.ctx.fillRect(0, 0, w, h);
             // 如果没有上传图片，创建一个空白背景的原始图像引用
             if (!state.originalImage) {
@@ -347,7 +297,7 @@ state.ctx.fillStyle = '#EEEEEE';
                 blankCanvas.width = w;
                 blankCanvas.height = h;
                 const blankCtx = blankCanvas.getContext('2d');
-                blankCtx.fillStyle = '#EEEEEE';
+                blankCtx.fillStyle = '#ffffff';
                 blankCtx.fillRect(0, 0, w, h);
                 const blankImg = new Image();
                 blankImg.onload = () => { state.originalImage = blankImg; };
@@ -639,8 +589,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         // 清除功能：完全清除画布上的所有内容（包括上传的图片）
         // ==============================================
         function execClear() {
-// 完全清空画布，填充默认背景色
-            state.ctx.fillStyle = '#EEEEEE';
+            // 完全清空画布，填充白色背景
+            state.ctx.fillStyle = '#ffffff';
             state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
 
             // 清除所有状态
@@ -654,8 +604,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
             const blankCanvas = document.createElement('canvas');
             blankCanvas.width = state.canvasW;
             blankCanvas.height = state.canvasH;
-const blankCtx = blankCanvas.getContext('2d');
-            blankCtx.fillStyle = '#EEEEEE';
+            const blankCtx = blankCanvas.getContext('2d');
+            blankCtx.fillStyle = '#ffffff';
             blankCtx.fillRect(0, 0, state.canvasW, state.canvasH);
             state.originalImage = new Image();
             state.originalImage.src = blankCanvas.toDataURL();
@@ -925,10 +875,10 @@ const blankCtx = blankCanvas.getContext('2d');
                     );
                 }
             } else {
-// 没有上传图片：绘制默认背景色擦除画笔痕迹
+                // 没有上传图片：绘制白色擦除画笔痕迹
                 state.ctx.save();
                 state.ctx.beginPath();
-                state.ctx.fillStyle = '#EEEEEE';
+                state.ctx.fillStyle = '#ffffff';
                 if (isContinuous) {
                     state.ctx.arc(x, y, halfSize, 0, Math.PI * 2);
                     state.ctx.fill();
@@ -1151,19 +1101,6 @@ const blankCtx = blankCanvas.getContext('2d');
             const drawAlphaVal = document.getElementById('draw-alpha-val');
             const drawHueVal = document.getElementById('draw-hue-val');
             drawColor.oninput = (e) => { state.drawColor = e.target.value; switchTool('draw'); };
-
-            // 颜色预设按钮点击事件
-            document.querySelectorAll('.color-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const color = e.target.getAttribute('data-color');
-                    state.drawColor = color;
-                    drawColor.value = color;
-                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    switchTool('draw');
-                });
-            });
-
             drawHue.oninput = (e) => {
                 state.drawHue = parseInt(e.target.value);
                 drawHueVal.textContent = state.drawHue + '°';
@@ -1415,174 +1352,3 @@ const blankCtx = blankCanvas.getContext('2d');
     </script>
 </body>
 </html>
-`;
-
-// 注册ComfyUI扩展
-app.registerExtension({
-    name: "luy.drawphoto",
-    async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "DrawPhotoNode") {
-            console.log("✅ 初始化带应用裁剪按钮的图片编辑节点扩展");
-
-            const onNodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = function() {
-                const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
-                const node = this;
-
-                // 初始化编辑数据
-                this.drawData = "empty";
-                this._drawCanvasReady = false;
-                this._resizeObserver = null;
-
-                // 隐藏edit_data参数
-                const drawDataWidget = this.widgets.find(w => w.name === "edit_data");
-                if (drawDataWidget) {
-                    drawDataWidget.hidden = true;
-                    drawDataWidget.value = this.drawData;
-                }
-
-                // 绑定画布尺寸参数
-                this.widthWidget = this.widgets.find(w => w.name === "canvas_width");
-                this.heightWidget = this.widgets.find(w => w.name === "canvas_height");
-
-                // 监听画布尺寸变化
-                const handleSizeChange = () => {
-                    if (this._drawCanvasReady && this.drawIframe.contentWindow) {
-                        const w = this.widthWidget?.value || 512;
-                        const h = this.heightWidget?.value || 512;
-                        this.drawIframe.contentWindow.postMessage({
-                            type: 'INIT_CANVAS',
-                            width: w,
-                            height: h
-                        }, '*');
-                    }
-                };
-
-                if (this.widthWidget) {
-                    const origWidthCallback = this.widthWidget.callback;
-                    this.widthWidget.callback = function(value) {
-                        handleSizeChange();
-                        if (origWidthCallback) origWidthCallback.call(this, value);
-                    };
-                }
-
-                if (this.heightWidget) {
-                    const origHeightCallback = this.heightWidget.callback;
-                    this.heightWidget.callback = function(value) {
-                        handleSizeChange();
-                        if (origHeightCallback) origHeightCallback.call(this, value);
-                    };
-                }
-
-                // 创建iframe
-                const iframe = document.createElement("iframe");
-                iframe.style.width = "100%";
-                iframe.style.height = "100%";
-                iframe.style.border = "none";
-                iframe.style.borderRadius = "8px";
-                iframe.style.backgroundColor = "#fff";
-                iframe.style.pointerEvents = "auto";
-                iframe.setAttribute("sandbox", "allow-scripts allow-same-origin");
-
-                // 加载编辑界面
-                try {
-                    iframe.src = "/CJ-Nodes/image-editor.html";
-                } catch (e) {
-                    console.error("❌ 创建编辑面板失败:", e);
-                    alert("图片编辑节点初始化失败: " + e.message);
-                }
-
-                // 添加DOM Widget
-                const canvasWidget = this.addDOMWidget(
-                    "draw_canvas",
-                    "图片编辑面板",
-                    iframe,
-                    {
-                        getValue: () => node.drawData || "empty",
-                        setValue: (v) => {
-                            node.drawData = v;
-                            if (drawDataWidget) drawDataWidget.value = v;
-                        }
-                    }
-                );
-
-                // 设置面板尺寸
-                canvasWidget.computeSize = function(width) {
-                    const w = width || 400;
-                    return [w, 800];
-                };
-                if (canvasWidget.element) canvasWidget.element.style.pointerEvents = "auto";
-                this.drawIframe = iframe;
-
-                // 初始化ResizeObserver
-                this.initResizeObserver = function() {
-                    if (this._resizeObserver) this._resizeObserver.disconnect();
-                    const observeTarget = canvasWidget.element || this.element || iframe;
-                    if (observeTarget && window.ResizeObserver) {
-                        this._resizeObserver = new ResizeObserver(() => {
-                            if (this._drawCanvasReady && this.drawIframe.contentWindow) {
-                                this.drawIframe.contentWindow.postMessage({type: 'RESIZE_CANVAS'}, '*');
-                            }
-                        });
-                        this._resizeObserver.observe(observeTarget);
-                    }
-                };
-
-                // 监听前端消息
-                const handleMessage = (e) => {
-                    if (e.source !== iframe.contentWindow) return;
-                    const data = e.data;
-                    switch(data.type) {
-                        case 'DRAW_CANVAS_READY':
-                            this._drawCanvasReady = true;
-                            const w = this.widthWidget?.value || 512;
-                            const h = this.heightWidget?.value || 512;
-                            iframe.contentWindow.postMessage({type: 'INIT_CANVAS', width: w, height: h}, '*');
-                            setTimeout(() => this.initResizeObserver(), 1000);
-                            break;
-                        case 'DRAW_DATA_UPDATE':
-                            this.drawData = data.data;
-                            if (drawDataWidget) drawDataWidget.value = this.drawData;
-                            canvasWidget.value = this.drawData;
-                            this.flags = this.flags || {};
-                            this.flags.dirty = true;
-                            if (app && app.graph) app.graph.setDirtyCanvas(true, true);
-                            break;
-                        case 'UPDATE_CANVAS_SIZE':
-                            if (this.widthWidget && data.width) {
-                                this.widthWidget.value = Math.max(1, Math.min(4096, data.width));
-                                // 不再调用 callback，避免循环触发
-                            }
-                            if (this.heightWidget && data.height) {
-                                this.heightWidget.value = Math.max(1, Math.min(4096, data.height));
-                                // 不再调用 callback，避免循环触发
-                            }
-                            break;
-                    }
-                };
-                window.addEventListener('message', handleMessage);
-
-                // 节点移除时清理资源
-                const origOnRemoved = this.onRemoved;
-                this.onRemoved = function() {
-                    window.removeEventListener('message', handleMessage);
-                    if (this._resizeObserver) this._resizeObserver.disconnect();
-                    if (origOnRemoved) origOnRemoved.apply(this, arguments);
-                };
-
-                // 设置节点初始大小
-                this.setSize([600, 850]);
-                return r;
-            };
-
-            // 节点执行完成后的回调
-            const origOnExecuted = nodeType.prototype.onExecuted;
-            nodeType.prototype.onExecuted = function(message) {
-                if (origOnExecuted) origOnExecuted.apply(this, arguments);
-                console.log("✅ 图片编辑节点执行完成，已输出编辑后的图片张量");
-            };
-        }
-    }
-});
-
-console.log("✅ 带应用裁剪按钮的图片编辑节点扩展加载完成（luy分类）");

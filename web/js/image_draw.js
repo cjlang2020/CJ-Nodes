@@ -1,13 +1,10 @@
 import { app } from "../../../../scripts/app.js";
 
-// 图片编辑界面HTML模板（裁剪应用按钮+精准对齐+液化正向）
-
-
 // 注册ComfyUI扩展
 app.registerExtension({
-    name: "luy.imageEditCropApplyBtn",
+    name: "luy.drawphoto",
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
-        if (nodeData.name === "ImageEditNode") {
+        if (nodeData.name === "DrawPhotoNode") {
             console.log("✅ 初始化带应用裁剪按钮的图片编辑节点扩展");
 
             const onNodeCreated = nodeType.prototype.onNodeCreated;
@@ -72,7 +69,7 @@ app.registerExtension({
 
                 // 加载编辑界面
                 try {
-                    iframe.src = "/CJ-Nodes/image_edit.html";
+                    iframe.src = "/CJ-Nodes/image_draw.html";
                 } catch (e) {
                     console.error("❌ 创建编辑面板失败:", e);
                     alert("图片编辑节点初始化失败: " + e.message);

@@ -1,5 +1,5 @@
 import { app } from "../../../../scripts/app.js";
-import { VIEWER_HTML } from "./camera_viewer.js";
+import { VIEWER_HTML } from "./viewer_inline.js";
 
 /**
  * ComfyUI Extension for Qwen Multiangle Lightning Node
