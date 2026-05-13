@@ -334,8 +334,24 @@
             // 画笔状态
             drawColor: '#000000',
             drawHue: 0,
-            drawSize: 5,
+            drawSize: 3,       // 当前工具尺寸（切换工具时自动切换）
             drawAlpha: 1.0,
+            // 各工具独立默认尺寸
+            toolSizes: {
+                draw: 3,
+                erase: 35,
+                smudge: 25,
+                liquify: 50,
+                rect: 3,
+                circle: 3,
+                line: 3
+            },
+            // 画笔平滑：上一个原始鼠标坐标（用于中点贝塞尔）
+            prevDrawX: 0,
+            prevDrawY: 0,
+            // 橡皮擦连续插值跟踪
+            lastEraseX: null,
+            lastEraseY: null,
             // 模糊画笔状态
             smudgeStrength: 0.5,
             // 液化状态
@@ -578,8 +594,22 @@ state.canvas.style.width = dispW + 'px';
         // 工具切换
         // ==============================================
         function switchTool(tool) {
+            // 保存当前工具的尺寸
+            if (state.currentTool && state.currentTool !== 'none' && state.currentTool !== 'crop') {
+                state.toolSizes[state.currentTool] = state.drawSize;
+            }
+
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
             state.currentTool = tool;
+
+            // 切换到新工具时加载该工具的尺寸
+            if (tool !== 'none' && tool !== 'crop' && state.toolSizes[tool] !== undefined) {
+                state.drawSize = state.toolSizes[tool];
+                const sizeSlider = document.getElementById('draw-size');
+                const sizeVal = document.getElementById('draw-size-val');
+                if (sizeSlider) sizeSlider.value = state.drawSize;
+                if (sizeVal) sizeVal.textContent = state.drawSize;
+            }
 
             // 重置裁剪选择状态
             state.isCropSelected = false;
@@ -1121,48 +1151,105 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         }
 
         // ==============================================
-        // 橡皮擦工具：流畅连续擦除，恢复原始图片或绘制白色
+        // 橡皮擦工具：径向羽化 + 逐点插值连续擦除
         // ==============================================
         function execErase(x, y, isContinuous = false) {
             if (!state.canvas) return;
 
-            const size = state.drawSize;
-            const halfSize = size / 2;
-
-            if (state.isUploaded && state.originalImage) {
-                // 有上传图片：恢复原始图片内容
-                if (isContinuous) {
-                    state.ctx.save();
-                    state.ctx.beginPath();
-                    state.ctx.arc(x, y, halfSize, 0, Math.PI * 2);
-                    state.ctx.clip();
-                    state.ctx.drawImage(
-                        state.originalImage,
-                        x - halfSize, y - halfSize, size, size,
-                        x - halfSize, y - halfSize, size, size
-                    );
-                    state.ctx.restore();
-                } else {
-                    state.ctx.drawImage(
-                        state.originalImage,
-                        x - halfSize, y - halfSize, size, size,
-                        x - halfSize, y - halfSize, size, size
-                    );
+            // 连续擦除时：在前后两点之间插值填充，消除快速移动断点
+            if (isContinuous && state.lastEraseX != null) {
+                const dx = x - state.lastEraseX;
+                const dy = y - state.lastEraseY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const stepSize = Math.max(1, state.drawSize * 0.25);
+                if (dist > stepSize) {
+                    const steps = Math.ceil(dist / stepSize);
+                    for (let i = 1; i < steps; i++) {
+                        const t = i / steps;
+                        eraseAtPoint(state.lastEraseX + dx * t, state.lastEraseY + dy * t);
+                    }
                 }
-            } else {
-                // 没有上传图片：绘制白色擦除画笔痕迹
-                state.ctx.save();
-                state.ctx.beginPath();
-                state.ctx.fillStyle = '#ffffff';
-                if (isContinuous) {
-                    state.ctx.arc(x, y, halfSize, 0, Math.PI * 2);
-                    state.ctx.fill();
-                } else {
-                    state.ctx.arc(x, y, halfSize, 0, Math.PI * 2);
-                    state.ctx.fill();
-                }
-                state.ctx.restore();
             }
+            eraseAtPoint(x, y);
+            state.lastEraseX = x;
+            state.lastEraseY = y;
+        }
+
+        // 在单点执行羽化擦除
+        function eraseAtPoint(x, y) {
+            const radius = state.drawSize / 2;
+            const featherRatio = 0.35;
+            const innerRadius = radius * (1 - featherRatio);
+            const width = state.canvasW;
+            const height = state.canvasH;
+            const brushR = Math.ceil(radius);
+            const bx = Math.floor(x);
+            const by = Math.floor(y);
+
+            // 只处理画笔圆形包围盒区域，提高性能
+            const rgnX = Math.max(0, bx - brushR);
+            const rgnY = Math.max(0, by - brushR);
+            const rgnW = Math.min(width, bx + brushR) - rgnX;
+            const rgnH = Math.min(height, by + brushR) - rgnY;
+            if (rgnW <= 0 || rgnH <= 0) return;
+
+            // 读取当前画布像素
+            const canvasData = state.ctx.getImageData(rgnX, rgnY, rgnW, rgnH);
+            const pxCanvas = canvasData.data;
+
+            // 如果有上传图片，读取对应区域的原始像素用于混合
+            let pxOriginal = null;
+            if (state.isUploaded && state.originalImage) {
+                const tmpC = document.createElement('canvas');
+                tmpC.width = rgnW;
+                tmpC.height = rgnH;
+                const tmpCtx = tmpC.getContext('2d');
+                tmpCtx.drawImage(state.originalImage, rgnX, rgnY, rgnW, rgnH, 0, 0, rgnW, rgnH);
+                pxOriginal = tmpCtx.getImageData(0, 0, rgnW, rgnH).data;
+            }
+
+            const cx = x - rgnX;
+            const cy = y - rgnY;
+            const radiusSq = radius * radius;
+
+            for (let py = 0; py < rgnH; py++) {
+                for (let px = 0; px < rgnW; px++) {
+                    const dx = px - cx;
+                    const dy = py - cy;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq >= radiusSq) continue;
+
+                    // 羽化权重：内圈完全擦除（weight=1），边缘平滑过渡到 0
+                    let weight;
+                    const dist = Math.sqrt(distSq);
+                    if (dist <= innerRadius) {
+                        weight = 1;
+                    } else {
+                        // Smoothstep 过渡
+                        const t = (dist - innerRadius) / (radius - innerRadius);
+                        weight = 1 - t * t * (3 - 2 * t);
+                    }
+
+                    const idx = (py * rgnW + px) * 4;
+                    if (pxOriginal) {
+                        // 有原图：在原图和当前画布之间按 weight 混合
+                        pxCanvas[idx]     = pxOriginal[idx] * weight + pxCanvas[idx] * (1 - weight);
+                        pxCanvas[idx + 1] = pxOriginal[idx + 1] * weight + pxCanvas[idx + 1] * (1 - weight);
+                        pxCanvas[idx + 2] = pxOriginal[idx + 2] * weight + pxCanvas[idx + 2] * (1 - weight);
+                        pxCanvas[idx + 3] = pxOriginal[idx + 3] * weight + pxCanvas[idx + 3] * (1 - weight);
+                    } else {
+                        // 无原图：往白色混合
+                        const w = weight;
+                        const invW = 1 - w;
+                        pxCanvas[idx]     = 255 * w + pxCanvas[idx] * invW;
+                        pxCanvas[idx + 1] = 255 * w + pxCanvas[idx + 1] * invW;
+                        pxCanvas[idx + 2] = 255 * w + pxCanvas[idx + 2] * invW;
+                        // alpha 保持不变
+                    }
+                }
+            }
+
+            state.ctx.putImageData(canvasData, rgnX, rgnY);
         }
 
         // ==============================================
@@ -1402,9 +1489,14 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
             drawSize.oninput = (e) => {
                 state.drawSize = parseInt(e.target.value);
                 drawSizeVal.textContent = state.drawSize;
+                // 保存到当前工具
+                if (state.currentTool && state.currentTool !== 'none' && state.currentTool !== 'crop') {
+                    state.toolSizes[state.currentTool] = state.drawSize;
+                }
                 updateBrushPreviewSize();
-                // 所有绘画类工具共用同一个大小（包括形状工具）
-                if (state.currentTool === 'draw' || state.currentTool === 'liquify' || state.currentTool === 'erase' || state.currentTool === 'rect' || state.currentTool === 'circle' || state.currentTool === 'line') {
+                // 刷新状态栏显示当前大小信息
+                const sizeTools = ['draw', 'smudge', 'liquify', 'erase', 'rect', 'circle', 'line'];
+                if (sizeTools.includes(state.currentTool)) {
                     switchTool(state.currentTool);
                 }
             };
@@ -1457,10 +1549,17 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         updateCropRect(); // 实时更新裁剪框
                         break;
                     case 'draw':
-                        state.ctx.lineTo(x, y);
-                        state.ctx.stroke();
-                        state.ctx.beginPath();
-                        state.ctx.moveTo(x, y);
+                        // 中点二次贝塞尔平滑：曲线经过每对相邻点的中点，消除折线感
+                        {
+                            const midX = (state.prevDrawX + x) * 0.5;
+                            const midY = (state.prevDrawY + y) * 0.5;
+                            state.ctx.quadraticCurveTo(state.prevDrawX, state.prevDrawY, midX, midY);
+                            state.ctx.stroke();
+                            state.ctx.beginPath();
+                            state.ctx.moveTo(midX, midY);
+                            state.prevDrawX = x;
+                            state.prevDrawY = y;
+                        }
                         break;
                     case 'smudge':
                         execGaussianBlur(x, y);
@@ -1509,6 +1608,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         saveCanvasState();
                         initDrawStyle();
                         state.ctx.moveTo(x, y);
+                        state.prevDrawX = x;
+                        state.prevDrawY = y;
                         break;
                     case 'liquify':
                         saveCanvasState();
@@ -1584,6 +1685,8 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                     if (state.currentTool === 'draw') {
                         initDrawStyle();
                         state.ctx.moveTo(x, y);
+                        state.prevDrawX = x;
+                        state.prevDrawY = y;
                     } else if (state.currentTool === 'liquify') {
                         state.lastLiquifyPos = {x, y};
                     } else if (state.currentTool === 'smudge') {
