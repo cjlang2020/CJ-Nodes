@@ -19,87 +19,145 @@
             cursor: default;
         }
         #main-toolbar {
-            padding: 8px 10px;
-            background: #242424;
-            color: white;
+            padding: 6px 10px;
+            background: #1a1a2e;
+            color: #e0e0e0;
             display: flex;
-            gap: 12px;
+            gap: 10px;
             align-items: center;
             flex-wrap: wrap;
             flex-shrink: 0;
-            border-bottom: 2px solid #444;
+            border-bottom: 1px solid #2a2a4a;
             z-index: 30;
+            user-select: none;
         }
         .tool-group {
             display: flex;
-            gap: 6px;
+            gap: 4px;
             align-items: center;
-            border-right: 1px solid #555;
-            padding-right: 12px;
+            border-right: 1px solid #2a2a4a;
+            padding-right: 10px;
         }
         .tool-group:last-child { border-right: none; }
         .tool-btn {
-            padding: 4px 10px;
-            border: none;
-            border-radius: 4px;
+            padding: 5px;
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid transparent;
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-            background: #3498db;
-            color: white;
+            font-size: 11px;
+            transition: all 0.15s;
+            background: rgba(255,255,255,0.06);
+            color: #aaa;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            position: relative;
+        }
+        .tool-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        .tool-btn:hover:not(:disabled) {
+            background: rgba(255,255,255,0.14);
+            color: #fff;
         }
         .tool-btn.active {
             background: #2ecc71;
-            box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+            color: #fff;
+            box-shadow: 0 0 12px rgba(46, 204, 113, 0.25);
+            border-color: rgba(46, 204, 113, 0.3);
         }
-        /* 撤销按钮特殊样式 */
+        .tool-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+        /* 上传按钮特殊 - 绿色 */
+        #upload-btn {
+            background: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+        }
+        #upload-btn:hover:not(:disabled) {
+            background: rgba(46, 204, 113, 0.3);
+        }
+        /* 应用裁剪按钮 - 蓝色 */
+        #apply-crop-btn {
+            color: #5b9bd5;
+        }
+        #apply-crop-btn:disabled {
+            opacity: 0.25;
+        }
+        /* 撤销按钮 - 橙色 */
         #undo-btn {
-            background: #f39c12;
-        }
-        #undo-btn:hover:not(:disabled) {
-            background: #e67e22;
+            color: #f0ad4e;
         }
         #undo-btn:disabled {
-            background: #7f8c8d;
-            cursor: not-allowed;
-            opacity: 0.5;
+            opacity: 0.25;
         }
-        /* 清除按钮特殊样式 */
+        /* 清除按钮 - 红色 */
         #clear-btn {
-            background: #e67e22;
+            color: #e74c3c;
         }
-        #clear-btn:hover {
-            background: #d35400;
+        /* 参数区域 */
+        .params-group {
+            gap: 6px;
+            flex-wrap: wrap;
         }
-        /* 重置按钮特殊样式 */
-        #reset-btn {
-            background: #9b59b6;
+        .param-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            background: rgba(255,255,255,0.04);
+            padding: 2px 6px;
+            border-radius: 4px;
+            height: 26px;
         }
-        #reset-btn:hover {
-            background: #8e44ad;
+        .param-label {
+            font-size: 10px;
+            color: #888;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
         }
-        /* 应用裁剪按钮特殊样式 */
-        #apply-crop-btn {
-            background: #e74c3c;
-        }
-        #apply-crop-btn:hover {
-            background: #c0392b;
-        }
-        label { font-size: 12px; min-width: 50px; white-space: nowrap; }
+        label { font-size: 11px; white-space: nowrap; color: #aaa; }
         input[type="color"] {
-            width: 28px;
-            height: 28px;
-            border: 2px solid #fff;
-            border-radius: 50%;
+            width: 22px;
+            height: 22px;
+            border: 2px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
             cursor: pointer;
             padding: 0;
+            background: none;
         }
-        input[type="range"] { width: 80px; cursor: pointer; }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: none; border-radius: 2px; }
+        input[type="range"] {
+            width: 56px;
+            height: 3px;
+            cursor: pointer;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255,255,255,0.12);
+            border-radius: 2px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #5b9bd5;
+            cursor: pointer;
+            border: none;
+        }
         .range-value {
-            min-width: 28px;
+            min-width: 24px;
             text-align: center;
-            font-size: 12px;
-            color: #eee;
+            font-size: 10px;
+            color: #999;
+            font-variant-numeric: tabular-nums;
         }
         #canvas-container {
             flex: 1;
@@ -149,63 +207,94 @@
         }
         #status {
             padding: 4px 10px;
-            background: #2c3e50;
+            background: #12121f;
             color: #2ecc71;
             font-size: 12px;
             text-align: left;
             flex-shrink: 0;
         }
         #image-input { display: none; }
-        #upload-btn { background: #2ecc71; }
     </style>
 </head>
 <body>
     <div id="main-toolbar">
-        <!-- 基础工具：上传+裁剪+应用裁剪 -->
+        <!-- 文件/编辑工具 -->
         <div class="tool-group">
             <input type="file" id="image-input" accept="image/*">
-            <button id="upload-btn" class="tool-btn">上传图片</button>
-            <button id="crop-btn" class="tool-btn">裁剪画面</button>
-            <button id="apply-crop-btn" class="tool-btn" disabled>应用裁剪</button>
-            <button id="undo-btn" class="tool-btn" disabled>撤销 Ctrl+Z</button>
-            <button id="clear-btn" class="tool-btn">清除画布</button>
-            <button id="reset-btn" class="tool-btn">重置大小</button>
+            <button id="upload-btn" class="tool-btn" title="上传图片">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/></svg>
+            </button>
+            <button id="crop-btn" class="tool-btn" title="裁剪画面">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5v10a1 1 0 0 0 1 1h10"/><path d="M5 8h10a1 1 0 0 1 1 1v10"/></svg>
+            </button>
+            <button id="apply-crop-btn" class="tool-btn" title="应用裁剪" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10"/></svg>
+            </button>
+            <button id="undo-btn" class="tool-btn" title="撤销 Ctrl+Z" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l-4 -4l4 -4"/><path d="M5 10h11a4 4 0 1 1 0 8h-1"/></svg>
+            </button>
+            <button id="clear-btn" class="tool-btn" title="清除画布">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l16 0"/><path d="M10 11l0 6"/><path d="M14 11l0 6"/><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12"/><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"/></svg>
+            </button>
+            <button id="reset-btn" class="tool-btn" title="重置初始尺寸">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>
+            </button>
         </div>
-        <!-- 画笔工具：颜色+大小+透明度 -->
+        <!-- 绘图工具 -->
         <div class="tool-group">
-            <button id="draw-btn" class="tool-btn">画笔</button>
-            <button id="erase-btn" class="tool-btn">橡皮擦</button>
-            <label>颜色:</label>
-            <input type="color" id="draw-color" value="#000000">
-            <label>色相:</label>
-            <input type="range" id="draw-hue" min="0" max="360" value="0">
-            <span id="draw-hue-val" class="range-value">0°</span>
-            <label>大小:</label>
-            <input type="range" id="draw-size" min="1" max="200" value="5">
-            <span id="draw-size-val" class="range-value">5</span>
-            <label>透明度:</label>
-            <input type="range" id="draw-alpha" min="0.1" max="1" step="0.1" value="1">
-            <span id="draw-alpha-val" class="range-value">1.0</span>
+            <button id="draw-btn" class="tool-btn" title="画笔">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"/><path d="M21 3a16 16 0 0 0 -12.8 10.2"/><path d="M21 3a16 16 0 0 1 -10.2 12.8"/><path d="M10.6 9a9 9 0 0 1 4.4 4.4"/></svg>
+            </button>
+            <button id="erase-btn" class="tool-btn" title="橡皮擦">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3"/><path d="M18 13.3l-6.3 -6.3"/></svg>
+            </button>
+            <button id="smudge-btn" class="tool-btn" title="模糊">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9.01 9.01 0 0 0 2.32 -.302a9 9 0 0 0 1.74 -16.733a9 9 0 1 0 -4.06 17.035"/><path d="M12 3v17"/><path d="M12 12h9"/><path d="M12 9h8"/><path d="M12 6h6"/><path d="M12 18h6"/><path d="M12 15h8"/></svg>
+            </button>
+            <button id="liquify-btn" class="tool-btn" title="液化">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.502 19.423c2.602 2.105 6.395 2.105 8.996 0c2.602 -2.105 3.262 -5.708 1.566 -8.546l-4.89 -7.26c-.42 -.625 -1.287 -.803 -1.936 -.397a1.376 1.376 0 0 0 -.41 .397l-4.893 7.26c-1.695 2.838 -1.035 6.441 1.567 8.546"/></svg>
+            </button>
+            <button id="rect-btn" class="tool-btn" title="矩形">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10"/></svg>
+            </button>
+            <button id="circle-btn" class="tool-btn" title="圆形">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/></svg>
+            </button>
+            <button id="line-btn" class="tool-btn" title="直线">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M16 6a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M7.5 16.5l9 -9"/></svg>
+            </button>
         </div>
-        <!-- 模糊画笔工具 -->
-        <div class="tool-group">
-            <button id="smudge-btn" class="tool-btn">模糊</button>
-            <label>强度:</label>
-            <input type="range" id="smudge-strength" min="0.1" max="5" step="0.1" value="0.5">
-            <span id="smudge-strength-val" class="range-value">0.5</span>
-        </div>
-        <!-- 液化工具：简化版 -->
-        <div class="tool-group">
-            <button id="liquify-btn" class="tool-btn">液化</button>
-            <label>强度:</label>
-            <input type="range" id="liquify-strength" min="0.1" max="1" step="0.1" value="0.5">
-            <span id="liquify-strength-val" class="range-value">0.5</span>
-        </div>
-        <!-- 形状工具 -->
-        <div class="tool-group">
-            <button id="rect-btn" class="tool-btn">矩形</button>
-            <button id="circle-btn" class="tool-btn">圆形</button>
-            <button id="line-btn" class="tool-btn">直线</button>
+        <!-- 参数调节 -->
+        <div class="tool-group params-group">
+            <div class="param-item">
+                <span class="param-label">颜色</span>
+                <input type="color" id="draw-color" value="#000000">
+            </div>
+            <div class="param-item">
+                <span class="param-label">色相</span>
+                <input type="range" id="draw-hue" min="0" max="360" value="0">
+                <span id="draw-hue-val" class="range-value">0°</span>
+            </div>
+            <div class="param-item">
+                <span class="param-label">大小</span>
+                <input type="range" id="draw-size" min="1" max="200" value="5">
+                <span id="draw-size-val" class="range-value">5</span>
+            </div>
+            <div class="param-item">
+                <span class="param-label">透明</span>
+                <input type="range" id="draw-alpha" min="0.1" max="1" step="0.1" value="1">
+                <span id="draw-alpha-val" class="range-value">1.0</span>
+            </div>
+            <div class="param-item">
+                <span class="param-label">模糊</span>
+                <input type="range" id="smudge-strength" min="0.1" max="5" step="0.1" value="0.5">
+                <span id="smudge-strength-val" class="range-value">0.5</span>
+            </div>
+            <div class="param-item">
+                <span class="param-label">液化</span>
+                <input type="range" id="liquify-strength" min="0.1" max="1" step="0.1" value="0.5">
+                <span id="liquify-strength-val" class="range-value">0.5</span>
+            </div>
         </div>
     </div>
 
