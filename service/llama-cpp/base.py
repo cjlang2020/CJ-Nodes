@@ -188,7 +188,7 @@ class LLAMA_CPP_STORAGE:
                 mmproj_size = os.path.getsize(mmproj_path) * 1.55 / (1024 ** 3)
                 n_gpu_layers = max(1, int((vram_limit - mmproj_size) / gguf_layer_size))
 
-            print(f"[llama-cpp_vlm] Loading clip:  {mmproj}")
+            #print(f"[llama-cpp_vlm] Loading clip:  {mmproj}")
 
             think_mode = "Thinking" in chat_handler
             kwargs = {"clip_model_path": mmproj_path, "verbose": False}
@@ -216,8 +216,8 @@ class LLAMA_CPP_STORAGE:
             else:
                 cls.chat_handler = None
 
-        print(f"[llama-cpp_vlm] Loading model: {model}")
-        print(f"[llama-cpp_vlm] n_gpu_layers = {n_gpu_layers}")
+        #print(f"[llama-cpp_vlm] Loading model: {model}")
+        #print(f"[llama-cpp_vlm] n_gpu_layers = {n_gpu_layers}")
         cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, verbose=False)
 
 
@@ -265,7 +265,7 @@ def load_text_presets(pathvt):
     global preset_prompts, preset_tags, _loaded_presets_by_dir
     AITOOLS_T_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "aitools", pathvt)
     prefix = f"{pathvt}_"  # 添加前缀：T_ 或 V_
-    print(f"[llama-cpp_vlm] Trying to load presets from: {AITOOLS_T_DIR}")
+    #print(f"[llama-cpp_vlm] Trying to load presets from: {AITOOLS_T_DIR}")
     try:
         # 先清理该目录之前加载的所有 keys
         if pathvt in _loaded_presets_by_dir:
@@ -285,16 +285,18 @@ def load_text_presets(pathvt):
                     preset_prompts[key] = content
                     loaded_keys.append(key)
         else:
-            print(f"[llama-cpp_vlm] Directory not found: {AITOOLS_T_DIR}")
+            pass
+            #print(f"[llama-cpp_vlm] Directory not found: {AITOOLS_T_DIR}")
 
         # 记录本次加载的 keys
         _loaded_presets_by_dir[pathvt] = loaded_keys
         preset_tags[:] = list(preset_prompts.keys())  # 使用切片更新，确保引用有效
-        print(f"[llama-cpp_vlm] Loaded {len(loaded_keys)} presets from {pathvt}, total tags: {len(preset_tags)}")
+        #print(f"[llama-cpp_vlm] Loaded {len(loaded_keys)} presets from {pathvt}, total tags: {len(preset_tags)}")
         if loaded_keys:
-            print(f"[llama-cpp_vlm] Sample keys from {pathvt}: {loaded_keys[:3]}")
+            pass
+            #print(f"[llama-cpp_vlm] Sample keys from {pathvt}: {loaded_keys[:3]}")
     except Exception as e:
-        print(f"[llama-cpp_vlm] Failed to load text presets from {AITOOLS_T_DIR}: {e}")
+        #print(f"[llama-cpp_vlm] Failed to load text presets from {AITOOLS_T_DIR}: {e}")
         import traceback
         traceback.print_exc()
 
@@ -414,7 +416,7 @@ class llama_cpp_clean_states:
     CATEGORY = "llama-cpp-vlm"
 
     def process(self, any, state_uid):
-        print(f"[llama-cpp_vlm] Cleaning up saved states {state_uid}...")
+        #print(f"[llama-cpp_vlm] Cleaning up saved states {state_uid}...")
         LLAMA_CPP_STORAGE.clean_state(state_uid)
         return (any,)
 
@@ -430,7 +432,7 @@ class llama_cpp_unload_model:
     CATEGORY = "llama-cpp-vlm"
 
     def process(self, any):
-        print("[llama-cpp_vlm] Unloading llama model...")
+        #print("[llama-cpp_vlm] Unloading llama model...")
         LLAMA_CPP_STORAGE.clean()
         return (any,)
 

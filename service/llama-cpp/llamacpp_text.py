@@ -69,7 +69,7 @@ class llama_text_simple:
         }
 
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
-            print("[llama-cpp_vlm] Loading model...")
+            #print("[llama-cpp_vlm] Loading model...")
             LLAMA_CPP_STORAGE.load_model(custom_config)
 
         llama_model = LLAMA_CPP_STORAGE

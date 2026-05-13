@@ -123,7 +123,7 @@ def load_nodes_from_file(file_path):
                 # 设置显示名：优先用自定义名称，没有则用Luy-类名
                 display_name = CUSTOM_DISPLAY_NAMES.get(member_name, f"Luy-{member_name}")
                 NODE_DISPLAY_NAME_MAPPINGS[member_name] = display_name
-                print(f"✅ 成功导入节点类: {member_name} (来自 {file_path})")
+                #print(f"✅ 成功导入节点类: {member_name} (来自 {file_path})")
 
     except ImportError as e:
         print(f"❌ 加载文件 {file_path} 失败（模块缺失）: {e}")
@@ -142,16 +142,6 @@ if os.path.exists(SERVICE_DIR):
                 load_nodes_from_file(file_path)
 else:
     print(f"⚠️ 警告：service目录不存在: {SERVICE_DIR}")
-
-# 可选：打印加载结果，方便调试
-print(f"\n📊 最终加载结果：共识别 {len(NODE_CLASS_MAPPINGS)} 个有效节点")
-if NODE_CLASS_MAPPINGS:
-    print(f"🔍 已加载的节点列表: {list(NODE_CLASS_MAPPINGS.keys())}")
-else:
-    print("⚠️ 未加载到任何有效节点，请检查：")
-    print("  1. service目录下是否有包含节点属性的.py文件")
-    print("  2. 节点类是否定义了INPUT_TYPES/RETURN_TYPES/FUNCTION")
-    print("  3. 依赖模块（如qwen3vluntils）是否存在")
 
 # 兼容ComfyUI的节点加载规范
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

@@ -2,7 +2,7 @@ import os
 import re
 
 # 检查所有txt文件中是否有不符合 "中文 (英文)" 格式的行
-options_folder = "prompt_anima"
+options_folder = os.path.join(os.path.dirname(__file__), "prompt_anima")
 
 bracket_pattern = r'^(.*?)\s*[（(]\s*(.*?)\s*[）)]$'
 

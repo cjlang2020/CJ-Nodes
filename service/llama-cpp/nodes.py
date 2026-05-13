@@ -65,7 +65,7 @@ class llama_cpp_model_loader:
             "image_max_tokens": image_max_tokens
         }
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
-            print("[llama-cpp_vlm] Loading model...")
+            #print("[llama-cpp_vlm] Loading model...")
             LLAMA_CPP_STORAGE.load_model(custom_config)
         return (custom_config,)
 
@@ -196,7 +196,7 @@ class llama_cpp_instruct_adv:
         else:
             if save_states:
                 try:
-                    print(f"[llama-cpp_vlm] Loading state and history id={uid}...")
+                    #print(f"[llama-cpp_vlm] Loading state and history id={uid}...")
                     messages = LLAMA_CPP_STORAGE.messages.get(f"{uid}", [])
                 except Exception as e:
                     messages = []
@@ -237,7 +237,7 @@ class llama_cpp_instruct_adv:
                 }
                 user_content.append(image_content)
                 messages.append({"role": "user", "content": user_content})
-                print(f"[llama-cpp_vlm] Start processing {len(frames)} images")
+                #print(f"[llama-cpp_vlm] Start processing {len(frames)} images")
 
                 for i, image in enumerate(cqdm(frames)):
                     if mm.processing_interrupted():
@@ -278,7 +278,7 @@ class llama_cpp_instruct_adv:
             out2 = [out1]
 
         if save_states:
-            print(f"[llama-cpp_vlm] Saving state id={uid}...")
+            #print(f"[llama-cpp_vlm] Saving state id={uid}...")
             messages.append({"role": "assistant", "content": out1})
             clear_message = self.sanitize_messages(messages)
             LLAMA_CPP_STORAGE.messages[f"{uid}"] = clear_message

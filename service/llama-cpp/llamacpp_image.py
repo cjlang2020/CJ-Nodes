@@ -80,7 +80,7 @@ class llama_run_simple:
         }
 
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
-            print("[llama-cpp_vlm] Loading model...")
+            #print("[llama-cpp_vlm] Loading model...")
             LLAMA_CPP_STORAGE.load_model(custom_config)
 
         llama_model = LLAMA_CPP_STORAGE
@@ -180,7 +180,7 @@ class llama_run_simple:
 
         # 根据参数决定是否卸载模型（释放显存）
         if unload_model:
-            print("[llama-cpp_vlm] Unloading model and releasing VRAM...")
+            #print("[llama-cpp_vlm] Unloading model and releasing VRAM...")
             LLAMA_CPP_STORAGE.clean_state(uid)
             LLAMA_CPP_STORAGE.clean()
 
