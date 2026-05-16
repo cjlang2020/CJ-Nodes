@@ -25,10 +25,13 @@ import comfy.model_management as mm
 import comfy.utils
 
 from llama_cpp import Llama
+from llama_cpp.llama_speculative import LlamaNGramMapDecoding, LlamaPromptLookupDecoding
 from llama_cpp.llama_chat_format import (
     Llava15ChatHandler, Llava16ChatHandler, MoondreamChatHandler,
     NanoLlavaChatHandler, Llama3VisionAlphaChatHandler, MiniCPMv26ChatHandler
 )
+
+draft_model_types = ["None", "ngram-map", "prompt-lookup"]
 
 try:
     from llama_cpp.llama_chat_format import MTMDChatHandler
@@ -169,6 +172,9 @@ class LLAMA_CPP_STORAGE:
         vram_limit = config["vram_limit"]
         image_max_tokens = config["image_max_tokens"]
         image_min_tokens = config["image_min_tokens"]
+        draft_model_type = config.get("draft_model_type", "None")
+        draft_ngram_size = config.get("draft_ngram_size", 3)
+        draft_num_pred_tokens = config.get("draft_num_pred_tokens", 10)
         n_gpu_layers = -1
 
         model_path = os.path.join(folder_paths.models_dir, 'LLM', model)
@@ -216,9 +222,22 @@ class LLAMA_CPP_STORAGE:
             else:
                 cls.chat_handler = None
 
+        # Speculative decoding draft model
+        draft_model = None
+        if draft_model_type == "ngram-map":
+            draft_model = LlamaNGramMapDecoding(
+                ngram_size=draft_ngram_size,
+                num_pred_tokens=draft_num_pred_tokens
+            )
+        elif draft_model_type == "prompt-lookup":
+            draft_model = LlamaPromptLookupDecoding(
+                max_ngram_size=draft_ngram_size,
+                num_pred_tokens=draft_num_pred_tokens
+            )
+
         #print(f"[llama-cpp_vlm] Loading model: {model}")
         #print(f"[llama-cpp_vlm] n_gpu_layers = {n_gpu_layers}")
-        cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, verbose=False)
+        cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, draft_model=draft_model, verbose=False)
 
 
 # Model cleanup hook

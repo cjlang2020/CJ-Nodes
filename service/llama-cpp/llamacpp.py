@@ -14,7 +14,7 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, image2base64, scale_image, cqdm,
+    load_text_presets, image2base64, scale_image, cqdm, draft_model_types,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -93,6 +93,18 @@ class llama_run:
                     "default": -1, "min": -1, "max": 999999, "step": 1,
                     "tooltip": "Use a specific ID to save the conversation state.\n(-1 = use node's unique_id)"
                 }),
+                "draft_model_type": (draft_model_types, {
+                    "default": "None",
+                    "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nprompt-lookup: Legacy sliding window search\nNone: No speculative decoding"
+                }),
+                "draft_ngram_size": ("INT", {
+                    "default": 3, "min": 1, "max": 10, "step": 1,
+                    "tooltip": "N-gram size for draft model matching.\nLarger = more accurate matches but fewer hits."
+                }),
+                "draft_num_pred_tokens": ("INT", {
+                    "default": 10, "min": 1, "max": 32, "step": 1,
+                    "tooltip": "Max number of tokens to predict per draft step.\nHigher = more potential speedup but more rejection risk."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -123,7 +135,9 @@ class llama_run:
             max_tokens, top_k, top_p, min_p, typical_p, temperature, repeat_penalty,
             frequency_penalty, presence_penalty, mirostat_mode, mirostat_eta, mirostat_tau,
             preset_prompt, ChineseReply, custom_prompt, system_prompt, inference_mode, max_frames,
-            max_size, seed, force_offload, save_states, state_uid, unique_id, images=None, queue_handler=None):
+            max_size, seed, force_offload, save_states, state_uid,
+            draft_model_type, draft_ngram_size, draft_num_pred_tokens,
+            unique_id, images=None, queue_handler=None):
         custom_config = {
             "model": model,
             "mmproj": mmproj,
@@ -131,7 +145,10 @@ class llama_run:
             "n_ctx": n_ctx,
             "vram_limit": vram_limit,
             "image_min_tokens": image_min_tokens,
-            "image_max_tokens": image_max_tokens
+            "image_max_tokens": image_max_tokens,
+            "draft_model_type": draft_model_type,
+            "draft_ngram_size": draft_ngram_size,
+            "draft_num_pred_tokens": draft_num_pred_tokens
         }
 
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:

@@ -18,6 +18,7 @@ CUSTOM_DISPLAY_NAMES = {
     "StringArrayIndexer": "Luy-读取数组值",
     "PromptGenerator":"Luy-画图提示词",
     "AnimaPromptNode":"Luy-动漫Tag提示词",
+    "MetaTokenNode":"Luy-MetaToken提示词",
     "Wan22PromptSelector":"Luy-Wan2.2提示词",
     "ImageMaskNode": "Luy-添加蒙版",
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层转视频",

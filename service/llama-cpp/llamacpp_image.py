@@ -14,7 +14,7 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, image2base64, cqdm,
+    load_text_presets, image2base64, cqdm, draft_model_types,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -33,8 +33,8 @@ class llama_run_simple:
         load_text_presets("T")
         return {
             "required": {
-                "model": (model_list,{"default": "Qwen3.5\/4B\Qwen3.5-4B-Q4_K_S.gguf"}),
-                "mmproj": (mmproj_list, {"default": "Qwen3.5\/4B\mmproj-BF16.gguf"}),
+                "model": (model_list,{"default": "Qwen3.5/4B/Qwen3.5-4B-Q4_K_S.gguf"}),
+                "mmproj": (mmproj_list, {"default": "Qwen3.5/4B/mmproj-BF16.gguf"}),
                 "chat_handler": (chat_handlers, {"default": "Qwen3.5"}),
                 "n_ctx": ("INT", {
                     "default": 8192,
@@ -51,6 +51,18 @@ class llama_run_simple:
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
                 "unload_model": ("BOOLEAN", {"default": True, "tooltip": "Unload model after inference. If True, calls clean_state to release resources."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1, "tooltip": "Random seed for ensuring execution each run."}),
+                "draft_model_type": (draft_model_types, {
+                    "default": "None",
+                    "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nprompt-lookup: Legacy sliding window search\nNone: No speculative decoding"
+                }),
+                "draft_ngram_size": ("INT", {
+                    "default": 3, "min": 1, "max": 10, "step": 1,
+                    "tooltip": "N-gram size for draft model matching."
+                }),
+                "draft_num_pred_tokens": ("INT", {
+                    "default": 10, "min": 1, "max": 32, "step": 1,
+                    "tooltip": "Max number of tokens to predict per draft step."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -68,7 +80,9 @@ class llama_run_simple:
     CATEGORY = "luy/llama-cpp"
 
     def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
-            preset_prompt, ChineseReply, custom_prompt, unload_model, seed, unique_id, images=None, queue_handler=None):
+            preset_prompt, ChineseReply, custom_prompt, unload_model, seed,
+            draft_model_type, draft_ngram_size, draft_num_pred_tokens,
+            unique_id, images=None, queue_handler=None):
         custom_config = {
             "model": model,
             "mmproj": mmproj,
@@ -76,7 +90,10 @@ class llama_run_simple:
             "n_ctx": n_ctx,
             "vram_limit": vram_limit,
             "image_min_tokens": 0,
-            "image_max_tokens": 0
+            "image_max_tokens": 0,
+            "draft_model_type": draft_model_type,
+            "draft_ngram_size": draft_ngram_size,
+            "draft_num_pred_tokens": draft_num_pred_tokens
         }
 
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:

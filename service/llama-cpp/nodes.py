@@ -15,7 +15,7 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, image2base64, scale_image, cqdm, _MTMD,
+    load_text_presets, image2base64, scale_image, cqdm, _MTMD, draft_model_types,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -46,6 +46,18 @@ class llama_cpp_model_loader:
             }),
             "image_min_tokens": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 32}),
             "image_max_tokens": ("INT", {"default": 0, "min": 0, "max": 4096, "step": 32}),
+            "draft_model_type": (draft_model_types, {
+                "default": "None",
+                "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nprompt-lookup: Legacy sliding window search\nNone: No speculative decoding"
+            }),
+            "draft_ngram_size": ("INT", {
+                "default": 3, "min": 1, "max": 10, "step": 1,
+                "tooltip": "N-gram size for draft model matching."
+            }),
+            "draft_num_pred_tokens": ("INT", {
+                "default": 10, "min": 1, "max": 32, "step": 1,
+                "tooltip": "Max number of tokens to predict per draft step."
+            }),
             }
         }
 
@@ -54,7 +66,8 @@ class llama_cpp_model_loader:
     FUNCTION = "loadmodel"
     CATEGORY = "llama-cpp-vlm"
 
-    def loadmodel(self, model, mmproj, chat_handler, n_ctx, vram_limit, image_min_tokens, image_max_tokens):
+    def loadmodel(self, model, mmproj, chat_handler, n_ctx, vram_limit, image_min_tokens, image_max_tokens,
+                  draft_model_type, draft_ngram_size, draft_num_pred_tokens):
         custom_config = {
             "model": model,
             "mmproj": mmproj,
@@ -62,7 +75,10 @@ class llama_cpp_model_loader:
             "n_ctx": n_ctx,
             "vram_limit": vram_limit,
             "image_min_tokens": image_min_tokens,
-            "image_max_tokens": image_max_tokens
+            "image_max_tokens": image_max_tokens,
+            "draft_model_type": draft_model_type,
+            "draft_ngram_size": draft_ngram_size,
+            "draft_num_pred_tokens": draft_num_pred_tokens
         }
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
             #print("[llama-cpp_vlm] Loading model...")
