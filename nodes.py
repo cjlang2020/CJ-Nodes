@@ -65,6 +65,8 @@ CUSTOM_DISPLAY_NAMES = {
     "LuySaveImage": "Luy-保存图片到本地",
     "LlamaCppAPINode": "Luy-LlamaCpp本地API",
     "LlamaCppAPIRefreshPrompts": "Luy-刷新提示词模板",
+    "VideoRotate90": "Luy-视频旋转90度(PIL)",
+    "VideoRotate90Alt": "Luy-视频旋转90度(张量)",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）
