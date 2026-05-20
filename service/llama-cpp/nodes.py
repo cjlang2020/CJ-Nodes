@@ -58,6 +58,10 @@ class llama_cpp_model_loader:
                 "default": 10, "min": 1, "max": 32, "step": 1,
                 "tooltip": "Max number of tokens to predict per draft step."
             }),
+            "enable_mtp": ("BOOLEAN", {
+                "default": False,
+                "tooltip": "Multi-Token Prediction (MTP) acceleration.\nRequires a model with MTP support (e.g., Qwen3 variants)."
+            }),
             }
         }
 
@@ -68,7 +72,8 @@ class llama_cpp_model_loader:
 
     def loadmodel(self, model: str, mmproj: str, chat_handler: str, n_ctx: int, vram_limit: int,
                   image_min_tokens: int, image_max_tokens: int,
-                  draft_model_type: str, draft_ngram_size: int, draft_num_pred_tokens: int):
+                  draft_model_type: str, draft_ngram_size: int, draft_num_pred_tokens: int,
+                  enable_mtp: bool = False):
         custom_config = {
             "model": model,
             "mmproj": mmproj,
@@ -79,7 +84,8 @@ class llama_cpp_model_loader:
             "image_max_tokens": image_max_tokens,
             "draft_model_type": draft_model_type,
             "draft_ngram_size": draft_ngram_size,
-            "draft_num_pred_tokens": draft_num_pred_tokens
+            "draft_num_pred_tokens": draft_num_pred_tokens,
+            "enable_mtp": enable_mtp
         }
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
             #print("[llama-cpp_vlm] Loading model...")

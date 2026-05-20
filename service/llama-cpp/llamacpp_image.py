@@ -63,6 +63,10 @@ class llama_run_simple:
                     "default": 10, "min": 1, "max": 32, "step": 1,
                     "tooltip": "Max number of tokens to predict per draft step."
                 }),
+                "enable_mtp": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Multi-Token Prediction (MTP) acceleration.\nRequires a model with MTP support (e.g., Qwen3 variants)."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -81,7 +85,7 @@ class llama_run_simple:
 
     def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
             preset_prompt, ChineseReply, custom_prompt, unload_model, seed,
-            draft_model_type, draft_ngram_size, draft_num_pred_tokens,
+            draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp,
             unique_id, images=None, queue_handler=None):
         custom_config = {
             "model": model,
@@ -93,7 +97,8 @@ class llama_run_simple:
             "image_max_tokens": 0,
             "draft_model_type": draft_model_type,
             "draft_ngram_size": draft_ngram_size,
-            "draft_num_pred_tokens": draft_num_pred_tokens
+            "draft_num_pred_tokens": draft_num_pred_tokens,
+            "enable_mtp": enable_mtp
         }
 
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:

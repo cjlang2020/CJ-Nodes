@@ -264,6 +264,8 @@ class LLAMA_CPP_STORAGE:
         draft_model_type = config.get("draft_model_type", "None")
         draft_ngram_size = config.get("draft_ngram_size", 3)
         draft_num_pred_tokens = config.get("draft_num_pred_tokens", 10)
+        enable_mtp = config.get("enable_mtp", False)
+        ctx_type = 1 if enable_mtp else 0
         n_gpu_layers = -1
 
         model_path = os.path.join(folder_paths.models_dir, 'LLM', model)
@@ -326,7 +328,7 @@ class LLAMA_CPP_STORAGE:
 
         #print(f"[llama-cpp_vlm] Loading model: {model}")
         #print(f"[llama-cpp_vlm] n_gpu_layers = {n_gpu_layers}")
-        cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, draft_model=draft_model, verbose=False)
+        cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, draft_model=draft_model, ctx_type=ctx_type, verbose=False)
 
 
 # Model cleanup hook
