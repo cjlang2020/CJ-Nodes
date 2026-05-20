@@ -79,41 +79,43 @@ def read_value_of_type(f, atype):
     raise ValueError(f"Unknown array item type {atype}")
 
 def get_layer_count(path):
-    with open(path, "rb") as f:
-        if f.read(4) != b"GGUF":
-            raise ValueError("This is not a GGUF file!")
-            
-        version = read_u32(f)
-        tensor_count = read_u64(f)
-        kv_count = read_u64(f)
-        meta = {}
-        
-        for _ in range(kv_count):
-            key = read_string(f)
-            value = read_value(f)
-            meta[key] = value
-            
-    for k, v in meta.items():
-        if k.lower().endswith(".block_count"):
-            return v
-    
-    print(f"Failed to read metadata: {e}")
-    print(f"Try reading the entire GGUF...")
-    
+    try:
+        with open(path, "rb") as f:
+            if f.read(4) != b"GGUF":
+                raise ValueError("This is not a GGUF file!")
+
+            version = read_u32(f)
+            tensor_count = read_u64(f)
+            kv_count = read_u64(f)
+            meta = {}
+
+            for _ in range(kv_count):
+                key = read_string(f)
+                value = read_value(f)
+                meta[key] = value
+
+        for k, v in meta.items():
+            if k.lower().endswith(".block_count"):
+                return v
+    except Exception as e:
+        print(f"Failed to read raw metadata: {e}")
+
+    print("Try reading the entire GGUF...")
+
     from gguf import GGUFReader
     reader = GGUFReader(path)
-    
+
     try:
-        layer_count = reader.get_field("llama.block_count") 
+        layer_count = reader.get_field("llama.block_count")
         if layer_count is None:
             for field in reader.fields.values():
                 if field.name.endswith(".block_count"):
                     layer_count = field.parts[field.data[0]]
                     break
-                
+
         if layer_count:
             return int(layer_count[0] if isinstance(layer_count, list) else layer_count)
     except Exception as e:
         print(f"Failed to get block_count: {e}")
-        
+
     return None

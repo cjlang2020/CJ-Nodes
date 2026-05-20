@@ -14,7 +14,7 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, image2base64, cqdm, draft_model_types,
+    load_text_presets, tensor_to_numpy, image_to_base64_jpeg, cqdm, draft_model_types, _MTMD,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -121,17 +121,10 @@ class llama_run_simple:
             "state_uid": -1
         }
 
-        try:
-            from llama_cpp.llama_chat_format import MTMDChatHandler
-            _MTMD = True
-        except:
-            _MTMD = False
-
-        if _MTMD:
-            parameters.pop("presence_penalty", None)
-
         _parameters = parameters.copy()
         _parameters.pop("state_uid", None)
+        if _MTMD:
+            _parameters.pop("presence_penalty", None)
         uid = unique_id.rpartition('.')[-1]
         messages = []
         # 判断图片数量
@@ -150,6 +143,10 @@ class llama_run_simple:
             system_prompt_text = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
         else:
             system_prompt_text = "你是一名视频描述专家，擅长将不同图片帧的内容描述出来，同时能将不同画面之间的关系进行连贯描述，擅长分析前后图片之间的过度关系，符合画面的连贯关系！"
+        if ChineseReply:
+            system_prompt_text += ",\n请使用中文回答。"
+        else:
+            system_prompt_text += ",\nPlease answer in English."
         messages.append({"role": "system", "content": system_prompt_text})
 
         out1 = ""
@@ -167,8 +164,6 @@ class llama_run_simple:
             p = p.replace("{}", custom_prompt.strip())
             # 替换 @ 为 image
             p = p.replace("@", "image")
-            if ChineseReply:
-                p = p + ",\n请使用中文回答。"
             user_text = p
             user_content.append({"type": "text", "text": p})
 
@@ -186,7 +181,7 @@ class llama_run_simple:
             for i, image in enumerate(cqdm(images)):
                 if mm.processing_interrupted():
                     raise mm.InterruptProcessingException()
-                data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                data = image_to_base64_jpeg(image)
                 for item in user_content:
                     if item.get("type") == "image_url":
                         item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
@@ -198,6 +193,7 @@ class llama_run_simple:
                     out1 += f"====== Image {i+1} ======\n{text}\n\n"
                 else:
                     out1 = text
+                data = None
 
         else:
             messages.append({"role": "user", "content": user_content})

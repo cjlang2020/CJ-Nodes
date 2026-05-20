@@ -15,7 +15,7 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, image2base64, scale_image, cqdm, _MTMD, draft_model_types,
+    load_text_presets, tensor_to_numpy, image_to_base64_jpeg, scale_image_tensor, cqdm, _MTMD, draft_model_types,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -66,8 +66,9 @@ class llama_cpp_model_loader:
     FUNCTION = "loadmodel"
     CATEGORY = "llama-cpp-vlm"
 
-    def loadmodel(self, model, mmproj, chat_handler, n_ctx, vram_limit, image_min_tokens, image_max_tokens,
-                  draft_model_type, draft_ngram_size, draft_num_pred_tokens):
+    def loadmodel(self, model: str, mmproj: str, chat_handler: str, n_ctx: int, vram_limit: int,
+                  image_min_tokens: int, image_max_tokens: int,
+                  draft_model_type: str, draft_ngram_size: int, draft_num_pred_tokens: int):
         custom_config = {
             "model": model,
             "mmproj": mmproj,
@@ -258,7 +259,7 @@ class llama_cpp_instruct_adv:
                 for i, image in enumerate(cqdm(frames)):
                     if mm.processing_interrupted():
                         raise mm.InterruptProcessingException()
-                    data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                    data = image_to_base64_jpeg(image)
                     for item in user_content:
                         if item.get("type") == "image_url":
                             item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
@@ -269,14 +270,16 @@ class llama_cpp_instruct_adv:
                     if len(frames) > 1:
                         tmp_list.append(f"====== Image {i+1} ======")
                     tmp_list.append(text)
+                    data = None
 
                 out1 = "\n\n".join(tmp_list)
             else:
                 for image in frames:
                     if len(frames) > 1:
-                        data = image2base64(scale_image(image, max_size))
+                        img_np = scale_image_tensor(image, max_size)
                     else:
-                        data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                        img_np = tensor_to_numpy(image)
+                    data = image_to_base64_jpeg(img_np)
                     image_content = {
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{data}"}

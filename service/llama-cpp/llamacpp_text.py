@@ -13,7 +13,7 @@ import gc
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, preset_prompts, preset_tags,
-    load_text_presets, draft_model_types,
+    load_text_presets, draft_model_types, _MTMD,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -109,12 +109,6 @@ class llama_text_simple:
             "mirostat_tau": 5.0,
         }
 
-        try:
-            from llama_cpp.llama_chat_format import MTMDChatHandler
-            _MTMD = True
-        except:
-            _MTMD = False
-
         if _MTMD:
             parameters.pop("presence_penalty", None)
 
@@ -122,12 +116,15 @@ class llama_text_simple:
         messages = []
         user_content = []
 
+        if ChineseReply:
+            messages.append({"role": "system", "content": "请使用中文回答。"})
+        else:
+            messages.append({"role": "system", "content": "Please answer in English."})
+
         if custom_prompt.strip():
             user_content.append({"type": "text", "text": custom_prompt.strip()})
         else:
             p = preset_prompts.get(preset_prompt, "")
-            if ChineseReply and p:
-                p = p + ",\n请使用中文回答。"
             user_content.append({"type": "text", "text": p})
 
         messages.append({"role": "user", "content": user_content})

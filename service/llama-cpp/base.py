@@ -5,9 +5,11 @@ import gc
 import json
 import base64
 import random
+from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 
 import numpy as np
+from numpy.typing import NDArray
 from PIL import Image, ImageDraw
 from scipy.ndimage import gaussian_filter
 
@@ -35,45 +37,57 @@ draft_model_types = ["None", "ngram-map", "prompt-lookup"]
 try:
     from llama_cpp.llama_chat_format import MTMDChatHandler
     _MTMD = True
-except:
+except ImportError:
     _MTMD = False
 
-chat_handlers = ["None", "LLaVA-1.5", "LLaVA-1.6", "Moondream2", "nanoLLaVA", "llama3-Vision-Alpha", "MiniCPM-v2.6"]
+chat_handlers: List[str] = ["None", "LLaVA-1.5", "LLaVA-1.6", "Moondream2", "nanoLLaVA", "llama3-Vision-Alpha", "MiniCPM-v2.6"]
 
 try:
     from llama_cpp.llama_chat_format import MiniCPMv45ChatHandler
-    chat_handlers += ["MiniCPM-v4.5", "MiniCPM-v4.5-Thinking", "MiniCPM-v4.6", "MiniCPM-v4.6-Thinking"]
-except:
+    chat_handlers += ["MiniCPM-v4.5", "MiniCPM-v4.5-Thinking"]
+except ImportError:
     MiniCPMv45ChatHandler = None
+
+try:
+    from llama_cpp.llama_chat_format import MiniCPMV46ChatHandler
+    chat_handlers += ["MiniCPM-v4.6", "MiniCPM-v4.6-Thinking"]
+except ImportError:
+    MiniCPMV46ChatHandler = None
 
 try:
     from llama_cpp.llama_chat_format import Gemma3ChatHandler
     chat_handlers += ["Gemma3"]
-except:
+except ImportError:
     Gemma3ChatHandler = None
+
+try:
+    from llama_cpp.llama_chat_format import Gemma4ChatHandler
+    chat_handlers += ["Gemma4"]
+except ImportError:
+    Gemma4ChatHandler = None
 
 try:
     from llama_cpp.llama_chat_format import Qwen25VLChatHandler
     chat_handlers += ["Qwen2.5-VL"]
-except:
+except ImportError:
     Qwen25VLChatHandler = None
 
 try:
     from llama_cpp.llama_chat_format import Qwen3VLChatHandler
     chat_handlers += ["Qwen3-VL", "Qwen3-VL-Thinking"]
-except:
+except ImportError:
     Qwen3VLChatHandler = None
 
 try:
     from llama_cpp.llama_chat_format import Qwen35ChatHandler
-    chat_handlers += ["Qwen3.5", "Qwen3.5-Thinking"]
-except:
+    chat_handlers += ["Qwen3.5", "Qwen3.5-Thinking", "Qwen3.6"]
+except ImportError:
     Qwen35ChatHandler = None
 
 try:
     from llama_cpp.llama_chat_format import (GLM46VChatHandler, LFM2VLChatHandler, GLM41VChatHandler)
     chat_handlers += ["GLM-4.6V", "GLM-4.6V-Thinking", "GLM-4.1V-Thinking", "LFM2-VL"]
-except:
+except ImportError:
     GLM46VChatHandler = None
     LFM2VLChatHandler = None
     GLM41VChatHandler = None
@@ -81,8 +95,32 @@ except:
 try:
     from llama_cpp.llama_chat_format import GraniteDoclingChatHandler
     chat_handlers += ["Granite-Docling"]
-except:
+except ImportError:
     GraniteDoclingChatHandler = None
+
+try:
+    from llama_cpp.llama_chat_format import LFM25VLChatHandler
+    chat_handlers += ["LFM2.5-VL"]
+except ImportError:
+    LFM25VLChatHandler = None
+
+try:
+    from llama_cpp.llama_chat_format import PaddleOCRChatHandler
+    chat_handlers += ["PaddleOCR-VL"]
+except ImportError:
+    PaddleOCRChatHandler = None
+
+try:
+    from llama_cpp.llama_chat_format import Qwen3ASRChatHandler
+    chat_handlers += ["Qwen3-ASR"]
+except ImportError:
+    Qwen3ASRChatHandler = None
+
+try:
+    from llama_cpp.llama_chat_format import Step3VLChatHandler
+    chat_handlers += ["Step3-VL"]
+except ImportError:
+    Step3VLChatHandler = None
 
 
 class AnyType(str):
@@ -90,6 +128,40 @@ class AnyType(str):
         return False
 
 any_type = AnyType("*")
+
+
+def tensor_to_numpy(image: torch.Tensor) -> NDArray[np.uint8]:
+    """Convert torch tensor image (BHWC or HWC, float 0-1) to uint8 numpy array"""
+    img = image.cpu().numpy().squeeze()
+    if img.ndim == 2:
+        img = img[..., None]
+    return np.clip(255.0 * img, 0, 255).astype(np.uint8)
+
+
+def image_to_base64_jpeg(image: Union[torch.Tensor, NDArray], quality: int = 85) -> str:
+    """Convert image (tensor or numpy) to base64 JPEG string"""
+    if isinstance(image, torch.Tensor):
+        img_np = tensor_to_numpy(image)
+    else:
+        img_np = image
+    if img_np.ndim == 3 and img_np.shape[2] == 1:
+        img_np = np.repeat(img_np, 3, axis=2)
+    img_pil = Image.fromarray(img_np)
+    buffered = io.BytesIO()
+    img_pil.save(buffered, format="JPEG", quality=quality)
+    return base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+
+def scale_image_tensor(image: torch.Tensor, max_size: int = 128) -> NDArray[np.uint8]:
+    """Scale image tensor to max pixel size while preserving aspect ratio, returns numpy uint8"""
+    img_np = tensor_to_numpy(image)
+    h, w = img_np.shape[:2]
+    scale = min(max_size / max(w, h), 1.0)
+    if scale < 1.0:
+        new_w, new_h = int(w * scale), int(h * scale)
+        img_pil = Image.fromarray(img_np).resize((new_w, new_h), Image.Resampling.LANCZOS)
+        return np.array(img_pil)
+    return img_np
 
 
 class LLAMA_CPP_STORAGE:
@@ -130,10 +202,10 @@ class LLAMA_CPP_STORAGE:
         mm.soft_empty_cache()
 
     @classmethod
-    def load_model(cls, config):
-        def get_chat_handler(chat_handler):
+    def load_model(cls, config: Dict[str, Any]) -> None:
+        def get_chat_handler(chat_handler: str):
             match chat_handler:
-                case "Qwen3.5"|"Qwen3.5-Thinking":
+                case "Qwen3.5"|"Qwen3.5-Thinking"|"Qwen3.6":
                     return Qwen35ChatHandler
                 case "Qwen3-VL"|"Qwen3-VL-Thinking":
                     return Qwen3VLChatHandler
@@ -151,18 +223,30 @@ class LLAMA_CPP_STORAGE:
                     return Llama3VisionAlphaChatHandler
                 case "MiniCPM-v2.6":
                     return MiniCPMv26ChatHandler
-                case "MiniCPM-v4.5"|"MiniCPM-v4.5-Thinking"|"MiniCPM-v4.6"|"MiniCPM-v4.6-Thinking":
+                case "MiniCPM-v4.5"|"MiniCPM-v4.5-Thinking":
                     return MiniCPMv45ChatHandler
+                case "MiniCPM-v4.6"|"MiniCPM-v4.6-Thinking":
+                    return MiniCPMV46ChatHandler
                 case "Gemma3":
                     return Gemma3ChatHandler
+                case "Gemma4":
+                    return Gemma4ChatHandler
                 case "GLM-4.6V"|"GLM-4.6V-Thinking":
                     return GLM46VChatHandler
                 case "GLM-4.1V-Thinking":
                     return GLM41VChatHandler
                 case "LFM2-VL":
                     return LFM2VLChatHandler
+                case "LFM2.5-VL":
+                    return LFM25VLChatHandler
                 case "Granite-Docling":
                     return GraniteDoclingChatHandler
+                case "PaddleOCR-VL":
+                    return PaddleOCRChatHandler
+                case "Qwen3-ASR":
+                    return Qwen3ASRChatHandler
+                case "Step3-VL":
+                    return Step3VLChatHandler
                 case "None":
                     return None
                 case _:
@@ -207,7 +291,7 @@ class LLAMA_CPP_STORAGE:
                 kwargs["force_reasoning"] = think_mode
                 kwargs["image_max_tokens"] = image_max_tokens
                 kwargs["image_min_tokens"] = image_min_tokens
-            elif chat_handler in ["MiniCPM-v4.5", "MiniCPM-v4.6", "GLM-4.6V", "Qwen3.5"]:
+            elif chat_handler in ["MiniCPM-v4.5", "MiniCPM-v4.6", "GLM-4.6V", "Qwen3.5", "Qwen3.6", "Gemma4", "LFM2.5-VL"]:
                 kwargs["enable_thinking"] = think_mode
 
             if _MTMD:
@@ -280,12 +364,7 @@ preset_tags = list(preset_prompts.keys())
 _loaded_presets_by_dir = {}
 
 
-def load_text_presets(pathvt):
-    """Load text presets from aitools directory, auto-cleanup deleted files
-
-    Args:
-        pathvt: 目录名，"T" 或 "V"，会自动添加对应前缀到 key
-    """
+def load_text_presets(pathvt: str) -> None:
     global preset_prompts, preset_tags, _loaded_presets_by_dir
     AITOOLS_T_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "aitools", pathvt)
     prefix = f"{pathvt}_"  # 添加前缀：T_ 或 V_
@@ -325,74 +404,63 @@ def load_text_presets(pathvt):
         traceback.print_exc()
 
 
-def image2base64(image):
-    """Convert numpy image to base64 JPEG"""
+def image2base64(image: NDArray[np.uint8], quality: int = 85) -> str:
+    """Convert numpy uint8 image to base64 JPEG string"""
     img = Image.fromarray(image)
     buffered = io.BytesIO()
-    img.save(buffered, format="JPEG", quality=85)
-    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-    return img_base64
+    img.save(buffered, format="JPEG", quality=quality)
+    return base64.b64encode(buffered.getvalue()).decode('utf-8')
 
 
-def parse_json(json_str):
+def parse_json(json_str: str) -> Any:
     """Parse JSON string, removing code block markers"""
     json_output = json_str.strip().removeprefix("```json").removesuffix("```")
     try:
         parsed = json.loads(json_output)
-    except Exception as e:
+    except json.JSONDecodeError as e:
         raise ValueError(f"Unable to load JSON data!\n{e}")
     return parsed
 
 
-def scale_image(image: torch.Tensor, max_size: int = 128):
-    """Scale image to max size while preserving aspect ratio"""
-    img_np = np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8)
-    img_pil = Image.fromarray(img_np)
-
-    w, h = img_pil.size
-    scale = min(max_size / max(w, h), 1.0)
-    new_w, new_h = int(w * scale), int(h * scale)
-    img_resized = img_pil.resize((new_w, new_h), Image.Resampling.LANCZOS)
-
-    return np.array(img_resized)
+def scale_image(image: torch.Tensor, max_size: int = 128) -> NDArray[np.uint8]:
+    """Scale image tensor to max pixel size while preserving aspect ratio, returns numpy uint8"""
+    return scale_image_tensor(image, max_size)
 
 
-def qwen3bbox(image, json):
+def qwen3bbox(image: torch.Tensor, json_data: List[Dict[str, Any]]) -> List[Tuple[float, float, float, float]]:
     """Convert Qwen3-VL bbox format to pixel coordinates"""
-    img = Image.fromarray(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
-    bboxes = []
-    for item in json:
+    img_np = tensor_to_numpy(image)
+    h, w = img_np.shape[:2]
+    bboxes: List[Tuple[float, float, float, float]] = []
+    for item in json_data:
         x0, y0, x1, y1 = item["bbox_2d"]
-        size = 1000
-        x0 = x0 / size * img.width
-        y0 = y0 / size * img.height
-        x1 = x1 / size * img.width
-        y1 = y1 / size * img.height
-        bboxes.append((x0, y0, x1, y1))
+        ratio = 1000.0
+        bboxes.append((
+            x0 / ratio * w,
+            y0 / ratio * h,
+            x1 / ratio * w,
+            y1 / ratio * h,
+        ))
     return bboxes
 
 
-def draw_bbox(image, json, mode):
+def draw_bbox(image: torch.Tensor, json_data: List[Dict[str, Any]], mode: str) -> torch.Tensor:
     """Draw bounding boxes on image"""
-    label_colors = {}
-    img = Image.fromarray(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+    img_np = tensor_to_numpy(image)
+    img = Image.fromarray(img_np)
     draw = ImageDraw.Draw(img)
+    w, h = img.size
+    label_colors: Dict[str, Tuple[int, int, int]] = {}
 
-    for item in json:
-        try:
-            label = item["label"]
-        except Exception:
-            try:
-                label = item["text_content"]
-            except Exception:
-                label = "bbox"
+    for item in json_data:
+        label = item.get("label") or item.get("text_content") or "bbox"
         x0, y0, x1, y1 = item["bbox_2d"]
-        if mode in ["Qwen3-VL", "Qwen2.5-VL"]:
-            size = 1000
-            x0 = x0 / size * img.width
-            y0 = y0 / size * img.height
-            x1 = x1 / size * img.width
-            y1 = y1 / size * img.height
+        if mode in ("Qwen3-VL", "Qwen2.5-VL"):
+            ratio = 1000.0
+            x0 = x0 / ratio * w
+            y0 = y0 / ratio * h
+            x1 = x1 / ratio * w
+            y1 = y1 / ratio * h
         bbox = (x0, y0, x1, y1)
 
         if label not in label_colors:
@@ -402,16 +470,20 @@ def draw_bbox(image, json, mode):
         text_y = max(0, y0 - 10)
         text_size = draw.textbbox((x0, text_y), label)
         draw.rectangle([text_size[0], text_size[1]-2, text_size[2]+4, text_size[3]+2], fill=color)
-        draw.text((x0+2, text_y), label, fill=(255,255,255))
-    return torch.from_numpy(np.array(img).astype(np.float32) / 255.0).unsqueeze(0)
+        draw.text((x0+2, text_y), label, fill=(255, 255, 255))
+
+    return torch.from_numpy(np.array(img, dtype=np.float32) / 255.0).unsqueeze(0)
 
 
-def get_nested_value(data, dotted_key, default=None):
+def get_nested_value(data: Any, dotted_key: str, default: Any = None) -> Any:
     """Get nested value from dict using dotted key path"""
     keys = dotted_key.split('.')
     for key in keys:
         if isinstance(data, str):
-            data = json.loads(data)
+            try:
+                data = json.loads(data)
+            except json.JSONDecodeError:
+                return default
         if isinstance(data, dict) and key in data:
             data = data[key]
         else:
@@ -766,45 +838,49 @@ class parse_json_node:
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, input, key=None, default=None):
+    def process(self, input: Union[str, List[str]], key: Optional[str] = None, default: Optional[str] = None):
         if isinstance(input, str):
             input = [input]
 
-        result = {}
-        for i, json in enumerate(input):
-            val = ""
-            if key is not None and key != "":
-                val = get_nested_value(json.strip().removeprefix("```json").removesuffix("```"), key, default)
-            else:
-                raise ValueError("Key cannot be empty!")
+        result: Dict[str, List] = {
+            "any": [],
+            "string": [],
+            "int": [],
+            "float": [],
+            "boolean": [],
+        }
 
-            result["any"][i] = val
-            try:
-                result["string"][i] = str(val)
-            except Exception as e:
-                result["string"][i] = val
+        if key is None or key == "":
+            raise ValueError("Key cannot be empty!")
 
+        for item in input:
+            val = get_nested_value(
+                item.strip().removeprefix("```json").removesuffix("```"),
+                key, default
+            )
+            result["any"].append(val)
+            result["string"].append(str(val))
             try:
-                result["int"][i] = int(val)
-            except Exception as e:
-                result["int"][i] = val
-
+                result["int"].append(int(val))
+            except (ValueError, TypeError):
+                result["int"].append(val)
             try:
-                result["float"][i] = float(val)
-            except Exception as e:
-                result["float"][i] = val
-
+                result["float"].append(float(val))
+            except (ValueError, TypeError):
+                result["float"].append(val)
             try:
-                result["boolean"][i] = val.lower() == "true"
-            except Exception as e:
-                result["boolean"][i] = val
+                result["boolean"].append(str(val).lower() == "true")
+            except Exception:
+                result["boolean"].append(val)
 
         if len(result["any"]) == 1:
-            result["any"] = result["any"][0]
-            result["string"] = result["string"][0]
-            result["int"] = result["int"][0]
-            result["float"] = result["float"][0]
-            result["boolean"] = result["boolean"][0]
+            return (
+                result["any"][0],
+                result["string"][0],
+                result["int"][0],
+                result["float"][0],
+                result["boolean"][0],
+            )
 
         return (result["any"], result["string"], result["int"], result["float"], result["boolean"])
 
@@ -826,13 +902,14 @@ class remove_code_block:
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, input, label):
+    def process(self, input: Union[str, List[str]], label: str):
         if isinstance(input, str):
             input = [input]
 
-        output = []
-        for value in input:
-            output.append(value.strip().removeprefix(f"```{label}").removesuffix("```"))
+        output: List[str] = [
+            value.strip().removeprefix(f"```{label}").removesuffix("```")
+            for value in input
+        ]
         if len(output) == 1:
             return (output[0],)
         return (output,)
@@ -852,7 +929,7 @@ class PromptEnhancerPreset:
     FUNCTION = "main"
     CATEGORY = "llama-cpp-vlm"
 
-    def main(self, preset):
+    def main(self, preset: str):
         match preset:
             case "Qwen-Image [EN]":
                 return (QWEN_IMAGE_EN,)

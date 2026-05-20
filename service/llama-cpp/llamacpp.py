@@ -14,7 +14,8 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, image2base64, scale_image, cqdm, draft_model_types,
+    load_text_presets, scale_image_tensor, tensor_to_numpy,
+    image_to_base64_jpeg, cqdm, draft_model_types, _MTMD,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -176,22 +177,19 @@ class llama_run:
             "state_uid": state_uid
         }
 
-        try:
-            from llama_cpp.llama_chat_format import MTMDChatHandler
-            _MTMD = True
-        except:
-            _MTMD = False
-
-        if _MTMD:
-            parameters.pop("presence_penalty", None)
-
         _parameters = parameters.copy()
         _parameters.pop("state_uid", None)
+        if _MTMD:
+            _parameters.pop("presence_penalty", None)
         uid = unique_id.rpartition('.')[-1] if state_uid in (None, -1) else state_uid
 
         last_sys_prompt = llama_model.sys_prompts.get(f"{uid}", None)
         video_input = inference_mode == "video"
         system_prompts = "请将输入的图片序列当做视频而不是静态帧序列, " + system_prompt if video_input else system_prompt
+        if ChineseReply and system_prompts:
+            system_prompts += ",\n请使用中文回答。"
+        elif not ChineseReply and system_prompts:
+            system_prompts += ",\nPlease answer in English."
         if last_sys_prompt != system_prompts:
             messages = []
             llama_model.clean_state()
@@ -214,8 +212,6 @@ class llama_run:
             user_content.append({"type": "text", "text": custom_prompt})
         else:
             p = preset_prompts[preset_prompt].replace("#", custom_prompt.strip()).replace("@", "video" if video_input else "image")
-            if ChineseReply:
-                p = p + ",\n请使用中文回答。"
             user_content.append({"type": "text", "text": p})
 
         if images is not None:
@@ -240,7 +236,7 @@ class llama_run:
                 for i, image in enumerate(cqdm(frames)):
                     if mm.processing_interrupted():
                         raise mm.InterruptProcessingException()
-                    data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                    data = image_to_base64_jpeg(image)
                     for item in user_content:
                         if item.get("type") == "image_url":
                             item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
@@ -251,14 +247,16 @@ class llama_run:
                     if len(frames) > 1:
                         tmp_list.append(f"====== Image {i+1} ======")
                     tmp_list.append(text)
+                    data = None
 
                 out1 = "\n\n".join(tmp_list)
             else:
                 for image in frames:
                     if len(frames) > 1:
-                        data = image2base64(scale_image(image, max_size))
+                        img_np = scale_image_tensor(image, max_size)
                     else:
-                        data = image2base64(np.clip(255.0 * image.cpu().numpy().squeeze(), 0, 255).astype(np.uint8))
+                        img_np = tensor_to_numpy(image)
+                    data = image_to_base64_jpeg(img_np)
                     image_content = {
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{data}"}
