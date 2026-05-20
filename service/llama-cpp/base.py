@@ -30,7 +30,6 @@ from llama_cpp.llama_chat_format import (
     Llava15ChatHandler, Llava16ChatHandler, MoondreamChatHandler,
     NanoLlavaChatHandler, Llama3VisionAlphaChatHandler, MiniCPMv26ChatHandler
 )
-
 draft_model_types = ["None", "ngram-map", "prompt-lookup"]
 
 try:
@@ -39,7 +38,13 @@ try:
 except:
     _MTMD = False
 
-chat_handlers = ["None", "LLaVA-1.5", "LLaVA-1.6", "Moondream2", "nanoLLaVA", "llama3-Vision-Alpha", "MiniCPM-v2.6", "MiniCPM-v4.5", "MiniCPM-v4.5-Thinking"]
+chat_handlers = ["None", "LLaVA-1.5", "LLaVA-1.6", "Moondream2", "nanoLLaVA", "llama3-Vision-Alpha", "MiniCPM-v2.6"]
+
+try:
+    from llama_cpp.llama_chat_format import MiniCPMv45ChatHandler
+    chat_handlers += ["MiniCPM-v4.5", "MiniCPM-v4.5-Thinking", "MiniCPM-v4.6", "MiniCPM-v4.6-Thinking"]
+except:
+    MiniCPMv45ChatHandler = None
 
 try:
     from llama_cpp.llama_chat_format import Gemma3ChatHandler
@@ -146,8 +151,8 @@ class LLAMA_CPP_STORAGE:
                     return Llama3VisionAlphaChatHandler
                 case "MiniCPM-v2.6":
                     return MiniCPMv26ChatHandler
-                case "MiniCPM-v4.5"|"MiniCPM-v4.5-Thinking":
-                    return MiniCPMv26ChatHandler
+                case "MiniCPM-v4.5"|"MiniCPM-v4.5-Thinking"|"MiniCPM-v4.6"|"MiniCPM-v4.6-Thinking":
+                    return MiniCPMv45ChatHandler
                 case "Gemma3":
                     return Gemma3ChatHandler
                 case "GLM-4.6V"|"GLM-4.6V-Thinking":
@@ -202,7 +207,7 @@ class LLAMA_CPP_STORAGE:
                 kwargs["force_reasoning"] = think_mode
                 kwargs["image_max_tokens"] = image_max_tokens
                 kwargs["image_min_tokens"] = image_min_tokens
-            elif chat_handler in ["MiniCPM-v4.5", "GLM-4.6V", "Qwen3.5"]:
+            elif chat_handler in ["MiniCPM-v4.5", "MiniCPM-v4.6", "GLM-4.6V", "Qwen3.5"]:
                 kwargs["enable_thinking"] = think_mode
 
             if _MTMD:

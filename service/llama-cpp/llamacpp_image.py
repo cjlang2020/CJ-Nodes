@@ -73,9 +73,9 @@ class llama_run_simple:
             },
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("output", "output_list", "state_uid")
-    OUTPUT_IS_LIST = (False, True, False)
+    RETURN_TYPES = ("STRING", "STRING", "INT", "STRING", "STRING")
+    RETURN_NAMES = ("output", "output_list", "state_uid", "system_prompt", "user_prompt")
+    OUTPUT_IS_LIST = (False, True, False, False, False)
     FUNCTION = "run"
     CATEGORY = "luy/llama-cpp"
 
@@ -134,20 +134,32 @@ class llama_run_simple:
         _parameters.pop("state_uid", None)
         uid = unique_id.rpartition('.')[-1]
         messages = []
-        # 根据是否传图片调整系统提示词
-        if images is None:
-            # 不传图片时，作为个人AI助手
-            messages.append({"role": "system", "content": "你是一个个人AI助手，可以帮助用户解答问题、提供建议和信息。"})
+        # 判断图片数量
+        if images is not None:
+            if hasattr(images, 'shape'):
+                image_count = images.shape[0]
+            else:
+                image_count = len(images)
         else:
-            # 有图片时，作为图像分析助手
-            messages.append({"role": "system", "content": "你是一个图像分析助手，可以帮助用户分析图像内容、识别物体、描述场景和细节。"})
+            image_count = 0
+
+        # 自动设置默认系统提示词
+        if image_count == 0:
+            system_prompt_text = "你是一名AI助手，擅长扩写用户的描述内容。"
+        elif image_count == 1:
+            system_prompt_text = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
+        else:
+            system_prompt_text = "你是一名视频描述专家，擅长将不同图片帧的内容描述出来，同时能将不同画面之间的关系进行连贯描述，擅长分析前后图片之间的过度关系，符合画面的连贯关系！"
+        messages.append({"role": "system", "content": system_prompt_text})
+
         out1 = ""
         out2 = []
         user_content = []
         # 根据 preset_prompt 是否为 None 决定用户提示词内容
         if preset_prompt == "None":
             # preset_prompt 为 None 时，完全使用 custom_prompt
-            user_content.append({"type": "text", "text": custom_prompt.strip()})
+            user_text = custom_prompt.strip()
+            user_content.append({"type": "text", "text": user_text})
         else:
             # preset_prompt 不为 None 时，获取预设值并替换 {} 为 custom_prompt
             p = preset_prompts[preset_prompt]
@@ -157,6 +169,7 @@ class llama_run_simple:
             p = p.replace("@", "image")
             if ChineseReply:
                 p = p + ",\n请使用中文回答。"
+            user_text = p
             user_content.append({"type": "text", "text": p})
 
         if images is not None:
@@ -201,7 +214,7 @@ class llama_run_simple:
             LLAMA_CPP_STORAGE.clean_state(uid)
             LLAMA_CPP_STORAGE.clean()
 
-        return (out1, out2, uid)
+        return (out1, out2, uid, system_prompt_text, user_text)
 
 
 # 合并基础节点映射和当前文件的独有节点

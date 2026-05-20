@@ -58,31 +58,6 @@ def load_prompts():
 preset_tags = load_prompts()
 
 
-def image_to_base64(image_tensor):
-    """
-    将ComfyUI的IMAGE tensor转换为base64字符串
-    IMAGE tensor格式: [batch, height, width, channels] 或 [height, width, channels]
-    值范围: 0.0-1.0 float
-    """
-    # 处理不同维度的tensor
-    if isinstance(image_tensor, torch.Tensor):
-        # 移除batch维度（如果存在）
-        if image_tensor.ndim == 4:
-            image_tensor = image_tensor[0]
-
-        # 转换为numpy数组，范围从0-1转为0-255
-        img_array = np.clip(255.0 * image_tensor.cpu().numpy(), 0, 255).astype(np.uint8)
-    else:
-        img_array = image_tensor
-
-    # 创建PIL图像并转换为base64
-    pil_image = Image.fromarray(img_array)
-    buffered = io.BytesIO()
-    pil_image.save(buffered, format="JPEG", quality=85)
-    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
-    return img_base64
-
-
 def scale_image_tensor(image_tensor, max_size=512):
     """
     缩放图像tensor到指定最大尺寸
@@ -133,7 +108,7 @@ class LlamaCppAPINode:
                     "tooltip": "自定义提示词，会追加到模板后面"
                 }),
                 "max_tokens": ("INT", {
-                    "default": 2048,
+                    "default": 4096,
                     "min": 1,
                     "max": 4096,
                     "step": 1,
@@ -164,9 +139,9 @@ class LlamaCppAPINode:
                     "tooltip": "随机种子，-1表示随机"
                 }),
                 "image_max_size": ("INT", {
-                    "default": 512,
+                    "default": 2048,
                     "min": 64,
-                    "max": 1024,
+                    "max": 4096,
                     "step": 64,
                     "tooltip": "图片最大尺寸，超过会自动缩放"
                 }),
@@ -180,28 +155,43 @@ class LlamaCppAPINode:
             }
         }
 
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("output",)
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("output", "system_prompt", "user_prompt")
     FUNCTION = "process"
     CATEGORY = "luy/AI"
 
     def process(self, url, preset_prompt, custom_prompt, max_tokens, temperature,
-                images=None, system_prompt="", seed=-1, image_max_size=512, max_frames=8):
+                images=None, system_prompt="", seed=-1, image_max_size=1024, max_frames=8):
         """
         调用本地llama.cpp API服务，支持图片输入
         """
         # 构建完整提示词
         preset_content = preset_prompts.get(preset_prompt, "")
 
-        if preset_content and custom_prompt:
-            full_prompt = f"{preset_content}\n{custom_prompt}"
-        elif preset_content:
-            full_prompt = preset_content
-        else:
+        if "{}" in preset_content:
+            full_prompt = preset_content.replace("{}", custom_prompt)
+        elif custom_prompt:
             full_prompt = custom_prompt
+        else:
+            full_prompt = preset_content
+
+        # 判断图片数量
+        if images is not None:
+            image_count = images.shape[0] if images.ndim == 4 else 1
+        else:
+            image_count = 0
+
+        # 自动设置默认系统提示词
+        if not system_prompt.strip():
+            if image_count == 0:
+                system_prompt = "你是一名AI助手，擅长扩写用户的描述内容。"
+            elif image_count == 1:
+                system_prompt = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
+            else:
+                system_prompt = "你是一名视频描述专家，擅长将不同图片帧的内容描述出来，同时能将不同画面之间的关系进行连贯描述，擅长分析前后图片之间的过度关系，符合画面的连贯关系！"
 
         if not full_prompt.strip() and images is None:
-            return ("错误：提示词和图片均为空，请至少提供一项",)
+            return ("错误：提示词和图片均为空，请至少提供一项", system_prompt, full_prompt)
 
         # 构建消息内容
         user_content = []
@@ -215,16 +205,13 @@ class LlamaCppAPINode:
 
         # 处理图片输入
         if images is not None:
-            # 获取图片数量
-            batch_size = images.shape[0] if images.ndim == 4 else 1
-
             # 限制处理的帧数
-            if batch_size > max_frames:
-                indices = np.linspace(0, batch_size - 1, max_frames, dtype=int)
+            if image_count > max_frames:
+                indices = np.linspace(0, image_count - 1, max_frames, dtype=int)
                 images_to_process = [images[i] if images.ndim == 4 else images for i in indices]
-                print(f"[LlamaCppAPI] 批量图片共{batch_size}张，处理前{max_frames}张")
+                print(f"[LlamaCppAPI] 批量图片共{image_count}张，处理前{max_frames}张")
             else:
-                images_to_process = [images[i] for i in range(batch_size)] if images.ndim == 4 else [images]
+                images_to_process = [images[i] for i in range(image_count)] if images.ndim == 4 else [images]
 
             for idx, image in enumerate(images_to_process):
                 try:
@@ -233,14 +220,15 @@ class LlamaCppAPINode:
 
                     # 转换为base64
                     buffered = io.BytesIO()
-                    pil_image.save(buffered, format="JPEG", quality=85)
+                    pil_image.save(buffered, format="JPEG", quality=95)
                     img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
                     # 添加图片到消息内容（OpenAI Vision格式）
                     user_content.append({
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{img_base64}"
+                            "url": f"data:image/jpeg;base64,{img_base64}",
+                        "detail": "auto"
                         }
                     })
                     print(f"[LlamaCppAPI] 成功处理图片 {idx + 1}/{len(images_to_process)}")
@@ -295,7 +283,7 @@ class LlamaCppAPINode:
 
             if response.status_code != 200:
                 error_text = response.text[:300]
-                return (f"API错误 ({response.status_code}): {error_text}",)
+                return (f"API错误 ({response.status_code}): {error_text}", system_prompt, full_prompt)
 
             # 解析响应
             result = response.json()
@@ -305,20 +293,20 @@ class LlamaCppAPINode:
                 content = result["choices"][0]["message"]["content"]
                 # 清理输出
                 content = content.lstrip(": ").lstrip().rstrip()
-                return (content,)
+                return (content, system_prompt, full_prompt)
             else:
-                return (f"API响应格式错误: {json.dumps(result)[:200]}",)
+                return (f"API响应格式错误: {json.dumps(result)[:200]}", system_prompt, full_prompt)
 
         except requests.exceptions.ConnectionError:
-            return (f"连接失败：无法连接到 {api_url}，请检查服务是否启动",)
+            return (f"连接失败：无法连接到 {api_url}，请检查服务是否启动", system_prompt, full_prompt)
         except requests.exceptions.Timeout:
-            return (f"请求超时：服务器响应时间过长（图片处理可能较慢）",)
+            return (f"请求超时：服务器响应时间过长（图片处理可能较慢）", system_prompt, full_prompt)
         except requests.exceptions.RequestException as e:
-            return (f"请求异常：{str(e)[:150]}",)
+            return (f"请求异常：{str(e)[:150]}", system_prompt, full_prompt)
         except json.JSONDecodeError as e:
-            return (f"JSON解析失败：{str(e)[:100]}",)
+            return (f"JSON解析失败：{str(e)[:100]}", system_prompt, full_prompt)
         except Exception as e:
-            return (f"未知错误：{str(e)[:150]}",)
+            return (f"未知错误：{str(e)[:150]}", system_prompt, full_prompt)
 
 
 class LlamaCppAPIRefreshPrompts:
