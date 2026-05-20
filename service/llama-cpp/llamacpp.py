@@ -32,8 +32,8 @@ class llama_run:
         load_text_presets("V")
         return {
             "required": {
-                "model": (model_list,{"default": "Qwen3.5/4B/Qwen3.5-4B-Q4_K_S.gguf"}),
-                "mmproj": (mmproj_list, {"default": "Qwen3.5/4B/mmproj-BF16.gguf"}),
+                "model": (model_list,{"default": "Qwen3.5\\4B\\Qwen3.5-4B-Q4_K_S.gguf"}),
+                "mmproj": (mmproj_list, {"default": "Qwen3.5\\4B\\mmproj-BF16.gguf"}),
                 "chat_handler": (chat_handlers, {"default": "Qwen3.5"}),
                 "n_ctx": ("INT", {
                     "default": 8192,
