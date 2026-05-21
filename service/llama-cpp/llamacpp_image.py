@@ -147,7 +147,7 @@ class llama_run_simple:
         elif image_count == 1:
             system_prompt_text = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
         else:
-            system_prompt_text = "你是一名视频描述专家，擅长将不同图片帧的内容描述出来，同时能将不同画面之间的关系进行连贯描述，擅长分析前后图片之间的过度关系，符合画面的连贯关系！"
+            system_prompt_text = "请将输入的图片序列当做视频而不是静态帧序列, 你是一个视频分析助手，可以帮助用户分析视频内容、理解画面变化和叙事逻辑。"
         if ChineseReply:
             system_prompt_text += ",\n请使用中文回答。"
         else:
