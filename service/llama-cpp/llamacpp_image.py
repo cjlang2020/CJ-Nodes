@@ -14,7 +14,7 @@ import numpy as np
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
-    load_text_presets, tensor_to_numpy, image_to_base64_jpeg, cqdm, draft_model_types, _MTMD,
+    load_text_presets, tensor_to_numpy, image_to_base64_jpeg, scale_image_tensor, cqdm, draft_model_types, _MTMD,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -51,6 +51,24 @@ class llama_run_simple:
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
                 "unload_model": ("BOOLEAN", {"default": True, "tooltip": "Unload model after inference. If True, calls clean_state to release resources."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1, "tooltip": "Random seed for ensuring execution each run."}),
+                "inference_mode": (["one by one", "images", "video"], {
+                    "default": "one by one",
+                    "tooltip": "one by one: Read one image at a time\nimages:  \tRead all images at once\nvideo:  \tTreat the input images as video"
+                }),
+                "max_frames": ("INT", {
+                    "default": 24,
+                    "min": 2,
+                    "max": 1024,
+                    "step": 1,
+                    "tooltip": 'Number of frames to sample evenly from input video.\n(for "video" mode only)'
+                }),
+                "max_size": ("INT", {
+                    "default": 256,
+                    "min": 128,
+                    "max": 16384,
+                    "step": 64,
+                    "tooltip": 'Max size of input images in "images" and "video" modes.'
+                }),
                 "draft_model_type": (draft_model_types, {
                     "default": "None",
                     "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nprompt-lookup: Legacy sliding window search\nNone: No speculative decoding"
@@ -85,6 +103,7 @@ class llama_run_simple:
 
     def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
             preset_prompt, ChineseReply, custom_prompt, unload_model, seed,
+            inference_mode, max_frames, max_size,
             draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp,
             unique_id, images=None, queue_handler=None):
         custom_config = {
@@ -132,6 +151,7 @@ class llama_run_simple:
             _parameters.pop("presence_penalty", None)
         uid = unique_id.rpartition('.')[-1]
         messages = []
+        video_input = inference_mode == "video"
         # 判断图片数量
         if images is not None:
             if hasattr(images, 'shape'):
@@ -144,10 +164,10 @@ class llama_run_simple:
         # 自动设置默认系统提示词
         if image_count == 0:
             system_prompt_text = "你是一名AI助手，擅长扩写用户的描述内容。"
-        elif image_count == 1:
-            system_prompt_text = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
-        else:
+        elif video_input:
             system_prompt_text = "请将输入的图片序列当做视频而不是静态帧序列, 你是一个视频分析助手，可以帮助用户分析视频内容、理解画面变化和叙事逻辑。"
+        else:
+            system_prompt_text = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
         if ChineseReply:
             system_prompt_text += ",\n请使用中文回答。"
         else:
@@ -176,29 +196,52 @@ class llama_run_simple:
             if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:
                 raise ValueError("Image input detected, but the loaded model is not configured with a mmproj module.")
 
-            image_content = {
-                "type": "image_url",
-                "image_url": {"url": ""}
-            }
-            user_content.append(image_content)
-            messages.append({"role": "user", "content": user_content})
+            frames = images
+            if video_input:
+                indices = np.linspace(0, len(images) - 1, max_frames, dtype=int)
+                frames = [images[i] for i in indices]
 
-            for i, image in enumerate(cqdm(images)):
-                if mm.processing_interrupted():
-                    raise mm.InterruptProcessingException()
-                data = image_to_base64_jpeg(image)
-                for item in user_content:
-                    if item.get("type") == "image_url":
-                        item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
-                        break
-                output = llama_model.llm.create_chat_completion(messages=messages, seed=0, **_parameters)
-                text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
-                out2.append(text)
-                if len(images) > 1:
-                    out1 += f"====== Image {i+1} ======\n{text}\n\n"
-                else:
-                    out1 = text
-                data = None
+            if inference_mode == "one by one":
+                image_content = {
+                    "type": "image_url",
+                    "image_url": {"url": ""}
+                }
+                user_content.append(image_content)
+                messages.append({"role": "user", "content": user_content})
+
+                for i, image in enumerate(cqdm(frames)):
+                    if mm.processing_interrupted():
+                        raise mm.InterruptProcessingException()
+                    data = image_to_base64_jpeg(image)
+                    for item in user_content:
+                        if item.get("type") == "image_url":
+                            item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
+                            break
+                    output = llama_model.llm.create_chat_completion(messages=messages, seed=seed, **_parameters)
+                    text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                    out2.append(text)
+                    if len(frames) > 1:
+                        out1 += f"====== Image {i+1} ======\n{text}\n\n"
+                    else:
+                        out1 = text
+                    data = None
+            else:
+                for image in frames:
+                    if len(frames) > 1:
+                        img_np = scale_image_tensor(image, max_size)
+                    else:
+                        img_np = tensor_to_numpy(image)
+                    data = image_to_base64_jpeg(img_np)
+                    image_content = {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{data}"}
+                    }
+                    user_content.append(image_content)
+
+                messages.append({"role": "user", "content": user_content})
+                output = llama_model.llm.create_chat_completion(messages=messages, seed=seed, **_parameters)
+                out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                out2 = [out1]
 
         else:
             messages.append({"role": "user", "content": user_content})

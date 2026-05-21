@@ -58,12 +58,36 @@ class SDXLPromptPickerNode:
             logger.error(f"提示词处理异常: {str(e)} | 输入内容: {final_prompt[:50]}")
             return ("", "")
 
+class AnimaStylePickerNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "final_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "点击下方画师头像选择画师风格...",
+                    "dynamicPrompts": False
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "get_final_prompt"
+    CATEGORY = "luy/提示词"
+
+    def get_final_prompt(self, final_prompt):
+        return (final_prompt.strip(),)
+
 # ComfyUI标准节点注册
 NODE_CLASS_MAPPINGS = {
-    "SDXLPromptPickerNode": SDXLPromptPickerNode
+    "SDXLPromptPickerNode": SDXLPromptPickerNode,
+    "AnimaStylePickerNode": AnimaStylePickerNode
 }
 
 # 节点显示名称
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SDXLPromptPickerNode": "SDXL提示词选择器 (点击添加/移除)"
+    "SDXLPromptPickerNode": "SDXL提示词选择器 (点击添加/移除)",
+    "AnimaStylePickerNode": "Anima画师风格选择器"
 }

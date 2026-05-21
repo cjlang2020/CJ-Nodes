@@ -68,7 +68,7 @@ CUSTOM_DISPLAY_NAMES = {
     "LlamaCppAPIRefreshPrompts": "Luy-刷新提示词模板",
     "VideoRotate90": "Luy-视频旋转90度(PIL)",
     "VideoRotate90Alt": "Luy-视频旋转90度(张量)",
-    "LTXReferenceInject": "Luy-LTX参考注入",
+    "AnimaStylePickerNode": "Luy-Anima画师风格选择",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）

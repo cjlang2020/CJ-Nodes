@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anima画师风格选择器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            width: 100%;
+            height: 100vh;
+            background: #f5f7fa;
+            font-family: Arial, sans-serif;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        .grid-container {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            align-content: start;
+            min-height: 0;
+        }
+        .grid-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .grid-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .grid-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        .grid-container::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        .artist-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            overflow: hidden;
+            padding: 8px;
+        }
+        .artist-card:hover {
+            border-color: #90caf9;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .artist-card.active {
+            border-color: #2d5aff;
+            background: #e3f2fd;
+            box-shadow: 0 2px 8px rgba(45,90,255,0.2);
+        }
+        .artist-card img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 6px;
+            background: #f0f0f0;
+        }
+        .artist-card .name {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #333;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .artist-card.active .name {
+            color: #2d5aff;
+            font-weight: 600;
+        }
+        .loading, .empty-tip {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+            padding: 40px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-container" id="gridContainer">
+        <div class="loading">加载中...</div>
+    </div>
+    <script>
+        let selectedName = "";
+        let animaData = [];
+
+        async function loadData() {
+            const container = document.getElementById('gridContainer');
+            try {
+                const resp = await fetch('anima_style/data.json');
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                animaData = await resp.json();
+                renderGrid();
+            } catch (e) {
+                container.innerHTML = '<div class="empty-tip">加载数据失败: ' + e.message + '</div>';
+            }
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('gridContainer');
+            if (!animaData || animaData.length === 0) {
+                container.innerHTML = '<div class="empty-tip">暂无画师数据</div>';
+                return;
+            }
+
+            container.innerHTML = '';
+            animaData.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'artist-card';
+                if (selectedName === item.name) {
+                    card.classList.add('active');
+                }
+
+                const img = document.createElement('img');
+                img.src = 'anima_style/images/' + item.image;
+                img.alt = item.name;
+                img.loading = 'lazy';
+                img.onerror = function() {
+                    this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f0f0f0" width="100" height="100"/><text fill="%23999" font-size="10" x="50" y="50" text-anchor="middle" dominant-baseline="central">无图</text></svg>';
+                };
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'name';
+                nameEl.textContent = item.name;
+
+                card.appendChild(img);
+                card.appendChild(nameEl);
+
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.artist-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+
+                    selectedName = item.name;
+                    sendPromptUpdate('@' + item.name);
+                });
+
+                container.appendChild(card);
+            });
+        }
+
+        function sendPromptUpdate(name) {
+            window.parent.postMessage({
+                type: 'PROMPT_UPDATE',
+                prompt: name
+            }, '*');
+        }
+
+        function initPrompt(initialPrompt = "") {
+            if (initialPrompt) {
+                selectedName = initialPrompt;
+                document.querySelectorAll('.artist-card').forEach(card => {
+                    const name = card.querySelector('.name').textContent;
+                    if (name === initialPrompt) {
+                        card.classList.add('active');
+                    } else {
+                        card.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        window.addEventListener('message', (e) => {
+            try {
+                const data = e.data;
+                if (data.type === 'INIT_PROMPT') {
+                    initPrompt(data.prompt || "");
+                } else if (data.type === 'RESIZE_PANEL') {
+                    document.body.style.height = '100%';
+                }
+            } catch (e) {
+                console.error('处理父窗口消息失败:', e);
+            }
+        });
+
+        loadData();
+
+        setTimeout(() => {
+            window.parent.postMessage({type: 'PROMPT_PANEL_READY'}, '*');
+        }, 100);
+    </script>
+</body>
+</html>
