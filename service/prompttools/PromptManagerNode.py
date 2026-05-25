@@ -80,14 +80,38 @@ class AnimaStylePickerNode:
     def get_final_prompt(self, final_prompt):
         return (final_prompt.strip(),)
 
+class CharacterPickerNode:
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "final_prompt": ("STRING", {
+                    "multiline": True,
+                    "default": "",
+                    "placeholder": "点击下方角色头像选择角色Tag...",
+                    "dynamicPrompts": False
+                }),
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "get_final_prompt"
+    CATEGORY = "luy/提示词"
+
+    def get_final_prompt(self, final_prompt):
+        return (final_prompt.strip(),)
+
 # ComfyUI标准节点注册
 NODE_CLASS_MAPPINGS = {
     "SDXLPromptPickerNode": SDXLPromptPickerNode,
-    "AnimaStylePickerNode": AnimaStylePickerNode
+    "AnimaStylePickerNode": AnimaStylePickerNode,
+    "CharacterPickerNode": CharacterPickerNode
 }
 
 # 节点显示名称
 NODE_DISPLAY_NAME_MAPPINGS = {
     "SDXLPromptPickerNode": "SDXL提示词选择器 (点击添加/移除)",
-    "AnimaStylePickerNode": "Anima画师风格选择器"
+    "AnimaStylePickerNode": "Anima画师风格选择器",
+    "CharacterPickerNode": "角色Tag选择器"
 }

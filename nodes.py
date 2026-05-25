@@ -69,6 +69,7 @@ CUSTOM_DISPLAY_NAMES = {
     "VideoRotate90": "Luy-视频旋转90度(PIL)",
     "VideoRotate90Alt": "Luy-视频旋转90度(张量)",
     "AnimaStylePickerNode": "Luy-Anima画师风格选择",
+    "CharacterPickerNode": "Luy-角色Tag选择",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）
