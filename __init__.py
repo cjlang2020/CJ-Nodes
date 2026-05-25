@@ -168,6 +168,118 @@ async def local_resources_delete(request):
         target.unlink()
     return web.json_response({'ok': True})
 
+WORKFLOWS_BASE = Path(folder_paths.get_user_directory()).resolve()
+
+def _get_user_workflows_path(request) -> Path:
+    user_id = PromptServer.instance.user_manager.get_request_user_id(request)
+    return WORKFLOWS_BASE / user_id / "workflows"
+
+@routes.get('/CJ-Nodes/api/workflows/list')
+async def workflows_list(request):
+    try:
+        wf_root = _get_user_workflows_path(request)
+        wf_root.mkdir(parents=True, exist_ok=True)
+        rel_path = request.query.get('path', '')
+        target = (wf_root / rel_path).resolve()
+        try:
+            target.relative_to(wf_root)
+        except ValueError:
+            return web.json_response({'error': 'Access denied'}, status=403)
+        if not target.is_dir():
+            return web.json_response({'error': 'Not found'}, status=404)
+        entries = []
+        for child in sorted(target.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+            if child.name.startswith('.'):
+                continue
+            entries.append({
+                'name': child.name,
+                'isDirectory': child.is_dir(),
+                'isWorkflow': child.suffix.lower() == '.json' if not child.is_dir() else False,
+            })
+        current_rel = target.relative_to(wf_root).as_posix()
+        parent_rel = target.parent.relative_to(wf_root).as_posix() if target != wf_root else None
+        return web.json_response({
+            'entries': entries,
+            'currentPath': current_rel if current_rel != '.' else '',
+            'parentPath': parent_rel if parent_rel != '.' else None,
+            '_workflowsRoot': str(wf_root),
+        })
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+def _resolve_wf_path(request, rel_path: str) -> Optional[Path]:
+    try:
+        wf_root = _get_user_workflows_path(request)
+        target = (wf_root / rel_path).resolve()
+        target.relative_to(wf_root)
+        return target
+    except (ValueError, OSError):
+        return None
+
+@routes.post('/CJ-Nodes/api/workflows/rename')
+async def workflows_rename(request):
+    try:
+        data = await request.json()
+        target = _resolve_wf_path(request, data.get('path', ''))
+        new_name = data.get('newName', '')
+        if not target or not target.exists():
+            return web.json_response({'error': 'Not found'}, status=404)
+        if not new_name or '/' in new_name or '\\' in new_name:
+            return web.json_response({'error': 'Invalid name'}, status=400)
+        new_path = target.parent / new_name
+        if new_path.exists():
+            return web.json_response({'error': 'Target already exists'}, status=409)
+        target.rename(new_path)
+        return web.json_response({'ok': True})
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+@routes.post('/CJ-Nodes/api/workflows/move')
+async def workflows_move(request):
+    try:
+        data = await request.json()
+        target = _resolve_wf_path(request, data.get('path', ''))
+        dest_rel = data.get('destDir', '')
+        if not target or not target.exists():
+            return web.json_response({'error': 'Not found'}, status=404)
+        dest_dir = _resolve_wf_path(request, dest_rel)
+        if not dest_dir or not dest_dir.is_dir():
+            return web.json_response({'error': 'Invalid destination'}, status=400)
+        new_path = dest_dir / target.name
+        if new_path.exists():
+            return web.json_response({'error': 'Target already exists'}, status=409)
+        target.rename(new_path)
+        return web.json_response({'ok': True})
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+@routes.post('/CJ-Nodes/api/workflows/delete')
+async def workflows_delete(request):
+    try:
+        data = await request.json()
+        target = _resolve_wf_path(request, data.get('path', ''))
+        if not target or not target.exists():
+            return web.json_response({'error': 'Not found'}, status=404)
+        if target.is_dir():
+            import shutil
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+        return web.json_response({'ok': True})
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+@routes.get('/CJ-Nodes/api/workflows/read')
+async def workflows_read(request):
+    try:
+        rel_path = request.query.get('path', '')
+        target = _resolve_wf_path(request, rel_path)
+        if not target or not target.is_file() or target.suffix.lower() != '.json':
+            return web.json_response({'error': 'Not found'}, status=404)
+        return web.FileResponse(target)
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
 @routes.get('/CJ-Nodes')
 async def serve_cj_nodes_index(request):
     for filename in ['index.html', 'index.html']:
