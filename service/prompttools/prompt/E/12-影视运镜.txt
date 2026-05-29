@@ -1,0 +1,27 @@
+变焦推镜放大（zoom_in）
+变焦拉镜缩小（zoom_out）
+左摇（pan_left）
+右摇（pan_right）
+上摇 / 仰摇（tilt_up）
+下摇 / 俯摇（tilt_down）
+前移-机位向前（dolly_in）
+后移-机位向后（dolly_out）
+左横移（track_left）
+右横移（track_right）
+平稳滑镜（slide）
+升镜（crane_up）
+降镜（crane_down）
+顺时针环绕（orbit_cw）
+逆时针环绕（orbit_ccw）
+向上环绕（orbit_up）
+向下环绕（orbit_down）
+弧形运镜（arc）
+顺时针滚镜（roll_cw）
+逆时针滚镜（roll_ccw）
+原地 360° 旋转（spin）
+跟镜-跟随主体同步移动（follow）
+常规手持-轻微自然晃动（handheld）
+强晃动镜头-刻意抖动（shaky）
+定镜-静止镜头（static）
+变焦推 + 上摇（push_tilt）
+变焦拉 + 横摇（pull_pan）
