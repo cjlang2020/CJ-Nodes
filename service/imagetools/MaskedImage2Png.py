@@ -105,6 +105,141 @@ class MaskedImage2Png(BaseNode):
         final_result = torch.cat(result_images, dim=0)
         return (final_result,)
 
+class ExtractMaskRegion(BaseNode):
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+            }
+        }
+
+    RETURN_TYPES = ("MASK", "INT", "INT",)
+    RETURN_NAMES = ("最小遮罩区域", "offset_x", "offset_y",)
+    FUNCTION = "extract_region"
+    CATEGORY = "luy/图片处理"
+
+    def extract_region(self, mask: torch.Tensor):
+        device = mask.device
+        batch_size = mask.shape[0]
+        result_masks = []
+        offset_x_list = []
+        offset_y_list = []
+
+        for b in range(batch_size):
+            current_mask = mask[b]
+            non_zero = torch.nonzero(current_mask > 0.5)
+            if non_zero.numel() == 0:
+                empty = torch.zeros((1, 1), device=device)
+                result_masks.append(empty.unsqueeze(0))
+                offset_x_list.append(0)
+                offset_y_list.append(0)
+                continue
+
+            min_y, min_x = non_zero.min(dim=0).values
+            max_y, max_x = non_zero.max(dim=0).values
+            min_y, min_x = int(min_y), int(min_x)
+            max_y, max_x = int(max_y), int(max_x)
+
+            cropped_mask = current_mask[min_y:max_y+1, min_x:max_x+1]
+            result_masks.append(cropped_mask.unsqueeze(0))
+            offset_x_list.append(min_x)
+            offset_y_list.append(min_y)
+
+        final_mask = torch.cat(result_masks, dim=0)
+        return (final_mask, offset_x_list[0], offset_y_list[0])
+
+class CompositeRepaintedImage(BaseNode):
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "image": ("IMAGE",),
+                "mask": ("MASK",),
+                "repainted": ("IMAGE",),
+                "offset_x": ("INT", {"default": 0, "min": 0, "max": 99999}),
+                "offset_y": ("INT", {"default": 0, "min": 0, "max": 99999}),
+                "feather": ("INT", {"default": 5, "min": 0, "max": 50}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("合成图",)
+    FUNCTION = "composite"
+    CATEGORY = "luy/图片处理"
+
+    def composite(self, image, mask, repainted, offset_x, offset_y, feather):
+        device = image.device
+        B = image.shape[0]
+        H, W = image.shape[1], image.shape[2]
+        results = []
+
+        for b in range(B):
+            current_img = image[b]
+            current_mask = mask[b]
+            current_repainted = repainted[b]
+
+            if current_mask.shape[0] != H or current_mask.shape[1] != W:
+                mask_4d = current_mask.unsqueeze(0).unsqueeze(-1)
+                scaled_mask = common_upscale(mask_4d, W, H, "nearest-exact", None).to(device)
+                current_mask = scaled_mask[0, :, :, 0]
+
+            hard_mask = (current_mask > 0.5).float()
+            if feather > 0:
+                blurred = self._gaussian_blur_mask(hard_mask, feather)
+                blend = torch.clamp(2.0 * blurred - 1.0, 0.0, 1.0) * hard_mask
+            else:
+                blend = hard_mask
+
+            canvas = current_img.clone()
+            rh, rw = current_repainted.shape[0], current_repainted.shape[1]
+
+            paste_y_start = max(0, offset_y)
+            paste_x_start = max(0, offset_x)
+            paste_y_end = min(H, offset_y + rh)
+            paste_x_end = min(W, offset_x + rw)
+
+            src_y_start = paste_y_start - offset_y
+            src_x_start = paste_x_start - offset_x
+            src_y_end = src_y_start + (paste_y_end - paste_y_start)
+            src_x_end = src_x_start + (paste_x_end - paste_x_start)
+
+            if paste_y_end > paste_y_start and paste_x_end > paste_x_start:
+                canvas[paste_y_start:paste_y_end, paste_x_start:paste_x_end] = \
+                    current_repainted[src_y_start:src_y_end, src_x_start:src_x_end]
+
+            blend_3ch = blend.unsqueeze(-1).repeat(1, 1, 3)
+            result = current_img * (1 - blend_3ch) + canvas * blend_3ch
+            results.append(result.unsqueeze(0))
+
+        return (torch.cat(results, dim=0),)
+
+    def _gaussian_blur_mask(self, mask, feather):
+        sigma = feather / 3.0
+        kernel_size = int(sigma * 6) + 1
+        if kernel_size % 2 == 0:
+            kernel_size += 1
+        kernel_size = max(3, kernel_size)
+
+        x = torch.arange(kernel_size, device=mask.device) - kernel_size // 2
+        kernel_1d = torch.exp(-0.5 * (x / sigma).pow(2))
+        kernel_1d = kernel_1d / kernel_1d.sum()
+
+        kernel_2d = kernel_1d[:, None] * kernel_1d[None, :]
+        kernel_2d = kernel_2d.view(1, 1, kernel_size, kernel_size)
+
+        pad = kernel_size // 2
+        mask_4d = mask.unsqueeze(0).unsqueeze(0)
+        mask_padded = torch.nn.functional.pad(mask_4d, [pad] * 4, mode='reflect')
+        blurred = torch.nn.functional.conv2d(mask_padded, kernel_2d)
+        return blurred[0, 0]
+
 class DrawImageBbox(BaseNode):
     def __init__(self):
         pass

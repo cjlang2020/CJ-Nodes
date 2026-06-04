@@ -217,6 +217,121 @@ class QwenLoraMultiangleCameraNode:
         return time.time()
 
 
+#Flux2多角度LoRA版本 - 72种相机位姿
+class Flux2LoraMultiangleCameraNode:
+    """
+    Flux 2 Multi-Angles LoRA v2 - 72 Camera Positions
+    8 Azimuths x 9 Elevations x 3 Distances = 72 Poses
+    Prompt format: <sks> [view] [elevation] shot [distance]
+    Reference: https://huggingface.co/lovis93/Flux-2-Multi-Angles-LoRA-v2
+    """
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "horizontal_angle": ("INT", {
+                    "default": 0,
+                    "min": 0,
+                    "max": 360,
+                    "step": 1,
+                    "display": "slider"
+                }),
+                "vertical_angle": ("INT", {
+                    "default": 0,
+                    "min": -90,
+                    "max": 90,
+                    "step": 1,
+                    "display": "slider"
+                }),
+                "zoom": ("FLOAT", {
+                    "default": 4.0,
+                    "min": 0.0,
+                    "max": 10.0,
+                    "step": 0.1,
+                    "display": "slider"
+                }),
+            },
+            "optional": {
+                "image": ("IMAGE",),
+            },
+            "hidden": {
+                "unique_id": "UNIQUE_ID",
+            }
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("prompt",)
+    FUNCTION = "generate_prompt"
+    CATEGORY = "luy/Flux2镜头控制"
+    OUTPUT_NODE = True
+
+    def generate_prompt(self, horizontal_angle, vertical_angle, zoom, image=None, unique_id=None):
+        h_angle = horizontal_angle % 360
+        if h_angle < 22.5 or h_angle >= 337.5:
+            h_direction = "front view"
+        elif h_angle < 67.5:
+            h_direction = "front-right quarter view"
+        elif h_angle < 112.5:
+            h_direction = "right side view"
+        elif h_angle < 157.5:
+            h_direction = "back-right quarter view"
+        elif h_angle < 202.5:
+            h_direction = "back view"
+        elif h_angle < 247.5:
+            h_direction = "back-left quarter view"
+        elif h_angle < 292.5:
+            h_direction = "left side view"
+        else:
+            h_direction = "front-left quarter view"
+
+        v_angle = vertical_angle
+        if v_angle < -45:
+            v_direction = "steep-angle shot"
+        elif v_angle < -25:
+            v_direction = "steep-mid shot"
+        elif v_angle < -15:
+            v_direction = "high-angle shot"
+        elif v_angle < -5:
+            v_direction = "high-mid shot"
+        elif v_angle < 5:
+            v_direction = "eye-level shot"
+        elif v_angle < 15:
+            v_direction = "mid-angle shot"
+        elif v_angle < 25:
+            v_direction = "mid-low shot"
+        elif v_angle < 45:
+            v_direction = "low-angle shot"
+        else:
+            v_direction = "overhead shot"
+
+        if zoom < 3:
+            distance = "close-up"
+        elif zoom < 6:
+            distance = "medium shot"
+        else:
+            distance = "wide shot"
+
+        prompt = f"<sks> {h_direction} {v_direction} {distance}"
+
+        # Convert image to base64 for frontend display
+        image_base64 = ""
+        if image is not None:
+            img_tensor = image[0] if len(image.shape) == 4 else image
+            img_np = (img_tensor.cpu().numpy() * 255).astype(np.uint8)
+            pil_image = Image.fromarray(img_np)
+            buffer = io.BytesIO()
+            pil_image.save(buffer, format="PNG")
+            image_base64 = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return {"ui": {"image_base64": [image_base64]}, "result": (prompt,)}
+
+    @classmethod
+    def IS_CHANGED(cls, horizontal_angle, vertical_angle, zoom, image=None, unique_id=None):
+        import time
+        return time.time()
+
+
 
 # 光照
 class QwenMultiangleLightningNode:

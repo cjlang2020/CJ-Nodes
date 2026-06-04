@@ -136,13 +136,71 @@ class DrawPhotoNode:
             error_image[0, :, :, 1:] = 0
             return (error_image, "null")
 
+class ImageDesign:
+    @classmethod
+    def INPUT_TYPES(s):
+        return {
+            "required": {
+                "canvas_width": ("INT", {"default": 768, "min": 1, "max": 4096}),
+                "canvas_height": ("INT", {"default": 768, "min": 1, "max": 4096}),
+                "edit_data": ("STRING", {"default": "empty"})
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE", "STRING")
+    RETURN_NAMES = ("edited_image", "prompt")
+    FUNCTION = "process_design"
+    CATEGORY = "luy/图片处理"
+
+    def process_design(self, canvas_width, canvas_height, edit_data="empty"):
+        try:
+            final_img = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
+
+            if edit_data != "empty" and edit_data.strip():
+                try:
+                    data = json.loads(edit_data)
+                    final_base64 = data.get("final_image_base64", "")
+                    crop_w = data.get("crop_width", canvas_width)
+                    crop_h = data.get("crop_height", canvas_height)
+
+                    if final_base64:
+                        img_data = base64.b64decode(final_base64.split(",")[1])
+                        final_img = Image.open(BytesIO(img_data)).convert("RGB")
+                        canvas_width, canvas_height = crop_w, crop_h
+
+                except Exception as e:
+                    logger.error(f"设计数据解析失败: {str(e)}")
+                    final_img = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
+
+            image_np = np.array(final_img)
+            if image_np.dtype != np.uint8:
+                image_np = image_np.astype(np.uint8)
+            image_np = image_np.astype(np.float32) / 255.0
+            if len(image_np.shape) == 2:
+                image_np = np.stack([image_np, image_np, image_np], axis=-1)
+            elif image_np.shape[-1] == 4:
+                image_np = image_np[:, :, :3]
+            image_tensor = torch.from_numpy(image_np).unsqueeze(0)
+
+            logger.info(f"图片设计完成，输出张量维度: {image_tensor.shape}")
+            prompt = "颜色 (#1E5631) 区域表示树木，颜色 (#4CAF50) 区域表示树冠，颜色 (#8FBC8F) 区域表示草地，颜色 (#FFB6C1) 区域表示花，颜色 (#87CEEB) 区域表示天空，颜色 (#4682B4) 区域表示河流，颜色 (#B0E0E6) 区域表示湖水，颜色 (#00BFFF) 区域表示海洋，颜色 (#696969) 区域表示山脉，颜色 (#A0522D) 区域表示泥土，颜色 (#E6E6FA) 区域表示云雾，颜色 (#FFFFFF) 区域表示云朵，颜色 (#FFD700) 区域表示太阳，颜色 (#F5D6B4) 区域表示人物，颜色 (#8B4513) 区域表示道路，颜色 (#FFA500) 区域表示建筑，颜色 (#708090) 区域表示高楼，颜色 (#000000) 区域表示建筑"
+            return (image_tensor, prompt)
+
+        except Exception as e:
+            logger.error(f"图片设计总异常: {str(e)}")
+            error_image = torch.ones((1, 200, 200, 3), dtype=torch.float32)
+            error_image[0, :, :, 1:] = 0
+            return (error_image, "null")
+
 # 注册节点
 NODE_CLASS_MAPPINGS = {
     "ImageEditNode": ImageEditNode,
-    "DrawPhotoNode": DrawPhotoNode
+    "DrawPhotoNode": DrawPhotoNode,
+    "ImageDesign": ImageDesign
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ImageEditNode": "Image Edit Node (修复版-画笔+液化+橡皮擦)",
-    "DrawPhotoNode": "Draw Photo Node (绘制图片)"
+    "DrawPhotoNode": "Draw Photo Node (绘制图片)",
+    "ImageDesign": "Image Design Node (设计图片)"
 }
