@@ -94,15 +94,39 @@
             display: none;
             transform: translate(-50%, -50%);
         }
+        #image-input { display: none; }
+
+        #bottom-bar {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
         #status {
             padding: 4px 10px;
             background: #12121f;
             color: #2ecc71;
             font-size: 12px;
             text-align: left;
-            flex-shrink: 0;
         }
-        #image-input { display: none; }
+        #layer-text {
+            width: 100%;
+            resize: vertical;
+            border: none;
+            border-top: 1px solid #2a2a4a;
+            padding: 6px 10px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-size: 12px;
+            font-family: inherit;
+            outline: none;
+            line-height: 1.5;
+        }
+        #layer-text:focus {
+            background: #1e1e35;
+        }
+        #layer-text::placeholder {
+            color: #555;
+        }
 
         /* 图层面板 */
         #layer-panel {
@@ -223,7 +247,10 @@
         </div>
     </div>
 
-    <div id="status">🟢 图层绘画就绪 | 左键绘制新图层 | 右键拖拽移动图层 | 拖拽右侧列表调整顺序</div>
+    <div id="bottom-bar">
+        <div id="status">🟢 图层绘画就绪 | 左键绘制新图层 | 右键拖拽移动图层 | 拖拽右侧列表调整顺序</div>
+        <textarea id="layer-text" rows="3" placeholder="当前图层描述..."></textarea>
+    </div>
 
     <script>
         let layerIdCounter = 0;
@@ -286,7 +313,7 @@
 
         // ========= 图层操作 =========
 
-        function addLayer(canvasData, x, y, w, h, name) {
+        function addLayer(canvasData, x, y, w, h, name, text) {
             const offscreen = document.createElement('canvas');
             offscreen.width = w;
             offscreen.height = h;
@@ -309,7 +336,8 @@
                 y: y || 0,
                 w: w,
                 h: h,
-                selected: false
+                selected: false,
+                text: text || ''
             };
             state.layers.push(layer);
             selectLayer(layer.id);
@@ -333,9 +361,15 @@
             state.layers.forEach(l => l.selected = (l.id === id));
             state.selectedLayerId = id;
             renderLayerPanel();
+            const ta = document.getElementById('layer-text');
             if (id) {
                 const layer = state.layers.find(l => l.id === id);
-                if (layer) setStatus('📦 选中: ' + layer.name + ' | 拖拽移动位置');
+                if (layer) {
+                    ta.value = layer.text || '';
+                    setStatus('📦 选中: ' + layer.name + ' | 拖拽移动位置');
+                }
+            } else {
+                ta.value = '';
             }
         }
 
@@ -562,7 +596,8 @@
             const sendData = {
                 final_image_base64: state.finalImageBase64,
                 crop_width: state.canvasW,
-                crop_height: state.canvasH
+                crop_height: state.canvasH,
+                layers: state.layers.map(l => ({name: l.name, text: l.text || ''}))
             };
             try {
                 window.parent.postMessage({
@@ -773,7 +808,7 @@
             lctx.lineWidth = Math.max(1.5, state.drawSize * 0.25);
             lctx.stroke();
 
-            addLayer(layerCanvas, lx, ly, lw, lh);
+            addLayer(layerCanvas, lx, ly, lw, lh, mainColor);
             sendToParent(false);
             setStatus('✅ 图层已创建 | 位置: (' + lx + ',' + ly + ') 尺寸: ' + lw + 'x' + lh);
         }
@@ -798,7 +833,10 @@
                         fullCanvas.height = img.height;
                         const fctx = fullCanvas.getContext('2d');
                         fctx.drawImage(img, 0, 0);
-                        addLayer(fullCanvas, 0, 0, img.width, img.height, '上传图片');
+                        const hue = Math.floor(Math.random() * 360);
+                        const sat = 60 + Math.floor(Math.random() * 40);
+                        const lig = 40 + Math.floor(Math.random() * 30);
+                        addLayer(fullCanvas, 0, 0, img.width, img.height, hslToHex(hue, sat, lig));
                         sendToParent(true);
                         setStatus('✅ 图片上传成功 | ' + img.width + 'x' + img.height);
                     };
@@ -816,9 +854,12 @@
                 emptyCanvas.width = 100;
                 emptyCanvas.height = 100;
                 const ectx = emptyCanvas.getContext('2d');
+                const hue = Math.floor(Math.random() * 360);
+                const sat = 60 + Math.floor(Math.random() * 40);
+                const lig = 40 + Math.floor(Math.random() * 30);
                 ectx.fillStyle = '#EEEEEE';
                 ectx.fillRect(0, 0, 100, 100);
-                addLayer(emptyCanvas, 50, 50, 100, 100, '图层 ' + (state.layers.length + 1));
+                addLayer(emptyCanvas, 50, 50, 100, 100, hslToHex(hue, sat, lig));
                 setStatus('➕ 已新增空白图层');
             });
 
@@ -991,6 +1032,17 @@
                             setStatus('🗑 已删除: ' + layer.name);
                             sendToParent(false);
                         }
+                    }
+                }
+            });
+
+            // 文本输入自动保存并同步到父节点
+            document.getElementById('layer-text').addEventListener('input', (e) => {
+                if (state.selectedLayerId) {
+                    const layer = getLayerById(state.selectedLayerId);
+                    if (layer) {
+                        layer.text = e.target.value;
+                        sendToParent(false);
                     }
                 }
             });

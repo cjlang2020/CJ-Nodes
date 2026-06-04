@@ -183,7 +183,22 @@ class ImageDesign:
             image_tensor = torch.from_numpy(image_np).unsqueeze(0)
 
             logger.info(f"图片设计完成，输出张量维度: {image_tensor.shape}")
-            prompt = "颜色 (#1E5631) 区域表示树木，颜色 (#4CAF50) 区域表示树冠，颜色 (#8FBC8F) 区域表示草地，颜色 (#FFB6C1) 区域表示花，颜色 (#87CEEB) 区域表示天空，颜色 (#4682B4) 区域表示河流，颜色 (#B0E0E6) 区域表示湖水，颜色 (#00BFFF) 区域表示海洋，颜色 (#696969) 区域表示山脉，颜色 (#A0522D) 区域表示泥土，颜色 (#E6E6FA) 区域表示云雾，颜色 (#FFFFFF) 区域表示云朵，颜色 (#FFD700) 区域表示太阳，颜色 (#F5D6B4) 区域表示人物，颜色 (#8B4513) 区域表示道路，颜色 (#FFA500) 区域表示建筑，颜色 (#708090) 区域表示高楼，颜色 (#000000) 区域表示建筑"
+            prompt = ""
+            if edit_data != "empty" and edit_data.strip():
+                try:
+                    data = json.loads(edit_data)
+                    layers_info = data.get("layers", [])
+                    if layers_info:
+                        parts = []
+                        for l in layers_info:
+                            name = l.get("name", "")
+                            text = (l.get("text") or "").strip()
+                            parts.append(f"颜色【{name}】区域内容重绘为【{text}】")
+                        prompt = "；".join(parts)
+                except Exception:
+                    pass
+            if not prompt:
+                prompt = "图片设计无描述"
             return (image_tensor, prompt)
 
         except Exception as e:
