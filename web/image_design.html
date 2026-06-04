@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Design (图片设计)</title>
+    <title>Image Design (图层绘画)</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -25,7 +25,6 @@
             display: flex;
             gap: 10px;
             align-items: center;
-            flex-wrap: wrap;
             flex-shrink: 0;
             border-bottom: 1px solid #2a2a4a;
             z-index: 30;
@@ -35,10 +34,7 @@
             display: flex;
             gap: 4px;
             align-items: center;
-            border-right: 1px solid #2a2a4a;
-            padding-right: 10px;
         }
-        .tool-group:last-child { border-right: none; }
         .tool-btn {
             padding: 5px;
             min-width: 30px;
@@ -56,32 +52,19 @@
             gap: 3px;
             position: relative;
         }
-        .tool-btn svg {
-            width: 18px;
-            height: 18px;
-        }
-        .tool-btn:hover:not(:disabled) {
-            background: rgba(255,255,255,0.14);
-            color: #fff;
-        }
-        .tool-btn.active {
-            background: #2ecc71;
-            color: #fff;
-            box-shadow: 0 0 12px rgba(46, 204, 113, 0.25);
-            border-color: rgba(46, 204, 113, 0.3);
-        }
-        .tool-btn:disabled {
-            opacity: 0.25;
-            cursor: not-allowed;
-        }
-        #upload-btn {
-            background: rgba(46, 204, 113, 0.15);
-            color: #2ecc71;
-        }
-        #upload-btn:hover:not(:disabled) {
-            background: rgba(46, 204, 113, 0.3);
-        }
+        .tool-btn svg { width: 18px; height: 18px; }
+        .tool-btn:hover:not(:disabled) { background: rgba(255,255,255,0.14); color: #fff; }
+        .tool-btn.active { background: #2ecc71; color: #fff; box-shadow: 0 0 12px rgba(46, 204, 113, 0.25); border-color: rgba(46, 204, 113, 0.3); }
+        .tool-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+        #upload-btn { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+        #upload-btn:hover:not(:disabled) { background: rgba(46, 204, 113, 0.3); }
         #clear-btn { color: #e74c3c; }
+
+        #workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
         #canvas-container {
             flex: 1;
             display: flex;
@@ -120,6 +103,86 @@
             flex-shrink: 0;
         }
         #image-input { display: none; }
+
+        /* 图层面板 */
+        #layer-panel {
+            width: 160px;
+            background: #1e1e32;
+            border-left: 1px solid #2a2a4a;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        #layer-panel-header {
+            padding: 8px 10px;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        #layer-panel-header span {
+            color: #ccc;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .layer-header-btn {
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.08);
+            color: #aaa;
+            transition: all 0.15s;
+        }
+        .layer-header-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+        .layer-header-btn.danger:hover { background: rgba(231, 76, 60, 0.3); color: #e74c3c; }
+        #layer-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px;
+        }
+        #layer-list::-webkit-scrollbar { width: 4px; }
+        #layer-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+        .layer-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.12s;
+            margin-bottom: 2px;
+            border: 2px solid transparent;
+        }
+        .layer-item:hover { background: rgba(255,255,255,0.06); }
+        .layer-item.selected {
+            background: rgba(46, 204, 113, 0.12);
+            border-color: rgba(46, 204, 113, 0.4);
+        }
+        .layer-thumb {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.12);
+            background: #EEEEEE;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+        .layer-name {
+            font-size: 11px;
+            color: #bbb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -141,21 +204,41 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"/><path d="M21 3a16 16 0 0 0 -12.8 10.2"/><path d="M21 3a16 16 0 0 1 -10.2 12.8"/><path d="M10.6 9a9 9 0 0 1 4.4 4.4"/></svg>
             </button>
         </div>
-
     </div>
 
-    <div id="canvas-container">
-        <canvas id="edit-canvas"></canvas>
-        <div id="brush-preview"></div>
+    <div id="workspace">
+        <div id="canvas-container">
+            <canvas id="edit-canvas"></canvas>
+            <div id="brush-preview"></div>
+        </div>
+        <div id="layer-panel">
+            <div id="layer-panel-header">
+                <span>图层</span>
+                <div>
+                    <button id="layer-add-btn" class="layer-header-btn" title="新增图层">+</button>
+                    <button id="layer-del-btn" class="layer-header-btn danger" title="删除选中图层">🗑</button>
+                </div>
+            </div>
+            <div id="layer-list"></div>
+        </div>
     </div>
 
-    <div id="status">🟢 图片设计就绪 | 在画布上绘画 | 滚轮缩放+中键平移</div>
+    <div id="status">🟢 图层绘画就绪 | 左键绘制新图层 | 右键拖拽移动图层 | 拖拽右侧列表调整顺序</div>
 
     <script>
+        let layerIdCounter = 0;
+        function genId() { return 'layer_' + (++layerIdCounter); }
+
         const state = {
             currentTool: 'draw',
             isUploaded: false,
             isMouseDown: false,
+            isDragging: false,       // 正在拖动图层
+            dragLayer: null,         // 被拖动的图层对象
+            dragStartX: 0,
+            dragStartY: 0,
+            dragLayerStartX: 0,
+            dragLayerStartY: 0,
             ctx: null,
             canvas: null,
             originalImage: null,
@@ -167,14 +250,12 @@
             offsetX: 0,
             offsetY: 0,
             toolbarHeight: 0,
-            drawColor: '#000000',
             drawSize: 5,
+            drawColor: '#000000',
             drawAlpha: 1.0,
             prevDrawX: 0,
             prevDrawY: 0,
             brushPreview: null,
-            undoStack: [],
-            maxUndo: 20,
             finalImageBase64: "",
             cropWidth: 512,
             cropHeight: 512,
@@ -186,76 +267,204 @@
             panStartY: 0,
             panStartPanX: 0,
             panStartPanY: 0,
-            resizeObserver: null
+            resizeObserver: null,
+
+            // 图层系统
+            layers: [],
+            selectedLayerId: null,
+            // 当前绘制临时数据
+            drawing: false,
+            tempCanvas: null,
+            tempCtx: null,
+            strokePoints: [],
+            strokeBounds: null,
+            strokeDarkColor: '',
+            strokeLightColor: '',
+            undoStack: [],
+            maxUndo: 30
         };
 
-        function initCanvas(w, h, saveInitial = true, preserveContent = true) {
-            let savedImage = null;
-            let oldW = state.canvasW;
-            let oldH = state.canvasH;
-            if (preserveContent && state.canvas && (oldW > 0 && oldH > 0) && (w !== oldW || h !== oldH)) {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = oldW;
-                tempCanvas.height = oldH;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.drawImage(state.canvas, 0, 0);
-                savedImage = tempCanvas.toDataURL();
+        // ========= 图层操作 =========
+
+        function addLayer(canvasData, x, y, w, h, name) {
+            const offscreen = document.createElement('canvas');
+            offscreen.width = w;
+            offscreen.height = h;
+            const octx = offscreen.getContext('2d');
+            if (canvasData) {
+                if (canvasData instanceof HTMLCanvasElement || canvasData instanceof OffscreenCanvas) {
+                    octx.drawImage(canvasData, 0, 0);
+                } else if (typeof canvasData === 'string') {
+                    const img = new Image();
+                    img.onload = () => { octx.drawImage(img, 0, 0); updateLayerThumb(layer); renderComposition(); };
+                    img.src = canvasData;
+                }
+            }
+            const layer = {
+                id: genId(),
+                name: name || ('图层 ' + (state.layers.length + 1)),
+                canvas: offscreen,
+                ctx: octx,
+                x: x || 0,
+                y: y || 0,
+                w: w,
+                h: h,
+                selected: false
+            };
+            state.layers.push(layer);
+            selectLayer(layer.id);
+            renderComposition();
+            renderLayerPanel();
+            return layer;
+        }
+
+        function deleteLayer(id) {
+            const idx = state.layers.findIndex(l => l.id === id);
+            if (idx === -1) return;
+            state.layers.splice(idx, 1);
+            if (state.selectedLayerId === id) {
+                state.selectedLayerId = state.layers.length > 0 ? state.layers[state.layers.length - 1].id : null;
+            }
+            renderComposition();
+            renderLayerPanel();
+        }
+
+        function selectLayer(id) {
+            state.layers.forEach(l => l.selected = (l.id === id));
+            state.selectedLayerId = id;
+            renderLayerPanel();
+            if (id) {
+                const layer = state.layers.find(l => l.id === id);
+                if (layer) setStatus('📦 选中: ' + layer.name + ' | 拖拽移动位置');
+            }
+        }
+
+        function getLayerById(id) {
+            return state.layers.find(l => l.id === id);
+        }
+
+        function hitTestLayer(cx, cy) {
+            for (let i = state.layers.length - 1; i >= 0; i--) {
+                const l = state.layers[i];
+                if (cx >= l.x && cx < l.x + l.w && cy >= l.y && cy < l.y + l.h) {
+                    return l;
+                }
+            }
+            return null;
+        }
+
+        // ========= 渲染合成 =========
+
+        function renderComposition() {
+            if (!state.ctx || !state.canvas) return;
+            state.ctx.fillStyle = '#EEEEEE';
+            state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
+
+            for (const layer of state.layers) {
+                state.ctx.drawImage(layer.canvas, layer.x, layer.y, layer.w, layer.h);
             }
 
+            if (state.drawing && state.tempCanvas) {
+                state.ctx.drawImage(state.tempCanvas, 0, 0);
+            }
+        }
+
+        function updateLayerThumb(layer) {
+            const items = document.querySelectorAll('.layer-item');
+            for (const item of items) {
+                if (item.dataset.layerId === layer.id) {
+                    const thumb = item.querySelector('.layer-thumb');
+                    if (thumb) thumb.src = layer.canvas.toDataURL();
+                    break;
+                }
+            }
+        }
+
+        // ========= 图层面板渲染（支持拖拽排序） =========
+
+        function renderLayerPanel() {
+            const list = document.getElementById('layer-list');
+            list.innerHTML = '';
+            // 从后往前渲染（数组最后一个 = 最上层 = 显示在最顶部）
+            for (let i = state.layers.length - 1; i >= 0; i--) {
+                const l = state.layers[i];
+                const item = document.createElement('div');
+                item.className = 'layer-item' + (l.selected ? ' selected' : '');
+                item.dataset.layerId = l.id;
+                item.draggable = true;
+                item.innerHTML = '<img class="layer-thumb" src="' + l.canvas.toDataURL() + '" alt="">' +
+                    '<span class="layer-name">' + l.name + '</span>';
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectLayer(l.id);
+                });
+
+                // 拖拽排序
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', l.id);
+                    item.style.opacity = '0.4';
+                });
+                item.addEventListener('dragend', () => {
+                    item.style.opacity = '';
+                });
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    item.style.borderColor = 'rgba(46,204,113,0.6)';
+                });
+                item.addEventListener('dragleave', () => {
+                    item.style.borderColor = 'transparent';
+                });
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.style.borderColor = 'transparent';
+                    const fromId = e.dataTransfer.getData('text/plain');
+                    if (fromId === l.id) return;
+                    const fromIdx = state.layers.findIndex(x => x.id === fromId);
+                    const toIdx = state.layers.findIndex(x => x.id === l.id);
+                    if (fromIdx === -1 || toIdx === -1) return;
+                    const [moved] = state.layers.splice(fromIdx, 1);
+                    const newToIdx = state.layers.findIndex(x => x.id === l.id);
+                    state.layers.splice(newToIdx, 0, moved);
+                    renderLayerPanel();
+                    renderComposition();
+                    sendToParent(false);
+                });
+
+                list.appendChild(item);
+            }
+        }
+
+        // ========= 画布初始化 =========
+
+        function initCanvas(w, h, saveInitial = true) {
             state.canvas = document.getElementById('edit-canvas');
             state.ctx = state.canvas.getContext('2d');
             state.canvas.width = w;
             state.canvas.height = h;
             state.canvasW = w;
             state.canvasH = h;
-            if (saveInitial) {
-                state.initialW = w;
-                state.initialH = h;
-            }
+            if (saveInitial) { state.initialW = w; state.initialH = h; }
             state.canvas.style.display = 'block';
             state.brushPreview = document.getElementById('brush-preview');
             state.zoom = 1.0;
             state.panX = 0;
             state.panY = 0;
             state.toolbarHeight = document.getElementById('main-toolbar').offsetHeight;
+            state.layers = [];
+            state.selectedLayerId = null;
+            state.drawing = false;
+            state.tempCanvas = null;
+            state.tempCtx = null;
+            state.strokePoints = [];
+            state.strokeBounds = null;
+            state.strokeDarkColor = '';
+            state.strokeLightColor = '';
             state.ctx.fillStyle = '#EEEEEE';
             state.ctx.fillRect(0, 0, w, h);
-            if (!state.originalImage) {
-                const blankCanvas = document.createElement('canvas');
-                blankCanvas.width = w;
-                blankCanvas.height = h;
-                const blankCtx = blankCanvas.getContext('2d');
-                blankCtx.fillStyle = '#EEEEEE';
-                blankCtx.fillRect(0, 0, w, h);
-                const blankImg = new Image();
-                blankImg.onload = () => { state.originalImage = blankImg; };
-                blankImg.src = blankCanvas.toDataURL();
-            }
-
-            if (savedImage) {
-                const img = new Image();
-                img.onload = () => {
-                    const scaleX = w / oldW;
-                    const scaleY = h / oldH;
-                    const scale = Math.min(scaleX, scaleY);
-                    const drawW = oldW * scale;
-                    const drawH = oldH * scale;
-                    const offsetX = (w - drawW) / 2;
-                    const offsetY = (h - drawH) / 2;
-                    state.ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-                    state.originalImage = new Image();
-                    state.originalImage.onload = () => {};
-                    state.originalImage.src = state.canvas.toDataURL();
-                    sendToParent(true);
-                    setStatus('📐 画布已调整并等比缩放内容 | ' + w + 'x' + h);
-                };
-                img.src = savedImage;
-            }
-
+            renderLayerPanel();
             updateCanvasScale();
-            if (!savedImage) {
-                setStatus('⚙️ 画布初始化完成 | ' + w + 'x' + h);
-            }
+            setStatus('⚙️ 画布初始化完成 | ' + w + 'x' + h + ' | 绘制自动创建图层');
         }
 
         function updateCanvasScale() {
@@ -301,38 +510,50 @@
         }
 
         function saveCanvasState() {
-            if (!state.ctx || !state.canvas) return;
             try {
-                const imageData = state.ctx.getImageData(0, 0, state.canvasW, state.canvasH);
-                state.undoStack.push({ imageData, width: state.canvasW, height: state.canvasH });
+                const layerSnapshots = state.layers.map(l => ({
+                    id: l.id,
+                    name: l.name,
+                    x: l.x, y: l.y,
+                    w: l.w, h: l.h,
+                    dataUrl: l.canvas.toDataURL()
+                }));
+                state.undoStack.push({
+                    layers: layerSnapshots,
+                    selectedLayerId: state.selectedLayerId
+                });
                 if (state.undoStack.length > state.maxUndo) state.undoStack.shift();
             } catch (e) {}
         }
 
-        function switchTool(tool) {
-            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
-            state.currentTool = tool;
-            document.getElementById('draw-btn').classList.add('active');
-            updateBrushPreviewSize();
-            state.brushPreview.style.display = 'block';
-            setStatus('🖌️ 画笔工具');
-        }
-
-        function updateBrushPreviewSize() {
-            if (!state.brushPreview) return;
-            const displaySize = state.drawSize * state.scale * 2;
-            state.brushPreview.style.width = displaySize + 'px';
-            state.brushPreview.style.height = displaySize + 'px';
-        }
-
-        function updateBrushPreviewPos(clientX, clientY) {
-            if (!state.brushPreview || state.currentTool === 'none') return;
-            const adjustedY = clientY - state.toolbarHeight;
-            state.brushPreview.style.left = clientX + 'px';
-            state.brushPreview.style.top = adjustedY + 'px';
+        function restoreLayersFromSnapshot(snap) {
+            state.layers = [];
+            for (const s of snap) {
+                const offscreen = document.createElement('canvas');
+                offscreen.width = s.w;
+                offscreen.height = s.h;
+                const octx = offscreen.getContext('2d');
+                const img = new Image();
+                img.onload = () => { octx.drawImage(img, 0, 0); renderComposition(); renderLayerPanel(); };
+                img.src = s.dataUrl;
+                state.layers.push({
+                    id: s.id,
+                    name: s.name,
+                    canvas: offscreen,
+                    ctx: octx,
+                    x: s.x, y: s.y,
+                    w: s.w, h: s.h,
+                    selected: false
+                });
+            }
+            state.selectedLayerId = snap.length > 0 ? snap[snap.length - 1].id : null;
+            if (state.selectedLayerId) selectLayer(state.selectedLayerId);
+            renderComposition();
+            renderLayerPanel();
         }
 
         function getCanvasBase64() {
+            renderComposition();
             return state.canvas.toDataURL('image/png', 1.0);
         }
 
@@ -361,60 +582,35 @@
         }
 
         function execClear() {
-            saveCanvasState();
+            const layerSnapshot = state.layers.map(l => ({
+                id: l.id, name: l.name, x: l.x, y: l.y, w: l.w, h: l.h, dataUrl: l.canvas.toDataURL()
+            }));
+            state.undoStack.push({ layers: layerSnapshot, selectedLayerId: state.selectedLayerId });
+
+            state.layers = [];
+            state.selectedLayerId = null;
+            state.drawing = false;
+            state.tempCanvas = null;
+            state.tempCtx = null;
             state.ctx.fillStyle = '#EEEEEE';
             state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
-            state.isUploaded = false;
-            state.originalImage = null;
-            state.cropWidth = state.canvasW;
-            state.cropHeight = state.canvasH;
-            const blankCanvas = document.createElement('canvas');
-            blankCanvas.width = state.canvasW;
-            blankCanvas.height = state.canvasH;
-            const blankCtx = blankCanvas.getContext('2d');
-            blankCtx.fillStyle = '#EEEEEE';
-            blankCtx.fillRect(0, 0, state.canvasW, state.canvasH);
-            state.originalImage = new Image();
-            state.originalImage.src = blankCanvas.toDataURL();
+            renderLayerPanel();
             sendToParent(false);
-            setStatus('🧹 画布已完全清除');
+            setStatus('🧹 已清除所有图层');
         }
 
         function execReset() {
             if (state.canvasW === state.initialW && state.canvasH === state.initialH) {
-                setStatus('ℹ️ 画布尺寸已是初始尺寸 (' + state.initialW + 'x' + state.initialH + ')');
+                setStatus('ℹ️ 画布尺寸已是初始尺寸');
                 return;
             }
-            saveCanvasState();
-            let savedImage = null;
-            if (state.canvas) {
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = state.canvasW;
-                tempCanvas.height = state.canvasH;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.drawImage(state.canvas, 0, 0);
-                savedImage = tempCanvas.toDataURL();
-            }
+            const layerSnapshot = state.layers.map(l => ({
+                id: l.id, name: l.name, x: l.x, y: l.y, w: l.w, h: l.h, dataUrl: l.canvas.toDataURL()
+            }));
+            state.undoStack.push({ layers: layerSnapshot, selectedLayerId: state.selectedLayerId });
+
             initCanvas(state.initialW, state.initialH, false);
-            if (savedImage) {
-                const img = new Image();
-                img.onload = () => {
-                    const scaleX = state.canvasW / state.initialW;
-                    const scaleY = state.canvasH / state.initialH;
-                    const scale = Math.min(scaleX, scaleY, 1);
-                    const drawW = state.initialW * scale;
-                    const drawH = state.initialH * scale;
-                    const offsetX = (state.canvasW - drawW) / 2;
-                    const offsetY = (state.canvasH - drawH) / 2;
-                    state.ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-                    sendToParent(true);
-                };
-                img.src = savedImage;
-            } else {
-                sendToParent(true);
-            }
-            state.cropWidth = state.initialW;
-            state.cropHeight = state.initialH;
+            sendToParent(true);
             setStatus('🔄 已重置为初始尺寸 | ' + state.initialW + 'x' + state.initialH);
         }
 
@@ -423,24 +619,166 @@
             return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
         }
 
-        function drawSoftStamp(x, y) {
-            const radius = state.drawSize / 2;
-            if (radius < 0.5) return;
-            const alpha = state.drawAlpha;
-            const [r, g, b] = hexToRgb(state.drawColor);
-            const grad = state.ctx.createRadialGradient(x, y, 0, x, y, radius);
-            grad.addColorStop(0, `rgba(${r},${g},${b},${alpha})`);
-            grad.addColorStop(0.25, `rgba(${r},${g},${b},${alpha * 0.95})`);
-            grad.addColorStop(0.5, `rgba(${r},${g},${b},${alpha * 0.65})`);
-            grad.addColorStop(0.75, `rgba(${r},${g},${b},${alpha * 0.25})`);
-            grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-            state.ctx.save();
-            state.ctx.fillStyle = grad;
-            state.ctx.beginPath();
-            state.ctx.arc(x, y, radius, 0, Math.PI * 2);
-            state.ctx.fill();
-            state.ctx.restore();
+        function rgbStr(r, g, b) { return `rgb(${r},${g},${b})`; }
+
+        function hslToHex(h, s, l) {
+            s /= 100; l /= 100;
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+            const m = l - c / 2;
+            let r, g, b;
+            if (h < 60) { r = c; g = x; b = 0; }
+            else if (h < 120) { r = x; g = c; b = 0; }
+            else if (h < 180) { r = 0; g = c; b = x; }
+            else if (h < 240) { r = 0; g = x; b = c; }
+            else if (h < 300) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+            const toHex = (n) => {
+                const hex = Math.round((n + m) * 255).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            };
+            return '#' + toHex(r) + toHex(g) + toHex(b);
         }
+
+        function darkenColor(hex, factor) {
+            const [r, g, b] = hexToRgb(hex);
+            return rgbStr(
+                Math.round(r * factor),
+                Math.round(g * factor),
+                Math.round(b * factor)
+            );
+        }
+
+        function lightenColor(hex, factor) {
+            const [r, g, b] = hexToRgb(hex);
+            return rgbStr(
+                Math.round(255 - (255 - r) * factor),
+                Math.round(255 - (255 - g) * factor),
+                Math.round(255 - (255 - b) * factor)
+            );
+        }
+
+
+
+        function updateBrushPreviewSize() {
+            if (!state.brushPreview) return;
+            const displaySize = state.drawSize * state.scale * 2;
+            state.brushPreview.style.width = displaySize + 'px';
+            state.brushPreview.style.height = displaySize + 'px';
+        }
+
+        function updateBrushPreviewPos(clientX, clientY) {
+            if (!state.brushPreview) return;
+            const adjustedY = clientY - state.toolbarHeight;
+            state.brushPreview.style.left = clientX + 'px';
+            state.brushPreview.style.top = adjustedY + 'px';
+        }
+
+        // ========= 绘制转图层 =========
+
+        function startDrawing(x, y) {
+            state.drawing = true;
+            state.strokePoints = [{x, y}];
+            state.strokeBounds = { minX: x, minY: y, maxX: x, maxY: y };
+
+            state.tempCanvas = document.createElement('canvas');
+            state.tempCanvas.width = state.canvasW;
+            state.tempCanvas.height = state.canvasH;
+            state.tempCtx = state.tempCanvas.getContext('2d');
+
+            state.prevDrawX = x;
+            state.prevDrawY = y;
+        }
+
+        function continueDrawing(x, y) {
+            if (!state.drawing || !state.tempCtx) return;
+            state.strokePoints.push({x, y});
+
+            // 预览：绘制细线轨迹
+            state.tempCtx.save();
+            state.tempCtx.strokeStyle = 'rgba(0,0,0,0.25)';
+            state.tempCtx.lineWidth = 1;
+            state.tempCtx.beginPath();
+            state.tempCtx.moveTo(state.prevDrawX, state.prevDrawY);
+            state.tempCtx.lineTo(x, y);
+            state.tempCtx.stroke();
+            state.tempCtx.restore();
+
+            state.prevDrawX = x;
+            state.prevDrawY = y;
+
+            const b = state.strokeBounds;
+            if (x < b.minX) b.minX = x;
+            if (y < b.minY) b.minY = y;
+            if (x > b.maxX) b.maxX = x;
+            if (y > b.maxY) b.maxY = y;
+        }
+
+        function finishDrawing() {
+            if (!state.drawing) return;
+            state.drawing = false;
+
+            const points = state.strokePoints;
+            state.tempCanvas = null;
+            state.tempCtx = null;
+
+            if (points.length < 2) {
+                renderComposition();
+                return;
+            }
+
+            const b = state.strokeBounds;
+            const padding = Math.max(10, state.drawSize);
+            let lx = Math.max(0, Math.floor(b.minX) - padding);
+            let ly = Math.max(0, Math.floor(b.minY) - padding);
+            let rx = Math.min(state.canvasW, Math.ceil(b.maxX) + padding);
+            let ry = Math.min(state.canvasH, Math.ceil(b.maxY) + padding);
+            const lw = rx - lx;
+            const lh = ry - ly;
+
+            if (lw < 4 || lh < 4) {
+                renderComposition();
+                return;
+            }
+
+            const layerCanvas = document.createElement('canvas');
+            layerCanvas.width = lw;
+            layerCanvas.height = lh;
+            const lctx = layerCanvas.getContext('2d');
+
+            // 随机生成该图层的主色（HSL 随机色相）
+            const hue = Math.floor(Math.random() * 360);
+            const sat = 60 + Math.floor(Math.random() * 40);
+            const lig = 40 + Math.floor(Math.random() * 30);
+            const mainColor = hslToHex(hue, sat, lig);
+
+            // 随机深色描边（同色系更暗）
+            const edgeColor = darkenColor(mainColor, 0.3 + Math.random() * 0.3);
+
+            // 构建闭合路径（坐标系转换到图层本地）
+            lctx.beginPath();
+            lctx.moveTo(points[0].x - lx, points[0].y - ly);
+            for (let i = 1; i < points.length; i++) {
+                lctx.lineTo(points[i].x - lx, points[i].y - ly);
+            }
+            lctx.closePath();
+
+            // 内部填充：随机主色 30% 透明度
+            const [fr, fg, fb] = hexToRgb(mainColor);
+            lctx.fillStyle = `rgba(${fr},${fg},${fb},0.3)`;
+            lctx.fill();
+
+            // 边缘描边：同色系深色
+            lctx.strokeStyle = edgeColor;
+            lctx.lineWidth = Math.max(1.5, state.drawSize * 0.25);
+            lctx.stroke();
+
+            addLayer(layerCanvas, lx, ly, lw, lh);
+            sendToParent(false);
+            setStatus('✅ 图层已创建 | 位置: (' + lx + ',' + ly + ') 尺寸: ' + lw + 'x' + lh);
+        }
+
+        // ========= 事件初始化 =========
 
         function initEvent() {
             document.getElementById('upload-btn').addEventListener('click', () => {
@@ -453,15 +791,16 @@
                 reader.onload = (ev) => {
                     const img = new Image();
                     img.onload = () => {
-                        saveCanvasState();
-                        initCanvas(img.width, img.height, false, false);
+                        initCanvas(img.width, img.height, false);
                         state.ctx.drawImage(img, 0, 0);
-                        state.originalImage = img;
-                        state.isUploaded = true;
-                        state.cropWidth = img.width;
-                        state.cropHeight = img.height;
+                        const fullCanvas = document.createElement('canvas');
+                        fullCanvas.width = img.width;
+                        fullCanvas.height = img.height;
+                        const fctx = fullCanvas.getContext('2d');
+                        fctx.drawImage(img, 0, 0);
+                        addLayer(fullCanvas, 0, 0, img.width, img.height, '上传图片');
                         sendToParent(true);
-                        setStatus('✅ 图片上传成功 | 原始尺寸: ' + img.width + 'x' + img.height);
+                        setStatus('✅ 图片上传成功 | ' + img.width + 'x' + img.height);
                     };
                     img.src = ev.target.result;
                 };
@@ -470,8 +809,31 @@
 
             document.getElementById('clear-btn').onclick = () => execClear();
             document.getElementById('reset-btn').onclick = () => execReset();
-            document.getElementById('draw-btn').onclick = () => switchTool('draw');
+            document.getElementById('draw-btn').onclick = () => { state.currentTool = 'draw'; setStatus('🖌️ 画笔工具'); };
 
+            document.getElementById('layer-add-btn').addEventListener('click', () => {
+                const emptyCanvas = document.createElement('canvas');
+                emptyCanvas.width = 100;
+                emptyCanvas.height = 100;
+                const ectx = emptyCanvas.getContext('2d');
+                ectx.fillStyle = '#EEEEEE';
+                ectx.fillRect(0, 0, 100, 100);
+                addLayer(emptyCanvas, 50, 50, 100, 100, '图层 ' + (state.layers.length + 1));
+                setStatus('➕ 已新增空白图层');
+            });
+
+            document.getElementById('layer-del-btn').addEventListener('click', () => {
+                if (state.selectedLayerId) {
+                    const layer = getLayerById(state.selectedLayerId);
+                    if (layer) {
+                        deleteLayer(state.selectedLayerId);
+                        setStatus('🗑 已删除: ' + layer.name);
+                        sendToParent(false);
+                    }
+                }
+            });
+
+            // 鼠标事件
             document.addEventListener('mousemove', (e) => {
                 if (state.isPanning) {
                     state.panX = state.panStartPanX + (e.clientX - state.panStartX);
@@ -479,26 +841,33 @@
                     updateCanvasScale();
                     return;
                 }
+
                 updateBrushPreviewPos(e.clientX, e.clientY);
+
                 if (!state.isMouseDown) return;
                 const [x, y] = getCanvasXY(e.clientX, e.clientY);
-                if (state.currentTool === 'draw') {
-                    const dx = x - state.prevDrawX;
-                    const dy = y - state.prevDrawY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const step = Math.max(1, Math.ceil(dist / (state.drawSize * 0.3)));
-                    for (let i = 0; i <= step; i++) {
-                        const t = i / step;
-                        drawSoftStamp(state.prevDrawX + dx * t, state.prevDrawY + dy * t);
-                    }
-                    state.prevDrawX = x;
-                    state.prevDrawY = y;
+
+                if (state.isDragging && state.dragLayer) {
+                    const dx = (e.clientX - state.dragStartX) / state.scale;
+                    const dy = (e.clientY - state.dragStartY) / state.scale;
+                    state.dragLayer.x = Math.max(0, Math.min(state.canvasW - state.dragLayer.w, state.dragLayerStartX + dx));
+                    state.dragLayer.y = Math.max(0, Math.min(state.canvasH - state.dragLayer.h, state.dragLayerStartY + dy));
+                    renderComposition();
+                    return;
+                }
+
+                if (state.currentTool === 'draw' && state.drawing) {
+                    continueDrawing(x, y);
+                    renderComposition();
                 }
             });
 
             const canvas = document.getElementById('edit-canvas');
+            canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
             canvas.addEventListener('mousedown', (e) => {
                 e.preventDefault();
+                // 中键 = 平移
                 if (e.button === 1) {
                     state.isPanning = true;
                     state.panStartX = e.clientX;
@@ -508,13 +877,34 @@
                     state.canvas.style.cursor = 'grabbing';
                     return;
                 }
+
                 state.isMouseDown = true;
                 const [x, y] = getCanvasXY(e.clientX, e.clientY);
+
                 if (state.currentTool === 'draw') {
-                    saveCanvasState();
-                    drawSoftStamp(x, y);
-                    state.prevDrawX = x;
-                    state.prevDrawY = y;
+                    // 左键 = 绘制新图层
+                    if (e.button === 0) {
+                        startDrawing(x, y);
+                        renderComposition();
+                        state.brushPreview.style.display = 'none';
+                        setStatus('✏️ 正在绘制... 松开鼠标创建图层');
+                    }
+                    // 右键 = 拖拽已有图层
+                    else if (e.button === 2) {
+                        const hit = hitTestLayer(x, y);
+                        if (hit) {
+                            state.isDragging = true;
+                            state.dragLayer = hit;
+                            state.dragStartX = e.clientX;
+                            state.dragStartY = e.clientY;
+                            state.dragLayerStartX = hit.x;
+                            state.dragLayerStartY = hit.y;
+                            selectLayer(hit.id);
+                            renderComposition();
+                            state.canvas.style.cursor = 'move';
+                            setStatus('↕️ 正在移动: ' + hit.name);
+                        }
+                    }
                 }
             });
 
@@ -524,10 +914,21 @@
                     state.canvas.style.cursor = 'crosshair';
                     return;
                 }
+                if (state.isDragging) {
+                    state.isDragging = false;
+                    state.dragLayer = null;
+                    state.canvas.style.cursor = 'crosshair';
+                    renderComposition();
+                    sendToParent(false);
+                    setStatus('✅ 图层已移动');
+                    return;
+                }
                 if (!state.isMouseDown) return;
                 state.isMouseDown = false;
-                if (state.currentTool === 'draw') {
-                    sendToParent(false);
+
+                if (state.currentTool === 'draw' && state.drawing) {
+                    finishDrawing();
+                    state.brushPreview.style.display = 'block';
                 }
             });
 
@@ -535,9 +936,8 @@
                 if (e.buttons === 1 && state.isMouseDown === false && state.currentTool === 'draw') {
                     state.isMouseDown = true;
                     const [x, y] = getCanvasXY(e.clientX, e.clientY);
-                    drawSoftStamp(x, y);
-                    state.prevDrawX = x;
-                    state.prevDrawY = y;
+                    startDrawing(x, y);
+                    renderComposition();
                 }
             });
 
@@ -570,30 +970,33 @@
                 state.panY += (e.clientY - newRect.top) - canvasPY * state.scale;
                 updateCanvasScale();
                 updateBrushPreviewSize();
-                setStatus('🔍 缩放: ' + Math.round(state.zoom * 100) + '% | 滚轮缩放/中键平移');
+                setStatus('🔍 缩放: ' + Math.round(state.zoom * 100) + '%');
             }, { passive: false });
 
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
                     e.preventDefault();
                     if (state.undoStack.length > 0) {
-                        const entry = state.undoStack.pop();
-                        if (entry.width !== state.canvasW || entry.height !== state.canvasH) {
-                            state.canvas.width = entry.width;
-                            state.canvas.height = entry.height;
-                            state.canvasW = entry.width;
-                            state.canvasH = entry.height;
-                            state.cropWidth = entry.width;
-                            state.cropHeight = entry.height;
-                            updateCanvasScale();
-                        }
-                        state.ctx.putImageData(entry.imageData, 0, 0);
+                        const snap = state.undoStack.pop();
+                        restoreLayersFromSnapshot(snap.layers);
                         sendToParent(false);
-                        setStatus('↩️ 已撤销 | 剩余历史: ' + state.undoStack.length + '步');
+                        setStatus('↩️ 已撤销');
+                    }
+                }
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    if (state.selectedLayerId && !e.target.closest('input')) {
+                        const layer = getLayerById(state.selectedLayerId);
+                        if (layer) {
+                            deleteLayer(state.selectedLayerId);
+                            setStatus('🗑 已删除: ' + layer.name);
+                            sendToParent(false);
+                        }
                     }
                 }
             });
         }
+
+        // ========= 启动 =========
 
         window.onload = () => {
             initCanvas(512, 512, false);
