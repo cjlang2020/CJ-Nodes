@@ -147,19 +147,32 @@ class ImageDesign:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("edited_image", "prompt")
+    RETURN_TYPES = ("IMAGE", "STRING", "IMAGE")
+    RETURN_NAMES = ("edited_image", "prompt", "original_image")
     FUNCTION = "process_design"
     CATEGORY = "luy/图片处理"
+
+    def _img_to_tensor(self, img):
+        arr = np.array(img)
+        if arr.dtype != np.uint8:
+            arr = arr.astype(np.uint8)
+        arr = arr.astype(np.float32) / 255.0
+        if len(arr.shape) == 2:
+            arr = np.stack([arr, arr, arr], axis=-1)
+        elif arr.shape[-1] == 4:
+            arr = arr[:, :, :3]
+        return torch.from_numpy(arr).unsqueeze(0)
 
     def process_design(self, canvas_width, canvas_height, edit_data="empty"):
         try:
             final_img = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
+            original_img = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
 
             if edit_data != "empty" and edit_data.strip():
                 try:
                     data = json.loads(edit_data)
                     final_base64 = data.get("final_image_base64", "")
+                    orig_base64 = data.get("original_image_base64", "")
                     crop_w = data.get("crop_width", canvas_width)
                     crop_h = data.get("crop_height", canvas_height)
 
@@ -168,19 +181,16 @@ class ImageDesign:
                         final_img = Image.open(BytesIO(img_data)).convert("RGB")
                         canvas_width, canvas_height = crop_w, crop_h
 
+                    if orig_base64:
+                        orig_data = base64.b64decode(orig_base64.split(",")[1])
+                        original_img = Image.open(BytesIO(orig_data)).convert("RGB")
+
                 except Exception as e:
                     logger.error(f"设计数据解析失败: {str(e)}")
                     final_img = Image.new("RGB", (canvas_width, canvas_height), (255, 255, 255))
 
-            image_np = np.array(final_img)
-            if image_np.dtype != np.uint8:
-                image_np = image_np.astype(np.uint8)
-            image_np = image_np.astype(np.float32) / 255.0
-            if len(image_np.shape) == 2:
-                image_np = np.stack([image_np, image_np, image_np], axis=-1)
-            elif image_np.shape[-1] == 4:
-                image_np = image_np[:, :, :3]
-            image_tensor = torch.from_numpy(image_np).unsqueeze(0)
+            image_tensor = self._img_to_tensor(final_img)
+            original_tensor = self._img_to_tensor(original_img)
 
             logger.info(f"图片设计完成，输出张量维度: {image_tensor.shape}")
             prompt = ""
@@ -199,13 +209,13 @@ class ImageDesign:
                     pass
             if not prompt:
                 prompt = "图片设计无描述"
-            return (image_tensor, prompt)
+            return (image_tensor, prompt, original_tensor)
 
         except Exception as e:
             logger.error(f"图片设计总异常: {str(e)}")
             error_image = torch.ones((1, 200, 200, 3), dtype=torch.float32)
             error_image[0, :, :, 1:] = 0
-            return (error_image, "null")
+            return (error_image, "null", error_image)
 
 # 注册节点
 NODE_CLASS_MAPPINGS = {

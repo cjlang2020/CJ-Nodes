@@ -101,13 +101,6 @@
             flex-direction: column;
             flex-shrink: 0;
         }
-        #status {
-            padding: 4px 10px;
-            background: #12121f;
-            color: #2ecc71;
-            font-size: 12px;
-            text-align: left;
-        }
         #layer-text {
             width: 100%;
             resize: vertical;
@@ -199,6 +192,7 @@
             object-fit: contain;
             flex-shrink: 0;
         }
+        .range-value { font-variant-numeric: tabular-nums; }
         .layer-name {
             font-size: 11px;
             color: #bbb;
@@ -228,6 +222,11 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-4a4 4 0 1 1 4 4h-4"/><path d="M21 3a16 16 0 0 0 -12.8 10.2"/><path d="M21 3a16 16 0 0 1 -10.2 12.8"/><path d="M10.6 9a9 9 0 0 1 4.4 4.4"/></svg>
             </button>
         </div>
+        <div class="tool-group" style="align-items:center;">
+            <span style="color:#888;font-size:11px;">透明度</span>
+            <input type="range" id="layer-opacity" min="0" max="1" step="0.05" value="0.3" style="width:60px;">
+            <span id="layer-opacity-val" class="range-value" style="min-width:28px;text-align:center;font-size:10px;color:#999;">0.30</span>
+        </div>
     </div>
 
     <div id="workspace">
@@ -248,7 +247,6 @@
     </div>
 
     <div id="bottom-bar">
-        <div id="status">🟢 图层绘画就绪 | 左键绘制新图层 | 右键拖拽移动图层 | 拖拽右侧列表调整顺序</div>
         <textarea id="layer-text" rows="3" placeholder="当前图层描述..."></textarea>
     </div>
 
@@ -260,6 +258,7 @@
             currentTool: 'draw',
             isUploaded: false,
             isMouseDown: false,
+            originalImageBase64: null,
             isDragging: false,       // 正在拖动图层
             dragLayer: null,         // 被拖动的图层对象
             dragStartX: 0,
@@ -269,6 +268,7 @@
             ctx: null,
             canvas: null,
             originalImage: null,
+            baseImage: null,
             canvasW: 512,
             canvasH: 512,
             initialW: 512,
@@ -277,6 +277,7 @@
             offsetX: 0,
             offsetY: 0,
             toolbarHeight: 0,
+            layerOpacity: 0.3,
             drawSize: 5,
             drawColor: '#000000',
             drawAlpha: 1.0,
@@ -313,7 +314,7 @@
 
         // ========= 图层操作 =========
 
-        function addLayer(canvasData, x, y, w, h, name, text) {
+        function addLayer(canvasData, x, y, w, h, name, text, opacity) {
             const offscreen = document.createElement('canvas');
             offscreen.width = w;
             offscreen.height = h;
@@ -337,7 +338,8 @@
                 w: w,
                 h: h,
                 selected: false,
-                text: text || ''
+                text: text || '',
+                opacity: opacity !== undefined ? opacity : state.layerOpacity
             };
             state.layers.push(layer);
             selectLayer(layer.id);
@@ -362,11 +364,15 @@
             state.selectedLayerId = id;
             renderLayerPanel();
             const ta = document.getElementById('layer-text');
+            const opSlider = document.getElementById('layer-opacity');
+            const opVal = document.getElementById('layer-opacity-val');
             if (id) {
                 const layer = state.layers.find(l => l.id === id);
                 if (layer) {
                     ta.value = layer.text || '';
-                    setStatus('📦 选中: ' + layer.name + ' | 拖拽移动位置');
+                    const op = layer.opacity !== undefined ? layer.opacity : 0.3;
+                    opSlider.value = op;
+                    opVal.textContent = op.toFixed(2);
                 }
             } else {
                 ta.value = '';
@@ -394,8 +400,16 @@
             state.ctx.fillStyle = '#EEEEEE';
             state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
 
+            // 绘制底图（无透明度影响）
+            if (state.baseImage) {
+                state.ctx.drawImage(state.baseImage, 0, 0, state.canvasW, state.canvasH);
+            }
+
             for (const layer of state.layers) {
+                state.ctx.save();
+                state.ctx.globalAlpha = layer.opacity !== undefined ? layer.opacity : 0.3;
                 state.ctx.drawImage(layer.canvas, layer.x, layer.y, layer.w, layer.h);
+                state.ctx.restore();
             }
 
             if (state.drawing && state.tempCanvas) {
@@ -486,6 +500,7 @@
             state.panY = 0;
             state.toolbarHeight = document.getElementById('main-toolbar').offsetHeight;
             state.layers = [];
+            state.baseImage = null;
             state.selectedLayerId = null;
             state.drawing = false;
             state.tempCanvas = null;
@@ -494,6 +509,7 @@
             state.strokeBounds = null;
             state.strokeDarkColor = '';
             state.strokeLightColor = '';
+            state.originalImageBase64 = null;
             state.ctx.fillStyle = '#EEEEEE';
             state.ctx.fillRect(0, 0, w, h);
             renderLayerPanel();
@@ -540,7 +556,8 @@
         }
 
         function setStatus(text) {
-            document.getElementById('status').textContent = text;
+            const el = document.getElementById('status');
+            if (el) el.textContent = text;
         }
 
         function saveCanvasState() {
@@ -550,6 +567,8 @@
                     name: l.name,
                     x: l.x, y: l.y,
                     w: l.w, h: l.h,
+                    opacity: l.opacity,
+                    text: l.text || '',
                     dataUrl: l.canvas.toDataURL()
                 }));
                 state.undoStack.push({
@@ -577,6 +596,8 @@
                     ctx: octx,
                     x: s.x, y: s.y,
                     w: s.w, h: s.h,
+                    opacity: s.opacity !== undefined ? s.opacity : 0.3,
+                    text: s.text || '',
                     selected: false
                 });
             }
@@ -595,6 +616,7 @@
             state.finalImageBase64 = getCanvasBase64();
             const sendData = {
                 final_image_base64: state.finalImageBase64,
+                original_image_base64: state.originalImageBase64 || '',
                 crop_width: state.canvasW,
                 crop_height: state.canvasH,
                 layers: state.layers.map(l => ({name: l.name, text: l.text || ''}))
@@ -627,8 +649,7 @@
             state.drawing = false;
             state.tempCanvas = null;
             state.tempCtx = null;
-            state.ctx.fillStyle = '#EEEEEE';
-            state.ctx.fillRect(0, 0, state.canvasW, state.canvasH);
+            renderComposition();
             renderLayerPanel();
             sendToParent(false);
             setStatus('🧹 已清除所有图层');
@@ -655,6 +676,45 @@
         }
 
         function rgbStr(r, g, b) { return `rgb(${r},${g},${b})`; }
+
+        function generateUniqueColor() {
+            // 收集现有图层的色相
+            const existingHues = state.layers.map(l => {
+                const hex = l.name;
+                if (hex && hex.startsWith('#')) {
+                    const v = parseInt(hex.slice(1), 16);
+                    const r = ((v >> 16) & 255) / 255;
+                    const g = ((v >> 8) & 255) / 255;
+                    const b = (v & 255) / 255;
+                    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                    if (max === min) return -1;
+                    let h = 0;
+                    const d = max - min;
+                    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+                    else if (max === g) h = ((b - r) / d + 2) * 60;
+                    else h = ((r - g) / d + 4) * 60;
+                    return h;
+                }
+                return -1;
+            }).filter(h => h >= 0);
+
+            // 黄金角递推：每新增一个图层，色相偏移 ~137.5°
+            let hue = (existingHues.length * 137.508) % 360;
+            // 如果已有图层较多，微调避免与最近邻过近
+            if (existingHues.length > 1) {
+                let minDist = 360;
+                for (const h of existingHues) {
+                    const d = Math.abs(hue - h);
+                    minDist = Math.min(minDist, Math.min(d, 360 - d));
+                }
+                if (minDist < 25) {
+                    hue = (hue + 180 + (Math.random() - 0.5) * 60) % 360;
+                }
+            }
+            const sat = 60 + Math.floor(Math.random() * 35);
+            const lig = 40 + Math.floor(Math.random() * 25);
+            return {hue, sat, lig, hex: hslToHex(Math.round(hue), sat, lig)};
+        }
 
         function hslToHex(h, s, l) {
             s /= 100; l /= 100;
@@ -781,11 +841,7 @@
             layerCanvas.height = lh;
             const lctx = layerCanvas.getContext('2d');
 
-            // 随机生成该图层的主色（HSL 随机色相）
-            const hue = Math.floor(Math.random() * 360);
-            const sat = 60 + Math.floor(Math.random() * 40);
-            const lig = 40 + Math.floor(Math.random() * 30);
-            const mainColor = hslToHex(hue, sat, lig);
+            const {hex: mainColor} = generateUniqueColor();
 
             // 随机深色描边（同色系更暗）
             const edgeColor = darkenColor(mainColor, 0.3 + Math.random() * 0.3);
@@ -798,9 +854,9 @@
             }
             lctx.closePath();
 
-            // 内部填充：随机主色 30% 透明度
+            // 内部填充：随机主色 + 当前透明度
             const [fr, fg, fb] = hexToRgb(mainColor);
-            lctx.fillStyle = `rgba(${fr},${fg},${fb},0.3)`;
+            lctx.fillStyle = `rgba(${fr},${fg},${fb},${state.layerOpacity})`;
             lctx.fill();
 
             // 边缘描边：同色系深色
@@ -808,7 +864,7 @@
             lctx.lineWidth = Math.max(1.5, state.drawSize * 0.25);
             lctx.stroke();
 
-            addLayer(layerCanvas, lx, ly, lw, lh, mainColor);
+            addLayer(layerCanvas, lx, ly, lw, lh, mainColor, '', state.layerOpacity);
             sendToParent(false);
             setStatus('✅ 图层已创建 | 位置: (' + lx + ',' + ly + ') 尺寸: ' + lw + 'x' + lh);
         }
@@ -828,15 +884,8 @@
                     img.onload = () => {
                         initCanvas(img.width, img.height, false);
                         state.ctx.drawImage(img, 0, 0);
-                        const fullCanvas = document.createElement('canvas');
-                        fullCanvas.width = img.width;
-                        fullCanvas.height = img.height;
-                        const fctx = fullCanvas.getContext('2d');
-                        fctx.drawImage(img, 0, 0);
-                        const hue = Math.floor(Math.random() * 360);
-                        const sat = 60 + Math.floor(Math.random() * 40);
-                        const lig = 40 + Math.floor(Math.random() * 30);
-                        addLayer(fullCanvas, 0, 0, img.width, img.height, hslToHex(hue, sat, lig));
+                        state.originalImageBase64 = state.canvas.toDataURL('image/png');
+                        state.baseImage = img;
                         sendToParent(true);
                         setStatus('✅ 图片上传成功 | ' + img.width + 'x' + img.height);
                     };
@@ -849,17 +898,29 @@
             document.getElementById('reset-btn').onclick = () => execReset();
             document.getElementById('draw-btn').onclick = () => { state.currentTool = 'draw'; setStatus('🖌️ 画笔工具'); };
 
+            document.getElementById('layer-opacity').addEventListener('input', function() {
+                const val = parseFloat(this.value);
+                state.layerOpacity = val;
+                document.getElementById('layer-opacity-val').textContent = val.toFixed(2);
+                if (state.selectedLayerId) {
+                    const layer = state.layers.find(l => l.id === state.selectedLayerId);
+                    if (layer) {
+                        layer.opacity = val;
+                        renderComposition();
+                        sendToParent(false);
+                    }
+                }
+            });
+
             document.getElementById('layer-add-btn').addEventListener('click', () => {
                 const emptyCanvas = document.createElement('canvas');
                 emptyCanvas.width = 100;
                 emptyCanvas.height = 100;
                 const ectx = emptyCanvas.getContext('2d');
-                const hue = Math.floor(Math.random() * 360);
-                const sat = 60 + Math.floor(Math.random() * 40);
-                const lig = 40 + Math.floor(Math.random() * 30);
+                const {hex: newColor} = generateUniqueColor();
                 ectx.fillStyle = '#EEEEEE';
                 ectx.fillRect(0, 0, 100, 100);
-                addLayer(emptyCanvas, 50, 50, 100, 100, hslToHex(hue, sat, lig));
+                addLayer(emptyCanvas, 50, 50, 100, 100, newColor);
                 setStatus('➕ 已新增空白图层');
             });
 

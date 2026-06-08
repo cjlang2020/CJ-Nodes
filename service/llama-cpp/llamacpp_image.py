@@ -85,6 +85,10 @@ class llama_run_simple:
                     "default": False,
                     "tooltip": "Multi-Token Prediction (MTP) acceleration.\nRequires a model with MTP support (e.g., Qwen3 variants)."
                 }),
+                "print_prompt": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Print the prompt messages to console for debugging."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -104,7 +108,7 @@ class llama_run_simple:
     def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
             preset_prompt, ChineseReply, custom_prompt, unload_model, seed,
             inference_mode, max_frames, max_size,
-            draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp,
+            draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp, print_prompt,
             unique_id, images=None, queue_handler=None):
         custom_config = {
             "model": model,
@@ -249,6 +253,16 @@ class llama_run_simple:
             out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
             out2 = [out1]
 
+        if print_prompt:
+            import copy
+            _sanitized = copy.deepcopy(messages)
+            for _msg in _sanitized:
+                _c = _msg.get("content")
+                if isinstance(_c, list):
+                    for _item in _c:
+                        if isinstance(_item, dict) and _item.get("type") == "image_url" and "image_url" in _item:
+                            _item["image_url"]["url"] = "[BASE64_IMAGE_DATA]"
+            print("提示词完成结构messages:", _sanitized)
         del messages
         gc.collect()
 
