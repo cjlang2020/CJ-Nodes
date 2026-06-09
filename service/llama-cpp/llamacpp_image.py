@@ -12,6 +12,9 @@ if CURRENT_DIR not in sys.path:
 import gc
 import numpy as np
 
+# 缓存存储：key=unique_id, value=(output_tuple)
+_CACHE = {}
+
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
     load_text_presets, tensor_to_numpy, image_to_base64_jpeg, scale_image_tensor, cqdm, draft_model_types, _MTMD,
@@ -89,6 +92,10 @@ class llama_run_simple:
                     "default": False,
                     "tooltip": "Print the prompt messages to console for debugging."
                 }),
+                "use_cache": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Use cached result from last run. Skips model inference and returns previous output."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -109,7 +116,14 @@ class llama_run_simple:
             preset_prompt, ChineseReply, custom_prompt, unload_model, seed,
             inference_mode, max_frames, max_size,
             draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp, print_prompt,
+            use_cache,
             unique_id, images=None, queue_handler=None):
+        uid = unique_id.rpartition('.')[-1]
+
+        if use_cache and uid in _CACHE:
+            print(f"[llama-cpp_vlm] Cache hit for node {uid}, skipping inference.")
+            return _CACHE[uid]
+
         custom_config = {
             "model": model,
             "mmproj": mmproj,
@@ -153,7 +167,6 @@ class llama_run_simple:
         _parameters.pop("state_uid", None)
         if _MTMD:
             _parameters.pop("presence_penalty", None)
-        uid = unique_id.rpartition('.')[-1]
         messages = []
         video_input = inference_mode == "video"
         # 判断图片数量
@@ -272,6 +285,7 @@ class llama_run_simple:
             LLAMA_CPP_STORAGE.clean_state(uid)
             LLAMA_CPP_STORAGE.clean()
 
+        _CACHE[uid] = (out1, out2, uid, system_prompt_text, user_text)
         return (out1, out2, uid, system_prompt_text, user_text)
 
 
