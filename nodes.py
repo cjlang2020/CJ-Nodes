@@ -63,7 +63,7 @@ CUSTOM_DISPLAY_NAMES = {
     "DrawPhotoNode":"Luy-图片绘画节点",
     "ImageDesign":"Luy-图片设计节点",
     "ImageEditNode":"Luy-图片编辑节点",
-    "llama_run":"Luy-LlamaCpp反推",
+    "llama_run_lite":"Luy-反推Lite",
     "llama_run_simple":"Luy-LlamaCpp反推(简化版)",
     "SDXLPromptPickerNode": "Luy-SDXL角色提示词",
     "LuySaveImage": "Luy-保存图片到本地",
