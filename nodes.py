@@ -23,6 +23,7 @@ CUSTOM_DISPLAY_NAMES = {
     "ImageMaskNode": "Luy-添加蒙版",
     "SavePNGZIP_and_Preview_RGBA_AnimatedWEBP": "Luy-RGBA图层转视频",
     "MaskedImage2Png": "Luy-遮罩转PNG",
+    "MaskColorFill":"Luy-遮罩转填充",
     "DrawImageBbox":"Luy-绘制Bbox",
     "LuySdxlLoraLoader": "Luy-加载lora模型(SDXL)",
     "LuyLoraLoaderModelOnlyALL": "Luy-加载lora模型(FLUX|QWEN|QWEN-EDIT)",

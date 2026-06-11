@@ -240,6 +240,63 @@ class CompositeRepaintedImage(BaseNode):
         blurred = torch.nn.functional.conv2d(mask_padded, kernel_2d)
         return blurred[0, 0]
 
+class MaskColorFill(BaseNode):
+    def __init__(self):
+        pass
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "mask": ("MASK",),
+                "foreground_color": ("STRING", {"default": "#0000FF", "multiline": False}),
+                "background_color": ("STRING", {"default": "#000000", "multiline": False}),
+            }
+        }
+
+    RETURN_TYPES = ("IMAGE",)
+    RETURN_NAMES = ("image",)
+    FUNCTION = "fill_color"
+    CATEGORY = "luy/图片处理"
+
+    def fill_color(self, mask: torch.Tensor, foreground_color: str, background_color: str):
+        device = mask.device
+        batch_size = mask.shape[0]
+
+        fg_rgb = self._parse_color(foreground_color, device)
+        bg_rgb = self._parse_color(background_color, device)
+
+        result_images = []
+        for b in range(batch_size):
+            current_mask = mask[b]
+            h, w = current_mask.shape
+
+            result = torch.ones(h, w, 3, device=device) * bg_rgb
+            mask_bool = current_mask > 0.5
+            result[mask_bool] = fg_rgb
+
+            result_images.append(result.unsqueeze(0))
+
+        return (torch.cat(result_images, dim=0),)
+
+    @staticmethod
+    def _parse_color(color_str: str, device):
+        color_str = color_str.strip()
+        if color_str.startswith('#'):
+            hex_color = color_str.lstrip('#')
+            r = int(hex_color[0:2], 16) / 255.0
+            g = int(hex_color[2:4], 16) / 255.0
+            b = int(hex_color[4:6], 16) / 255.0
+        elif ',' in color_str:
+            parts = color_str.split(',')
+            r = int(parts[0].strip()) / 255.0
+            g = int(parts[1].strip()) / 255.0
+            b = int(parts[2].strip()) / 255.0
+        else:
+            r, g, b = 0.0, 0.0, 0.0
+        return torch.tensor([r, g, b], device=device)
+
+
 class DrawImageBbox(BaseNode):
     def __init__(self):
         pass

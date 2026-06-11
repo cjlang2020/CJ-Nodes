@@ -52,6 +52,7 @@ class llama_run_simple:
                 "preset_prompt": (preset_tags, {"default": preset_tags[1]}),
                 "ChineseReply": ("BOOLEAN", {"default": False}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
+                "system_role_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'system_role_prompt（为空则使用默认）'}),
                 "unload_model": ("BOOLEAN", {"default": True, "tooltip": "Unload model after inference. If True, calls clean_state to release resources."}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1, "tooltip": "Random seed for ensuring execution each run."}),
                 "inference_mode": (["one by one", "images", "video"], {
@@ -113,7 +114,7 @@ class llama_run_simple:
     CATEGORY = "luy/llama-cpp"
 
     def run(self, model, mmproj, chat_handler, n_ctx, vram_limit,
-            preset_prompt, ChineseReply, custom_prompt, unload_model, seed,
+            preset_prompt, ChineseReply, custom_prompt, system_role_prompt, unload_model, seed,
             inference_mode, max_frames, max_size,
             draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp, print_prompt,
             use_cache,
@@ -178,17 +179,20 @@ class llama_run_simple:
         else:
             image_count = 0
 
-        # 自动设置默认系统提示词
-        if image_count == 0:
+        # 自动设置系统提示词
+        if system_role_prompt.strip():
+            system_prompt_text = system_role_prompt.strip()
+        elif image_count == 0:
             system_prompt_text = "你是一名AI助手，擅长扩写用户的描述内容。"
         elif video_input:
             system_prompt_text = "请将输入的图片序列当做视频而不是静态帧序列, 你是一个视频分析助手，可以帮助用户分析视频内容、理解画面变化和叙事逻辑。"
         else:
             system_prompt_text = "你是一名图片分析专家，擅长将图片的内容详细描述出来！"
-        if ChineseReply:
-            system_prompt_text += ",\n请使用中文回答。"
-        else:
-            system_prompt_text += ",\nPlease answer in English."
+        if not system_role_prompt.strip():
+            if ChineseReply:
+                system_prompt_text += ",\n请使用中文回答。"
+            else:
+                system_prompt_text += ",\nPlease answer in English."
         messages.append({"role": "system", "content": system_prompt_text})
 
         out1 = ""
