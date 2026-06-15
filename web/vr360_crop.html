@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>360 VR Crop</title>
+    <script src="/CJ-Nodes/js/three.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            width: 100%; height: 100vh;
+            background: #111;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            color: #fff;
+            user-select: none;
+        }
+
+        #upload-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #1a1a2e;
+            z-index: 200;
+            transition: opacity 0.4s ease, visibility 0.4s;
+        }
+        #upload-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        #upload-area {
+            width: 380px; max-width: 90%;
+            padding: 50px 30px;
+            border: 3px dashed #4a90d9;
+            border-radius: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(74,144,217,0.08);
+        }
+        #upload-area:hover, #upload-area.dragover {
+            border-color: #6bb3ff;
+            background: rgba(74,144,217,0.18);
+            transform: scale(1.02);
+        }
+        #upload-icon { font-size: 56px; margin-bottom: 14px; }
+        #upload-text { font-size: 16px; color: #ccc; margin-bottom: 6px; }
+        #upload-hint { font-size: 12px; color: #888; }
+        #file-input { display: none; }
+
+        #loading {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            z-index: 150; display: none;
+            text-align: center;
+        }
+        #loading.show { display: block; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: #4a90d9;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #toolbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 44px;
+            background: rgba(20,20,35,0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .tb-btn {
+            padding: 5px 12px;
+            height: 30px;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.06);
+            color: #ccc;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .tb-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+        #angle-display {
+            margin-left: auto;
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            font-variant-numeric: tabular-nums;
+        }
+
+        #viewer-container {
+            position: fixed;
+            top: 44px; left: 0; right: 0; bottom: 0;
+            background: #000;
+        }
+        #viewer-canvas {
+            display: block;
+            position: absolute;
+        }
+    </style>
+</head>
+<body>
+    <div id="upload-overlay">
+        <div id="upload-area">
+            <div id="upload-icon">🌐</div>
+            <div id="upload-text">点击或拖拽上传全景图</div>
+            <div id="upload-hint">支持 JPG / PNG / WEBP（2:1 等距柱状投影）</div>
+            <input type="file" id="file-input" accept="image/*">
+        </div>
+    </div>
+
+    <div id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="toolbar">
+        <button class="tb-btn" id="upload-btn">📁 上传</button>
+        <button class="tb-btn" id="reset-btn">⟲ 重置</button>
+        <span id="angle-display">H: 0°  V: 0°  FOV: 75°</span>
+    </div>
+
+    <div id="viewer-container">
+        <canvas id="viewer-canvas"></canvas>
+    </div>
+
+    <script>
+        let scene, camera, renderer, sphere;
+        let hasPanorama = false;
+        let isDragging = false;
+        let prevMouse = { x: 0, y: 0 };
+        let rotX = 0, rotY = 0;
+        let fov = 75;
+        const minFov = 20, maxFov = 120;
+        let outputWidth = 1024, outputHeight = 512;
+
+        const uploadOverlay = document.getElementById('upload-overlay');
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const loading = document.getElementById('loading');
+        const viewerCanvas = document.getElementById('viewer-canvas');
+        const uploadBtn = document.getElementById('upload-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const angleDisplay = document.getElementById('angle-display');
+
+        function updateViewerSize() {
+            const container = document.getElementById('viewer-container');
+            const availW = container.clientWidth;
+            const availH = container.clientHeight;
+            if (availW < 1 || availH < 1) return;
+
+            const targetRatio = outputWidth / outputHeight;
+            let dispW = availW;
+            let dispH = availW / targetRatio;
+            if (dispH > availH) {
+                dispH = availH;
+                dispW = availH * targetRatio;
+            }
+            dispW = Math.round(dispW);
+            dispH = Math.round(dispH);
+
+            camera.aspect = targetRatio;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(dispW, dispH);
+            viewerCanvas.style.left = Math.round((availW - dispW) / 2) + 'px';
+            viewerCanvas.style.top = Math.round((availH - dispH) / 2) + 'px';
+        }
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 1000);
+            camera.position.set(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({
+                canvas: viewerCanvas,
+                antialias: true,
+                alpha: false,
+                preserveDrawingBuffer: true,
+            });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            updateViewerSize();
+
+            const geometry = new THREE.SphereGeometry(500, 60, 40);
+            geometry.scale(-1, 1, 1);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0x222222,
+                side: THREE.FrontSide,
+            });
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y = rotX;
+            camera.rotation.x = rotY;
+            camera.fov = fov;
+            camera.updateProjectionMatrix();
+            renderer.render(scene, camera);
+        }
+
+        function loadPanoramaFromDataURL(dataURL) {
+            const img = new Image();
+            img.onload = () => {
+                const texture = new THREE.Texture(img);
+                texture.needsUpdate = true;
+                sphere.material = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.FrontSide,
+                });
+                hasPanorama = true;
+                resetView();
+                hideUpload();
+                renderer.render(scene, camera);
+                setTimeout(() => doAutoCapture(), 300);
+            };
+            img.src = dataURL;
+        }
+
+        function loadPanoramaFromFile(file) {
+            if (!file.type.startsWith('image/')) return;
+            showLoading();
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataURL = e.target.result;
+                const b64 = dataURL.split(',')[1];
+                loadPanoramaFromDataURL(dataURL);
+                sendToParent({ type: 'PANORAMA_UPLOADED', data: b64 });
+                hideLoading();
+            };
+            reader.onerror = () => { hideLoading(); };
+            reader.readAsDataURL(file);
+        }
+
+        function resetView() {
+            rotX = 0;
+            rotY = 0;
+            fov = 75;
+            updateAngleDisplay();
+            scheduleCapture();
+        }
+
+        function updateAngleDisplay() {
+            const h = ((rotX * 180 / Math.PI) % 360).toFixed(1);
+            const v = (rotY * 180 / Math.PI).toFixed(1);
+            angleDisplay.textContent = `H: ${h}°  V: ${v}°  FOV: ${fov.toFixed(0)}°`;
+        }
+
+        function captureViewport(w, h) {
+            if (!hasPanorama) return '';
+            renderer.render(scene, camera);
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = w;
+            tempCanvas.height = h;
+            const ctx = tempCanvas.getContext('2d');
+            ctx.drawImage(renderer.domElement, 0, 0, w, h);
+            return tempCanvas.toDataURL('image/png');
+        }
+
+        let captureTimer = null;
+        function scheduleCapture() {
+            if (captureTimer) clearTimeout(captureTimer);
+            captureTimer = setTimeout(() => {
+                captureTimer = null;
+                doAutoCapture();
+            }, 200);
+        }
+
+        function doAutoCapture() {
+            if (!hasPanorama) return;
+            const dataURL = captureViewport(outputWidth, outputHeight);
+            if (!dataURL || dataURL.length < 200) return;
+            const b64 = dataURL.split(',')[1];
+            if (!b64 || b64.length < 50) return;
+            sendToParent({ type: 'CROP_DATA_UPDATE', data: b64 });
+        }
+
+        function setupInteraction() {
+            const container = document.getElementById('viewer-container');
+            container.addEventListener('mousedown', (e) => {
+                if (!hasPanorama) return;
+                isDragging = true;
+                prevMouse = { x: e.clientX, y: e.clientY };
+            });
+            container.addEventListener('mousemove', (e) => {
+                if (!hasPanorama || !isDragging) return;
+                const dx = e.clientX - prevMouse.x;
+                const dy = e.clientY - prevMouse.y;
+                rotX += dx * 0.005;
+                rotY += dy * 0.005;
+                rotY = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotY));
+                prevMouse = { x: e.clientX, y: e.clientY };
+                updateAngleDisplay();
+            });
+            container.addEventListener('mouseup', () => {
+                if (isDragging) { isDragging = false; scheduleCapture(); }
+            });
+            container.addEventListener('mouseleave', () => {
+                if (isDragging) { isDragging = false; scheduleCapture(); }
+            });
+            container.addEventListener('wheel', (e) => {
+                if (!hasPanorama) return;
+                e.preventDefault();
+                fov += e.deltaY * 0.05;
+                fov = Math.max(minFov, Math.min(maxFov, fov));
+                updateAngleDisplay();
+                scheduleCapture();
+            }, { passive: false });
+
+            container.addEventListener('touchstart', (e) => {
+                if (!hasPanorama || e.touches.length !== 1) return;
+                isDragging = true;
+                prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            });
+            container.addEventListener('touchmove', (e) => {
+                if (!hasPanorama || !isDragging || e.touches.length !== 1) return;
+                e.preventDefault();
+                const dx = e.touches[0].clientX - prevMouse.x;
+                const dy = e.touches[0].clientY - prevMouse.y;
+                rotX += dx * 0.005;
+                rotY += dy * 0.005;
+                rotY = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotY));
+                prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateAngleDisplay();
+            }, { passive: false });
+            container.addEventListener('touchend', () => {
+                if (isDragging) { isDragging = false; scheduleCapture(); }
+            });
+        }
+
+        function showLoading() { loading.classList.add('show'); }
+        function hideLoading() { loading.classList.remove('show'); }
+        function hideUpload() { uploadOverlay.classList.add('hidden'); }
+
+        function sendToParent(msg) {
+            try { window.parent.postMessage(msg, '*'); } catch (e) {}
+        }
+
+        function notifyReady() {
+            sendToParent({ type: 'DRAW_CANVAS_READY' });
+        }
+
+        window.addEventListener('message', (e) => {
+            const data = e.data;
+            if (!data || !data.type) return;
+            switch (data.type) {
+                case 'SET_PANORAMA':
+                    if (data.data && data.data.length > 0) {
+                        loadPanoramaFromDataURL('data:image/png;base64,' + data.data);
+                    }
+                    break;
+                case 'SET_OUTPUT_SIZE':
+                    if (data.width) outputWidth = data.width;
+                    if (data.height) outputHeight = data.height;
+                    updateViewerSize();
+                    break;
+                case 'INIT_CANVAS':
+                    if (data.width) outputWidth = data.width;
+                    if (data.height) outputHeight = data.height;
+                    updateViewerSize();
+                    break;
+            }
+        });
+
+        uploadBtn.addEventListener('click', () => { fileInput.click(); });
+        uploadArea.addEventListener('click', () => { fileInput.click(); });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) loadPanoramaFromFile(e.target.files[0]);
+        });
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files[0]) loadPanoramaFromFile(e.dataTransfer.files[0]);
+        });
+
+        resetBtn.addEventListener('click', resetView);
+
+        window.addEventListener('resize', () => {
+            if (!renderer) return;
+            updateViewerSize();
+        });
+
+        function init() {
+            initThreeJS();
+            setupInteraction();
+            notifyReady();
+        }
+        init();
+    </script>
+</body>
+</html>

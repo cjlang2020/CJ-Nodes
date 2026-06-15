@@ -71,6 +71,7 @@ CUSTOM_DISPLAY_NAMES = {
     "LlamaCppAPIRefreshPrompts": "Luy-刷新提示词模板",
     "VideoRotate90": "Luy-视频旋转90度(PIL)",
     "VideoRotate90Alt": "Luy-视频旋转90度(张量)",
+    "VR360Crop": "Luy-360全景裁剪",
     "AnimaStylePickerNode": "Luy-Anima画师风格选择",
     "CharacterPickerNode": "Luy-角色Tag选择",
 }
