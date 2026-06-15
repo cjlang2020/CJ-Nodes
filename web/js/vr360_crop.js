@@ -14,6 +14,7 @@ app.registerExtension({
                 this.cropData = "empty";
                 this._iframeReady = false;
                 this._resizeObserver = null;
+                this._pendingInputImage = null;
 
                 const cropDataWidget = this.widgets.find(w => w.name === "crop_data");
                 if (cropDataWidget) {
@@ -114,6 +115,13 @@ app.registerExtension({
                                     data: node.cropData,
                                 }, '*');
                             }
+                            if (this._pendingInputImage) {
+                                iframe.contentWindow.postMessage({
+                                    type: 'SET_PANORAMA',
+                                    data: this._pendingInputImage,
+                                }, '*');
+                                this._pendingInputImage = null;
+                            }
                             setTimeout(() => this.initResizeObserver(), 500);
                             break;
                         case 'CROP_DATA_UPDATE':
@@ -138,6 +146,22 @@ app.registerExtension({
                     window.removeEventListener('message', handleMessage);
                     if (this._resizeObserver) this._resizeObserver.disconnect();
                     if (origOnRemoved) origOnRemoved.apply(this, arguments);
+                };
+
+                const origOnExecuted = this.onExecuted;
+                this.onExecuted = function(message) {
+                    if (origOnExecuted) origOnExecuted.apply(this, arguments);
+                    if (message && message.vr360_input_image && message.vr360_input_image[0]) {
+                        const imgB64 = message.vr360_input_image[0];
+                        if (this._iframeReady && this.iframe && this.iframe.contentWindow) {
+                            this.iframe.contentWindow.postMessage({
+                                type: 'SET_PANORAMA',
+                                data: imgB64,
+                            }, '*');
+                        } else {
+                            this._pendingInputImage = imgB64;
+                        }
+                    }
                 };
 
                 this.setSize([600, 650]);

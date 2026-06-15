@@ -59,7 +59,7 @@ class VR360Crop:
             image_np = image_np[:, :, :3]
         image_tensor = torch.from_numpy(image_np).unsqueeze(0)
 
-        return (image_tensor,)
+        return {"result": (image_tensor,), "ui": {"vr360_input_image": [self._encode_input_image(image)] if image is not None else []}}
 
     def _center_crop_pil(self, tensor, w, h):
         if tensor.dim() == 4:
@@ -76,3 +76,15 @@ class VR360Crop:
         if cropped.size != (w, h):
             cropped = cropped.resize((w, h), Image.LANCZOS)
         return cropped
+
+    def _encode_input_image(self, tensor):
+        if tensor is None:
+            return ""
+        if tensor.dim() == 4:
+            img_np = (tensor[0].cpu().numpy() * 255).astype(np.uint8)
+        else:
+            img_np = (tensor.cpu().numpy() * 255).astype(np.uint8)
+        pil_img = Image.fromarray(img_np).convert("RGB")
+        buffered = BytesIO()
+        pil_img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
