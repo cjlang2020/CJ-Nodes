@@ -88,6 +88,20 @@
 			"mmproj": "GLM-OCR-GGUF\\mmproj-Q4_K_M.gguf",
 			"chat_handler": "GLM-4.6V",
 			"n_ctx": 8192
+		},
+		"Hy-MT2": {
+			"model": "Hy-MT2\\Hy-MT2-1.8B-Q4_K_M.gguf",
+			"mmproj": "",
+			"chat_handler": "None",
+			"n_ctx": 8192
+		},
+		"Qwen3-4B-abliterated.Q4_K_S": {
+			"model": "Qwen3-4B-abliterated.Q4_K_S.gguf",
+			"mmproj": "",
+			"chat_handler": "None",
+			"n_ctx": 8192
 		}
+
+
 	}
 }
