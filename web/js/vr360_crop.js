@@ -11,21 +11,14 @@ app.registerExtension({
                 const r = onNodeCreated ? onNodeCreated.apply(this, arguments) : undefined;
                 const node = this;
 
-                this.croppedData = "";
-                this.panoramaB64 = "";
+                this.cropData = "empty";
                 this._iframeReady = false;
                 this._resizeObserver = null;
 
-                const croppedWidget = this.widgets.find(w => w.name === "cropped_data");
-                if (croppedWidget) {
-                    croppedWidget.hidden = true;
-                    croppedWidget.value = this.croppedData;
-                }
-
-                const panoWidget = this.widgets.find(w => w.name === "panorama_b64");
-                if (panoWidget) {
-                    panoWidget.hidden = true;
-                    panoWidget.value = this.panoramaB64;
+                const cropDataWidget = this.widgets.find(w => w.name === "crop_data");
+                if (cropDataWidget) {
+                    cropDataWidget.hidden = true;
+                    cropDataWidget.value = this.cropData;
                 }
 
                 this.widthWidget = this.widgets.find(w => w.name === "output_width");
@@ -78,10 +71,10 @@ app.registerExtension({
                     "360全景裁剪",
                     iframe,
                     {
-                        getValue: () => node.croppedData || "",
+                        getValue: () => node.cropData || "empty",
                         setValue: (v) => {
-                            node.croppedData = v;
-                            if (croppedWidget) croppedWidget.value = v;
+                            node.cropData = v;
+                            if (cropDataWidget) cropDataWidget.value = v;
                         }
                     }
                 );
@@ -115,28 +108,23 @@ app.registerExtension({
                             const w = this.widthWidget?.value || 1024;
                             const h = this.heightWidget?.value || 512;
                             iframe.contentWindow.postMessage({type: 'SET_OUTPUT_SIZE', width: w, height: h}, '*');
-                            if (node.panoramaB64) {
+                            if (node.cropData && node.cropData !== "empty") {
                                 iframe.contentWindow.postMessage({
-                                    type: 'SET_PANORAMA',
-                                    data: node.panoramaB64,
+                                    type: 'SET_CROP_DATA',
+                                    data: node.cropData,
                                 }, '*');
                             }
                             setTimeout(() => this.initResizeObserver(), 500);
                             break;
                         case 'CROP_DATA_UPDATE':
-                            node.croppedData = data.data || "";
-                            if (croppedWidget) croppedWidget.value = node.croppedData;
-                            canvasWidget.value = node.croppedData;
-                            if (panoWidget && node.panoramaB64) {
-                                panoWidget.value = node.panoramaB64;
-                            }
+                            node.cropData = data.data;
+                            if (cropDataWidget) cropDataWidget.value = node.cropData;
+                            canvasWidget.value = node.cropData;
                             node.flags = node.flags || {};
                             node.flags.dirty = true;
                             if (app && app.graph) app.graph.setDirtyCanvas(true, true);
                             break;
                         case 'PANORAMA_UPLOADED':
-                            node.panoramaB64 = data.data || "";
-                            if (panoWidget) panoWidget.value = node.panoramaB64;
                             break;
                         case 'LOG':
                             console.log("[VR360Crop]", data.data);
@@ -154,23 +142,6 @@ app.registerExtension({
 
                 this.setSize([600, 650]);
                 return r;
-            };
-
-            const origOnExecuted = nodeType.prototype.onExecuted;
-            nodeType.prototype.onExecuted = function(message) {
-                if (origOnExecuted) origOnExecuted.apply(this, arguments);
-                if (message) {
-                    const panoB64 = message.panorama_b64 || (message.ui && message.ui.panorama_b64);
-                    if (panoB64) {
-                        this.panoramaB64 = panoB64;
-                        if (this._iframeReady && this.iframe && this.iframe.contentWindow) {
-                            this.iframe.contentWindow.postMessage({
-                                type: 'SET_PANORAMA',
-                                data: panoB64,
-                            }, '*');
-                        }
-                    }
-                }
             };
         }
     }

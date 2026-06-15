@@ -55,7 +55,6 @@
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%,-50%);
             z-index: 150; display: none;
-            text-align: center;
         }
         #loading.show { display: block; }
         .spinner {
@@ -94,8 +93,12 @@
             white-space: nowrap;
         }
         .tb-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
-        #angle-display {
+        #status-display {
             margin-left: auto;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+        }
+        #angle-display {
             font-size: 11px;
             color: rgba(255,255,255,0.5);
             font-variant-numeric: tabular-nums;
@@ -122,14 +125,13 @@
         </div>
     </div>
 
-    <div id="loading">
-        <div class="spinner"></div>
-    </div>
+    <div id="loading"><div class="spinner"></div></div>
 
     <div id="toolbar">
         <button class="tb-btn" id="upload-btn">📁 上传</button>
         <button class="tb-btn" id="reset-btn">⟲ 重置</button>
         <span id="angle-display">H: 0°  V: 0°  FOV: 75°</span>
+        <span id="status-display"></span>
     </div>
 
     <div id="viewer-container">
@@ -154,26 +156,21 @@
         const uploadBtn = document.getElementById('upload-btn');
         const resetBtn = document.getElementById('reset-btn');
         const angleDisplay = document.getElementById('angle-display');
+        const statusDisplay = document.getElementById('status-display');
 
         function updateViewerSize() {
             const container = document.getElementById('viewer-container');
             const availW = container.clientWidth;
             const availH = container.clientHeight;
             if (availW < 1 || availH < 1) return;
-
             const targetRatio = outputWidth / outputHeight;
             let dispW = availW;
             let dispH = availW / targetRatio;
-            if (dispH > availH) {
-                dispH = availH;
-                dispW = availH * targetRatio;
-            }
+            if (dispH > availH) { dispH = availH; dispW = availH * targetRatio; }
             dispW = Math.round(dispW);
             dispH = Math.round(dispH);
-
             camera.aspect = targetRatio;
             camera.updateProjectionMatrix();
-
             renderer.setSize(dispW, dispH);
             viewerCanvas.style.left = Math.round((availW - dispW) / 2) + 'px';
             viewerCanvas.style.top = Math.round((availH - dispH) / 2) + 'px';
@@ -183,7 +180,6 @@
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(fov, 1, 0.1, 1000);
             camera.position.set(0, 0, 0);
-
             renderer = new THREE.WebGLRenderer({
                 canvas: viewerCanvas,
                 antialias: true,
@@ -192,16 +188,12 @@
             });
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             updateViewerSize();
-
             const geometry = new THREE.SphereGeometry(500, 60, 40);
-            geometry.scale(-1, 1, 1);
             const material = new THREE.MeshBasicMaterial({
-                color: 0x222222,
-                side: THREE.FrontSide,
+                color: 0x222222, side: THREE.BackSide,
             });
             sphere = new THREE.Mesh(geometry, material);
             scene.add(sphere);
-
             animate();
         }
 
@@ -221,14 +213,12 @@
                 const texture = new THREE.Texture(img);
                 texture.needsUpdate = true;
                 sphere.material = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    side: THREE.FrontSide,
+                    map: texture, side: THREE.BackSide,
                 });
                 hasPanorama = true;
-                resetView();
                 hideUpload();
                 renderer.render(scene, camera);
-                setTimeout(() => doAutoCapture(), 300);
+                setTimeout(sendCapture, 300);
             };
             img.src = dataURL;
         }
@@ -239,21 +229,18 @@
             const reader = new FileReader();
             reader.onload = (e) => {
                 const dataURL = e.target.result;
-                const b64 = dataURL.split(',')[1];
                 loadPanoramaFromDataURL(dataURL);
-                sendToParent({ type: 'PANORAMA_UPLOADED', data: b64 });
+                sendToParent({ type: 'PANORAMA_UPLOADED', data: e.target.result.split(',')[1] });
                 hideLoading();
             };
-            reader.onerror = () => { hideLoading(); };
+            reader.onerror = () => hideLoading();
             reader.readAsDataURL(file);
         }
 
         function resetView() {
-            rotX = 0;
-            rotY = 0;
-            fov = 75;
+            rotX = 0; rotY = 0; fov = 75;
             updateAngleDisplay();
-            scheduleCapture();
+            sendCapture();
         }
 
         function updateAngleDisplay() {
@@ -263,32 +250,44 @@
         }
 
         function captureViewport(w, h) {
-            if (!hasPanorama) return '';
+            if (!hasPanorama) return null;
+
+            const origW = parseInt(renderer.domElement.style.width) || viewerCanvas.clientWidth;
+            const origH = parseInt(renderer.domElement.style.height) || viewerCanvas.clientHeight;
+            const origPR = renderer.getPixelRatio();
+
+            renderer.setPixelRatio(1);
+            renderer.setSize(w, h);
             renderer.render(scene, camera);
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = w;
-            tempCanvas.height = h;
-            const ctx = tempCanvas.getContext('2d');
+
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const ctx = c.getContext('2d');
             ctx.drawImage(renderer.domElement, 0, 0, w, h);
-            return tempCanvas.toDataURL('image/png');
+            const imgData = ctx.getImageData(0, 0, w, h);
+            for (let i = 3; i < imgData.data.length; i += 4) {
+                imgData.data[i] = 255;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            const dataURL = c.toDataURL('image/png');
+
+            renderer.setPixelRatio(origPR);
+            renderer.setSize(origW, origH);
+            renderer.render(scene, camera);
+
+            return dataURL;
         }
 
-        let captureTimer = null;
-        function scheduleCapture() {
-            if (captureTimer) clearTimeout(captureTimer);
-            captureTimer = setTimeout(() => {
-                captureTimer = null;
-                doAutoCapture();
-            }, 200);
-        }
-
-        function doAutoCapture() {
+        function sendCapture() {
             if (!hasPanorama) return;
             const dataURL = captureViewport(outputWidth, outputHeight);
-            if (!dataURL || dataURL.length < 200) return;
+            if (!dataURL) return;
             const b64 = dataURL.split(',')[1];
-            if (!b64 || b64.length < 50) return;
-            sendToParent({ type: 'CROP_DATA_UPDATE', data: b64 });
+            if (!b64 || b64.length < 100) return;
+            const cropObj = JSON.stringify({ image_base64: dataURL });
+            statusDisplay.textContent = '✅ 已发送';
+            setTimeout(() => { statusDisplay.textContent = ''; }, 1500);
+            sendToParent({ type: 'CROP_DATA_UPDATE', data: cropObj });
         }
 
         function setupInteraction() {
@@ -300,29 +299,28 @@
             });
             container.addEventListener('mousemove', (e) => {
                 if (!hasPanorama || !isDragging) return;
-                const dx = e.clientX - prevMouse.x;
-                const dy = e.clientY - prevMouse.y;
-                rotX += dx * 0.005;
-                rotY += dy * 0.005;
+                rotX += (e.clientX - prevMouse.x) * 0.005;
+                rotY += (e.clientY - prevMouse.y) * 0.005;
                 rotY = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotY));
                 prevMouse = { x: e.clientX, y: e.clientY };
                 updateAngleDisplay();
             });
             container.addEventListener('mouseup', () => {
-                if (isDragging) { isDragging = false; scheduleCapture(); }
+                if (isDragging) { isDragging = false; sendCapture(); }
             });
             container.addEventListener('mouseleave', () => {
-                if (isDragging) { isDragging = false; scheduleCapture(); }
+                if (isDragging) { isDragging = false; sendCapture(); }
             });
+            let wheelTimer = null;
             container.addEventListener('wheel', (e) => {
                 if (!hasPanorama) return;
                 e.preventDefault();
                 fov += e.deltaY * 0.05;
                 fov = Math.max(minFov, Math.min(maxFov, fov));
                 updateAngleDisplay();
-                scheduleCapture();
+                clearTimeout(wheelTimer);
+                wheelTimer = setTimeout(sendCapture, 150);
             }, { passive: false });
-
             container.addEventListener('touchstart', (e) => {
                 if (!hasPanorama || e.touches.length !== 1) return;
                 isDragging = true;
@@ -331,29 +329,22 @@
             container.addEventListener('touchmove', (e) => {
                 if (!hasPanorama || !isDragging || e.touches.length !== 1) return;
                 e.preventDefault();
-                const dx = e.touches[0].clientX - prevMouse.x;
-                const dy = e.touches[0].clientY - prevMouse.y;
-                rotX += dx * 0.005;
-                rotY += dy * 0.005;
+                rotX += (e.touches[0].clientX - prevMouse.x) * 0.005;
+                rotY += (e.touches[0].clientY - prevMouse.y) * 0.005;
                 rotY = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, rotY));
                 prevMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
                 updateAngleDisplay();
             }, { passive: false });
             container.addEventListener('touchend', () => {
-                if (isDragging) { isDragging = false; scheduleCapture(); }
+                if (isDragging) { isDragging = false; sendCapture(); }
             });
         }
 
         function showLoading() { loading.classList.add('show'); }
         function hideLoading() { loading.classList.remove('show'); }
         function hideUpload() { uploadOverlay.classList.add('hidden'); }
-
         function sendToParent(msg) {
             try { window.parent.postMessage(msg, '*'); } catch (e) {}
-        }
-
-        function notifyReady() {
-            sendToParent({ type: 'DRAW_CANVAS_READY' });
         }
 
         window.addEventListener('message', (e) => {
@@ -361,15 +352,10 @@
             if (!data || !data.type) return;
             switch (data.type) {
                 case 'SET_PANORAMA':
-                    if (data.data && data.data.length > 0) {
+                    if (data.data && data.data.length > 0)
                         loadPanoramaFromDataURL('data:image/png;base64,' + data.data);
-                    }
                     break;
                 case 'SET_OUTPUT_SIZE':
-                    if (data.width) outputWidth = data.width;
-                    if (data.height) outputHeight = data.height;
-                    updateViewerSize();
-                    break;
                 case 'INIT_CANVAS':
                     if (data.width) outputWidth = data.width;
                     if (data.height) outputHeight = data.height;
@@ -378,37 +364,23 @@
             }
         });
 
-        uploadBtn.addEventListener('click', () => { fileInput.click(); });
-        uploadArea.addEventListener('click', () => { fileInput.click(); });
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', (e) => {
             if (e.target.files[0]) loadPanoramaFromFile(e.target.files[0]);
         });
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
         uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('dragover');
+            e.preventDefault(); uploadArea.classList.remove('dragover');
             if (e.dataTransfer.files[0]) loadPanoramaFromFile(e.dataTransfer.files[0]);
         });
-
         resetBtn.addEventListener('click', resetView);
+        window.addEventListener('resize', () => { if (renderer) updateViewerSize(); });
 
-        window.addEventListener('resize', () => {
-            if (!renderer) return;
-            updateViewerSize();
-        });
-
-        function init() {
-            initThreeJS();
-            setupInteraction();
-            notifyReady();
-        }
-        init();
+        initThreeJS();
+        setupInteraction();
+        sendToParent({ type: 'DRAW_CANVAS_READY' });
     </script>
 </body>
 </html>
