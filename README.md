@@ -2,6 +2,9 @@
 
 个人整合的 ComfyUI 自定义节点插件，包含提示词管理、AI 模型调用、图片/视频处理、镜头控制等实用功能，以及便捷的文件管理面板。
 
+
+注意：一定要安装llama-cpp-python依赖，不然会报错，下载地址：https://github.com/JamePeng/llama-cpp-python/releases 这里找对应pyhton版本就行。
+
 ---
 
 ## 目录
