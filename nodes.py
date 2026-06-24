@@ -32,6 +32,7 @@ CUSTOM_DISPLAY_NAMES = {
     "LuyLoraLoaderModelOnlyQWENEDIT": "Luy-加载lora模型(QWEN-EDIT)",
     "LuyLoraLoaderModelOnlyByDir":"Luy-通过目录加载lora模型",
     "UpdateLoraMetaData":"Luy-更新元数据",
+    "LoraLoaderWithTrigger":"Luy-Lora加载器（带触发词）",
     "QwenEditAddLlamaTemplate":"Luy-千问编码器",
     "ImageDeal":"Luy-Qwen3-VL图片反推",
     "ChatDeal":"Luy-GPT语言大模型",
