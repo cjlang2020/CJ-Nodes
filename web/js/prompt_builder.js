@@ -250,6 +250,7 @@ function buildCanvasEditor(node) {
     function logW() { return canvas.offsetWidth || 1; }
     function logH() { return canvas.offsetHeight || 1; }
     function mouseN(e) { const r = canvas.getBoundingClientRect(); return { x: (e.clientX-r.left)/r.width, y: (e.clientY-r.top)/r.height }; }
+    function mouseNClamped(e) { const r = canvas.getBoundingClientRect(); return { x: Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)), y: Math.max(0,Math.min(1,(e.clientY-r.top)/r.height)) }; }
     function toPx(b) { const W=logW(),H=logH(); return {x1:b.x*W,y1:b.y*H,x2:(b.x+b.w)*W,y2:(b.y+b.h)*H}; }
 
     function boxesAt(mN) {
@@ -350,27 +351,27 @@ function buildCanvasEditor(node) {
             s.activeRegion=hit.index; dragMode=hit.mode;
             boxStart={...s.regions[hit.index]}; dragStart=mN;
         } else {
-            const nb={x:mN.x,y:mN.y,w:0,h:0,type:"obj",text:"",desc:"",palette:[]};
+            const nb={x:Math.max(0,Math.min(1,mN.x)),y:Math.max(0,Math.min(1,mN.y)),w:0,h:0,type:"obj",text:"",desc:"",palette:[]};
             s.regions.push(nb); s.activeRegion=s.regions.length-1;
             dragMode="draw"; boxStart={...nb}; dragStart=mN;
         }
         drawing=true;
-        canvas.addEventListener("pointermove",onMove);
-        canvas.addEventListener("pointerup",onUp);
+        document.addEventListener("pointermove",onMove);
+        document.addEventListener("pointerup",onUp);
         e.preventDefault();
     });
 
     function onMove(e){
         if(!drawing)return;
-        const mN=mouseN(e);
+        const mN=mouseNClamped(e);
         const dx=mN.x-dragStart.x,dy=mN.y-dragStart.y;
         s.regions[s.activeRegion]=normBox(applyDrag(dragMode,boxStart,dx,dy));
         draw(); syncPreview(node); syncTokens(node);
     }
     function onUp(){
         drawing=false;
-        canvas.removeEventListener("pointermove",onMove);
-        canvas.removeEventListener("pointerup",onUp);
+        document.removeEventListener("pointermove",onMove);
+        document.removeEventListener("pointerup",onUp);
         const b=s.regions[s.activeRegion];
         if(b&&(b.w<0.005||b.h<0.005)&&dragMode==="draw"){s.regions.splice(s.activeRegion,1);s.activeRegion=Math.min(s.activeRegion,s.regions.length-1);}
         dragMode=null;boxStart=null;dragStart=null;
@@ -483,14 +484,11 @@ function buildUI(node) {
     // Preset sizes dropdown
     const presetSizes=[
         {label:"1:1 (1024×1024)",w:1024,h:1024},
-        {label:"16:9 (1360×768)",w:1360,h:768},
-        {label:"9:16 (768×1360)",w:768,h:1360},
         {label:"4:3 (1152×896)",w:1152,h:896},
-        {label:"3:4 (896×1152)",w:896,h:1152},
         {label:"3:2 (1216×832)",w:1216,h:832},
-        {label:"2:3 (832×1216)",w:832,h:1216},
+        {label:"16:9 (1360×768)",w:1360,h:768},
         {label:"21:9 (1504×640)",w:1504,h:640},
-        {label:"9:21 (640×1504)",w:640,h:1504},
+        {label:"16:9 (1920×1080)",w:1920,h:1080}
     ];
     const sizeDropdown=document.createElement("div");sizeDropdown.className="cj-pb-dw";
     const sizeBtn=document.createElement("button");sizeBtn.className="cj-pb-db";sizeBtn.textContent="\u25BC";sizeBtn.title="预设尺寸";
