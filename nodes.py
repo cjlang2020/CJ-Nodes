@@ -74,7 +74,7 @@ CUSTOM_DISPLAY_NAMES = {
     "VR360Crop": "Luy-360全景裁剪",
     "AnimaStylePickerNode": "Luy-Anima画师风格选择",
     "CharacterPickerNode": "Luy-角色Tag选择",
-    "PromptBuilderNode": "Luy-提示词构建器",
+    "PromptBuilderNode": "Luy-Ideogram4提示词",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）

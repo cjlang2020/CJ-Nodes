@@ -112,7 +112,7 @@ function injectStyles() {
     s.textContent = `
         .cj-pb{display:flex;flex-direction:column;gap:4px;padding:4px;font:12px sans-serif;color:#ccc;overflow-y:auto}
         .cj-pb-r{display:flex;align-items:center;gap:6px}
-        .cj-pb-l{width:80px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .cj-pb-l{width:80px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .cj-pb-i{flex:1;min-width:0;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:3px 6px;outline:none}
         .cj-pb-i:focus{border-color:#46b4e6}
         .cj-pb-i.cj-pb-ml{min-height:36px;resize:vertical;font-family:monospace;line-height:1.4}
@@ -128,10 +128,11 @@ function injectStyles() {
         .cj-pb-btn.act{border-color:#46b4e6;color:#46b4e6;background:#2a3a42}
         .cj-pb-num{width:60px;flex:0 0 auto;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:2px 4px;outline:none;text-align:center}
         .cj-pb-num:focus{border-color:#46b4e6}
-        .cj-pb-cv{flex:1 1 auto;min-height:80px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;background:#111}
+        .cj-pb-cv{flex:1 1 auto;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;position:relative;background:#111}
         .cj-pb-canvas{cursor:crosshair;display:block;flex:0 0 auto;background:#1a1a1a;border-radius:4px;outline:none;touch-action:none;min-width:100px;min-height:80px}
         .cj-pb-sw{width:16px;height:16px;border:1px solid #666;border-radius:3px;cursor:pointer;flex:0 0 auto}
         .cj-pb-pv{background:#1d1d1d;border:1px solid #333;border-radius:4px;padding:4px 6px;font:10px monospace;color:#aaa;white-space:pre-wrap;max-height:80px;overflow-y:auto;line-height:1.3}
+        .cj-pb-panel{width:100%;box-sizing:border-box;background:#1d1d1d;border:1px solid #444;border-radius:4px;padding:6px 8px;font:11px sans-serif;color:#bbb;min-height:32px;max-height:100px;overflow-y:auto}
     `;
     document.head.appendChild(s);
 }
@@ -181,6 +182,7 @@ function sync() {
     syncPreview(node); saveState(node);
     if (app?.graph) app.graph.setDirtyCanvas(true, true);
 }
+function syncTokens(node) {} // placeholder for token counting
 function saveState(node) {
     const w = node.widgets?.find((w) => w.name === "prompt_data");
     if (w) w.value = JSON.stringify(node._pb);
@@ -373,6 +375,7 @@ function buildCanvasEditor(node) {
         if(b&&(b.w<0.005||b.h<0.005)&&dragMode==="draw"){s.regions.splice(s.activeRegion,1);s.activeRegion=Math.min(s.activeRegion,s.regions.length-1);}
         dragMode=null;boxStart=null;dragStart=null;
         draw(); sync();
+        renderRegionPanel(node);
     }
 
     canvas.addEventListener("keydown",(e)=>{
@@ -382,6 +385,7 @@ function buildCanvasEditor(node) {
                 s.regions.splice(s.activeRegion,1);
                 s.activeRegion=Math.min(s.activeRegion,s.regions.length-1);
                 draw();sync();
+                renderRegionPanel(node);
             }
         }
     });
@@ -392,6 +396,77 @@ function buildCanvasEditor(node) {
     return cvWrap;
 }
 
+function renderRegionPanel(node) {
+    const s = node._pb;
+    const panel = node._pbPanel;
+    if (!panel) return;
+    panel.innerHTML = "";
+    const b = s.regions[s.activeRegion];
+    if (!b) {
+        const hint = document.createElement("div");
+        hint.style.color = "#888";
+        hint.textContent = s.regions.length ? "点击区域进行编辑" : "暂无区域";
+        panel.appendChild(hint);
+        return;
+    }
+    const col = COLORS[s.activeRegion % COLORS.length] || "#bbb";
+    // Header
+    const hdr = document.createElement("div");
+    hdr.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:4px;";
+    const tag = document.createElement("span");
+    tag.style.cssText = `font-weight:bold;color:${col};`;
+    tag.textContent = "区域 " + (s.activeRegion + 1);
+    hdr.appendChild(tag);
+    // Type toggle
+    const typeGrp = document.createElement("div");
+    typeGrp.style.cssText = "display:flex;gap:4px;";
+    const typeLabels = { "obj": "物体", "text": "文字" };
+    for (const t of ["obj", "text"]) {
+        const btn = document.createElement("button");
+        btn.className = "cj-pb-btn" + (b.type === t ? " act" : "");
+        btn.textContent = typeLabels[t] || t;
+        btn.addEventListener("click", () => { b.type = t; renderRegionPanel(node); sync(); });
+        typeGrp.appendChild(btn);
+    }
+    hdr.appendChild(typeGrp);
+    // Delete button
+    const delBtn = document.createElement("button");
+    delBtn.className = "cj-pb-btn";
+    delBtn.textContent = "删除";
+    delBtn.style.cssText = "margin-left:auto;";
+    delBtn.addEventListener("click", () => {
+        s.regions.splice(s.activeRegion, 1);
+        s.activeRegion = Math.min(s.activeRegion, s.regions.length - 1);
+        renderRegionPanel(node);
+        node._cvDraw?.();
+        sync();
+    });
+    hdr.appendChild(delBtn);
+    panel.appendChild(hdr);
+    // Text (only for text type)
+    if (b.type === "text") {
+        const textRow = document.createElement("div"); textRow.className = "cj-pb-r";
+        const textLbl = document.createElement("span"); textLbl.className = "cj-pb-l"; textLbl.textContent = "文本:";
+        const textInp = document.createElement("input");
+        textInp.className = "cj-pb-i";
+        textInp.value = b.text || "";
+        textInp.placeholder = "要渲染的文本";
+        textInp.addEventListener("input", () => { b.text = textInp.value; node._cvDraw?.(); sync(); });
+        textRow.append(textLbl, textInp);
+        panel.appendChild(textRow);
+    }
+    // Description
+    const descRow = document.createElement("div"); descRow.className = "cj-pb-r";
+    const descLbl = document.createElement("span"); descLbl.className = "cj-pb-l"; descLbl.textContent = "描述:";
+    const descInp = document.createElement("input");
+    descInp.className = "cj-pb-i";
+    descInp.value = b.desc || "";
+    descInp.placeholder = "区域描述";
+    descInp.addEventListener("input", () => { b.desc = descInp.value; node._cvDraw?.(); sync(); });
+    descRow.append(descLbl, descInp);
+    panel.appendChild(descRow);
+}
+
 function buildUI(node) {
     const s=node._pb;
     const wrap=document.createElement("div");wrap.className="cj-pb";
@@ -400,10 +475,39 @@ function buildUI(node) {
     const dimR=mkRow("尺寸:","画布尺寸");
     const wInp=document.createElement("input");wInp.className="cj-pb-num";wInp.type="number";wInp.min="64";wInp.max="16384";wInp.step="16";wInp.value=s.width;
     wInp.addEventListener("input",()=>{s.width=parseInt(wInp.value)||1024;node._cvFit?.();sync();});
-    const xL=document.createElement("span");xL.textContent="\u00D7";xL.style.color="#666";
+    // Swap button
+    const swapBtn=document.createElement("button");swapBtn.className="cj-pb-btn";swapBtn.textContent="\u21C4";swapBtn.title="交换宽高";
+    swapBtn.addEventListener("click",()=>{const tmp=s.width;s.width=s.height;s.height=tmp;wInp.value=s.width;hInp.value=s.height;node._cvFit?.();sync();});
     const hInp=document.createElement("input");hInp.className="cj-pb-num";hInp.type="number";hInp.min="64";hInp.max="16384";hInp.step="16";hInp.value=s.height;
     hInp.addEventListener("input",()=>{s.height=parseInt(hInp.value)||1024;node._cvFit?.();sync();});
-    dimR.append(wInp,xL,hInp);wrap.appendChild(dimR);
+    // Preset sizes dropdown
+    const presetSizes=[
+        {label:"1:1 (1024×1024)",w:1024,h:1024},
+        {label:"16:9 (1360×768)",w:1360,h:768},
+        {label:"9:16 (768×1360)",w:768,h:1360},
+        {label:"4:3 (1152×896)",w:1152,h:896},
+        {label:"3:4 (896×1152)",w:896,h:1152},
+        {label:"3:2 (1216×832)",w:1216,h:832},
+        {label:"2:3 (832×1216)",w:832,h:1216},
+        {label:"21:9 (1504×640)",w:1504,h:640},
+        {label:"9:21 (640×1504)",w:640,h:1504},
+    ];
+    const sizeDropdown=document.createElement("div");sizeDropdown.className="cj-pb-dw";
+    const sizeBtn=document.createElement("button");sizeBtn.className="cj-pb-db";sizeBtn.textContent="\u25BC";sizeBtn.title="预设尺寸";
+    const sizeList=document.createElement("div");sizeList.className="cj-pb-dd";
+    function buildSizeList(){
+        sizeList.innerHTML="";
+        for(const p of presetSizes){
+            const item=document.createElement("div");item.className="cj-pb-di";
+            item.textContent=p.label;
+            item.addEventListener("click",(e)=>{e.stopPropagation();s.width=p.w;s.height=p.h;wInp.value=p.w;hInp.value=p.h;node._cvFit?.();sync();sizeList.classList.remove("open");});
+            sizeList.appendChild(item);
+        }
+    }
+    buildSizeList();
+    sizeBtn.addEventListener("click",(e)=>{e.stopPropagation();const was=sizeList.classList.contains("open");document.querySelectorAll(".cj-pb-dd.open").forEach(x=>x.classList.remove("open"));if(!was){buildSizeList();sizeList.classList.add("open");}});
+    sizeDropdown.append(sizeBtn,sizeList);
+    dimR.append(wInp,swapBtn,hInp,sizeDropdown);wrap.appendChild(dimR);
 
     // style
     const stR=mkRow("风格:","");
@@ -413,7 +517,14 @@ function buildUI(node) {
     photoR.appendChild(photoI);photoR.appendChild(mkDropdown(PRESETS.photo_style,v=>{photoI.value=v;s.photo_style=v;sync();}));
     const artI=mkInp(s.art_style||"",false,"");artI.addEventListener("input",()=>{s.art_style=artI.value;sync();});
     artR.appendChild(artI);artR.appendChild(mkDropdown(PRESETS.art_style,v=>{artI.value=v;s.art_style=v;sync();}));
-    function updStyle(t){s.style=t;photoR.style.display=t==="photo"?"flex":"none";artR.style.display=t==="art_style"?"flex":"none";}
+    function updStyle(t){
+        s.style=t;
+        photoR.style.display=t==="photo"?"flex":"none";
+        artR.style.display=t==="art_style"?"flex":"none";
+        if(t!=="photo"){s.photo_style="";photoI.value="";}
+        if(t!=="art_style"){s.art_style="";artI.value="";}
+        sync();
+    }
     for(const t of["none","photo","art_style"]){const b=document.createElement("button");b.className="cj-pb-btn"+(s.style===t?" act":"");b.textContent=t;b.addEventListener("click",()=>{stGrp.querySelectorAll(".cj-pb-btn").forEach(x=>x.classList.remove("act"));b.classList.add("act");updStyle(t);sync();});stGrp.appendChild(b);}
     stR.appendChild(stGrp);wrap.appendChild(stR);wrap.appendChild(photoR);wrap.appendChild(artR);
 
@@ -455,6 +566,11 @@ function buildUI(node) {
     buildScpSwatches();
     scpR.appendChild(scpSwatches);wrap.appendChild(scpR);
 
+    // region edit panel (standalone row)
+    const regionPanel = document.createElement("div"); regionPanel.className = "cj-pb-panel";
+    node._pbPanel = regionPanel;
+    wrap.appendChild(regionPanel);
+
     // canvas only (no splitter/bottom panel)
     const cvWrap=buildCanvasEditor(node);
     wrap.appendChild(cvWrap);
@@ -481,6 +597,7 @@ function rebuildAll(node) {
     node._pbBuildScpSwatches?.();
     node._cvDraw?.();
     syncPreview(node);
+    renderRegionPanel(node);
 }
 
 function chainCallback(obj,prop,cb){const old=obj[prop];obj[prop]=function(...args){const r=old?.apply(this,args);cb.apply(this,args);return r;};}

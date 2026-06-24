@@ -13,8 +13,8 @@ class PromptBuilderNode:
             }
         }
 
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("prompt_json", "prompt_text", "preview_text")
+    RETURN_TYPES = ("STRING", "INT", "INT")
+    RETURN_NAMES = ("prompt_json", "width", "height")
     FUNCTION = "build_prompt"
     CATEGORY = "luy/提示词"
 
@@ -31,22 +31,16 @@ class PromptBuilderNode:
         art_style = data.get("art_style", "")
         regions = data.get("regions", [])
         style_color_palette = data.get("style_color_palette", [])
+        width = int(data.get("width", 1024))
+        height = int(data.get("height", 1024))
 
-        prompt_text = self._build_text(
-            high_level_description, background, style,
-            aesthetics, lighting, medium, photo_style, art_style, regions
-        )
         prompt_json = self._build_json(
             high_level_description, background,
             style, aesthetics, lighting, medium,
-            photo_style, art_style, regions, style_color_palette
+            photo_style, art_style, regions, style_color_palette,
+            width, height
         )
-        preview_text = self._build_preview(
-            high_level_description, background,
-            style, aesthetics, lighting, medium,
-            photo_style, art_style, regions
-        )
-        return (prompt_json, prompt_text, preview_text)
+        return (prompt_json, width, height)
 
     def _parse(self, raw):
         if not raw:
@@ -84,7 +78,8 @@ class PromptBuilderNode:
 
     def _build_json(self, high_level_description, background,
                     style, aesthetics, lighting, medium,
-                    photo_style, art_style, regions, style_color_palette):
+                    photo_style, art_style, regions, style_color_palette,
+                    width=1024, height=1024):
         out = {}
 
         if high_level_description.strip():
