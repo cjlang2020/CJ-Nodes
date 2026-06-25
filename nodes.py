@@ -64,7 +64,7 @@ CUSTOM_DISPLAY_NAMES = {
     "DrawPhotoNode":"Luy-图片绘画节点",
     "ImageDesign":"Luy-图片设计节点",
     "ImageEditNode":"Luy-图片编辑节点",
-    "llama_run_lite":"Luy-反推Lite",
+    "llama_run_lite":"Luy-AI反推Lite",
     "llama_run_simple":"Luy-LlamaCpp反推(简化版)",
     "SDXLPromptPickerNode": "Luy-SDXL角色提示词",
     "LuySaveImage": "Luy-保存图片到本地",
@@ -76,6 +76,7 @@ CUSTOM_DISPLAY_NAMES = {
     "AnimaStylePickerNode": "Luy-Anima画师风格选择",
     "CharacterPickerNode": "Luy-角色Tag选择",
     "PromptBuilderNode": "Luy-Ideogram4提示词",
+    "ImageMerge": "Luy-图片合并",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）

@@ -34,7 +34,7 @@ app.registerExtension({
       new ComfyButton({
         icon: "folder-open",
         tooltip: "打开workflows文件夹",
-        content: "流程管理",
+        content: "Workflows目录",
         classList: "comfyui-button cj-menu-btn",
         action: async () => {
           await fetch("/CJ-Nodes/api/open-directory", {

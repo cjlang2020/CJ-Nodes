@@ -14,7 +14,7 @@ app.registerExtension({
       new ComfyButton({
         icon: "folder-open",
         tooltip: "打开output文件夹",
-        content: "本地资源",
+        content: "Output图片",
         classList: "comfyui-button cj-menu-btn-green",
         action: async () => {
           await fetch("/CJ-Nodes/api/open-directory", {
