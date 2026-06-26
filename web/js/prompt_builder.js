@@ -292,13 +292,17 @@ function buildCanvasEditor(node) {
             ctx.font="bold 10px monospace"; const tw=ctx.measureText(tag).width+6;
             ctx.fillStyle=col; ctx.fillRect(x1,y1,tw,13);
             ctx.fillStyle=active?"#000":textOn(col); ctx.fillText(tag,x1+3,y1+10);
-            // desc text clipped
+            // desc text clipped - 居中显示
             if(b.desc||b.text){
                 ctx.save(); ctx.beginPath(); ctx.rect(x1,y1,w,h); ctx.clip();
                 ctx.font="10px monospace"; ctx.fillStyle=readableText(col);
                 let body=b.type==="text"&&b.text?`"${b.text}" ${b.desc||""}`:b.desc||"";
                 const lines=wrapText(ctx,body,w-8);
-                let ty=y1+14; for(const ln of lines){if(ty>y2-2)break;ctx.fillText(ln,x1+4,ty);ty+=12;}
+                const lineHeight=12;
+                const totalH=lines.length*lineHeight;
+                let ty=y1+(h-totalH)/2+lineHeight;
+                ctx.textAlign="center";
+                for(const ln of lines){if(ty>y2-2)break;ctx.fillText(ln,x1+w/2,ty);ty+=lineHeight;}
                 ctx.restore();
             }
             // handles when active
