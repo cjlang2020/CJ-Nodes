@@ -129,7 +129,7 @@ function injectStyles() {
         .cj-pb-num{width:60px;flex:0 0 auto;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:2px 4px;outline:none;text-align:center}
         .cj-pb-num:focus{border-color:#46b4e6}
         .cj-pb-cv{flex:1 1 auto;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;position:relative;background:#111}
-        .cj-pb-canvas{cursor:crosshair;display:block;flex:0 0 auto;background:#1a1a1a;border-radius:4px;outline:none;touch-action:none;min-width:100px;min-height:80px}
+        .cj-pb-canvas{cursor:crosshair;display:block;flex:0 0 auto;background:#CCCCCC;border-radius:4px;outline:none;touch-action:none;min-width:100px;min-height:80px}
         .cj-pb-sw{width:16px;height:16px;border:1px solid #666;border-radius:3px;cursor:pointer;flex:0 0 auto}
         .cj-pb-pv{background:#1d1d1d;border:1px solid #333;border-radius:4px;padding:4px 6px;font:10px monospace;color:#aaa;white-space:pre-wrap;max-height:80px;overflow-y:auto;line-height:1.3}
         .cj-pb-panel{width:100%;box-sizing:border-box;background:#1d1d1d;border:1px solid #444;border-radius:4px;padding:6px 8px;font:11px sans-serif;color:#bbb;min-height:32px;max-height:100px;overflow-y:auto}
@@ -273,9 +273,9 @@ function buildCanvasEditor(node) {
         if(canvas.width!==bw||canvas.height!==bh){canvas.width=bw;canvas.height=bh;}
         ctx.setTransform(d,0,0,d,0,0);
         ctx.clearRect(0,0,W,H);
-        ctx.fillStyle="#1a1a1a"; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle="#CCCCCC"; ctx.fillRect(0,0,W,H);
         // grid
-        ctx.strokeStyle="rgba(255,255,255,0.06)"; ctx.lineWidth=1;
+        ctx.strokeStyle="rgba(0,0,0,0.1)"; ctx.lineWidth=1;
         for(let i=1;i<4;i++){const fx=i/4;ctx.beginPath();ctx.moveTo(fx*W,0);ctx.lineTo(fx*W,H);ctx.stroke();ctx.beginPath();ctx.moveTo(0,fx*H);ctx.lineTo(W,fx*H);ctx.stroke();}
         // regions
         for(let i=0;i<s.regions.length;i++){
@@ -607,7 +607,7 @@ app.registerExtension({
         injectStyles();
         chainCallback(nodeType.prototype,"onNodeCreated",function(){
             const node=this;currentNode=node;
-            node._pb={width:1024,height:1024,high_level_description:"",background:"",style:"none",aesthetics:"",lighting:"",medium:"",photo_style:"",art_style:"",style_color_palette:[],regions:[],activeRegion:-1};
+            node._pb={width:1360,height:768,high_level_description:"",background:"",style:"none",aesthetics:"",lighting:"",medium:"",photo_style:"",art_style:"",style_color_palette:[],regions:[],activeRegion:-1};
             const pdW=node.widgets?.find(w=>w.name==="prompt_data");
             if(pdW){pdW.hidden=true;pdW.computeSize=()=>[0,-4];if(pdW.value){try{const d=JSON.parse(pdW.value);Object.assign(node._pb,d);if(!node._pb.regions)node._pb.regions=[];if(node._pb.activeRegion==null)node._pb.activeRegion=-1;}catch(e){}}}
             buildUI(node);

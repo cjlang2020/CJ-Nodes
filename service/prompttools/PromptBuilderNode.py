@@ -101,7 +101,7 @@ class PromptBuilderNode:
         for rg in regions:
             elem = {"type": rg.get("type", "obj")}
             x, y, w, h = rg.get("x", 0), rg.get("y", 0), rg.get("w", 0), rg.get("h", 0)
-            elem["bbox"] = self._to_grid(x, y, w, h)
+            elem["bbox"] = self._to_grid(x, y, w, h, width, height)
             elem["desc"] = rg.get("desc", "")
             pal = rg.get("palette", [])
             clean = [c.upper() for c in pal if c]
@@ -112,13 +112,15 @@ class PromptBuilderNode:
 
         return json.dumps(out, ensure_ascii=False, indent=2)
 
-    def _to_grid(self, x, y, w, h):
-        def c(v): return max(0, min(1000, round(v * 1000)))
-        ymin, xmin = c(y), c(x)
-        ymax, xmax = c(y + h), c(x + w)
-        if ymin > ymax: ymin, ymax = ymax, ymin
+    def _to_grid(self, x, y, w, h, img_width=1024, img_height=1024):
+        """将归一化坐标(0-1)转换为图像像素坐标"""
+        xmin = round(x * img_width)
+        ymin = round(y * img_height)
+        xmax = round((x + w) * img_width)
+        ymax = round((y + h) * img_height)
         if xmin > xmax: xmin, xmax = xmax, xmin
-        return [ymin, xmin, ymax, xmax]
+        if ymin > ymax: ymin, ymax = ymax, ymin
+        return [xmin, ymin, xmax, ymax]
 
     def _build_preview(self, high_level_description, background,
                        style, aesthetics, lighting, medium,
