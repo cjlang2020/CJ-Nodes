@@ -367,7 +367,7 @@ function injectStyles() {
     s.textContent = `
         .cj-pb{display:flex;flex-direction:column;gap:4px;padding:4px;font:12px sans-serif;color:#ccc;overflow-y:auto}
         .cj-pb-r{display:flex;align-items:center;gap:6px}
-        .cj-pb-l{width:80px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .cj-pb-l{width:5px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .cj-pb-i{flex:1;min-width:0;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:3px 6px;outline:none}
         .cj-pb-i:focus{border-color:#46b4e6}
         .cj-pb-i.cj-pb-ml{min-height:36px;resize:vertical;font-family:monospace;line-height:1.4}
@@ -748,7 +748,10 @@ function buildUI(node) {
         {label:"3:2 (1216×832)",w:1216,h:832},
         {label:"16:9 (1360×768)",w:1360,h:768},
         {label:"21:9 (1504×640)",w:1504,h:640},
-        {label:"16:9 (1920×1080)",w:1920,h:1080}
+        {label:"16:9 (1920×1080)",w:1920,h:1080},
+        {label:"1:1 (2048×2048)",w:2048,h:2048},
+        {label:"16:9 (2560×1600)",w:2560,h:1600},
+        {label:"16:9 (4096×2300)",w:4096,h:2300}
     ];
     const sizeDropdown=document.createElement("div");sizeDropdown.className="cj-pb-dw";
     const sizeBtn=document.createElement("button");sizeBtn.className="cj-pb-db";sizeBtn.textContent="\u25BC";sizeBtn.title="预设尺寸";

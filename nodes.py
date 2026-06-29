@@ -77,6 +77,7 @@ CUSTOM_DISPLAY_NAMES = {
     "CharacterPickerNode": "Luy-角色Tag选择",
     "PromptBuilderNode": "Luy-Ideogram4提示词",
     "ImageMerge": "Luy-图片合并",
+    "Krea2StyleSemanticConditioningImproved": "Luy-Krea2风格语义条件（改进版）",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）
