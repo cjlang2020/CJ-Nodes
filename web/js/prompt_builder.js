@@ -356,7 +356,61 @@ const SCENES = [
       photo_style:"风光摄影，广角，黄金时段（landscape photography, wide angle, golden hour）",
       art_style:"", style_color_palette:["#ff8c00","#ff6347","#ffd700","#4a0080","#191970"],
       regions:[{x:0,y:0,w:1,h:0.35,type:"obj",desc:"天空渐变橙红紫，云层层次丰富",palette:[]},{x:0.3,y:0.15,w:0.4,h:0.2,type:"obj",desc:"太阳位置，金色光芒散射",palette:[]},{x:0,y:0.3,w:1,h:0.3,type:"obj",desc:"连绵山脉剪影，层次分明",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"前景草甸，暖光洒落，长投影",palette:[]}] },
-];
+    { label:"微缩模型场景", w:1360, h:768, style:"photo",
+      high_level_description:"移轴微缩模型效果，城市街道如玩具，选择性聚焦，超浅景深（A tilt-shift miniature scene making real city look like tiny toys with selective focus and ultra shallow DOF）",
+      background:"城市街区俯瞰，建筑如模型，迷你车辆行人（Urban block aerial view with buildings like miniature models, tiny cars and pedestrians）",
+      aesthetics:"鲜艳饱和，高对比，清晰锐利，趣味移轴效果（vibrant, saturated, high contrast, sharp, fun tilt-shift effect）",
+      lighting:"日光直射，明亮均匀，色彩通透（direct sunlight, bright and even, clear colors）",
+      medium:"移轴摄影，微缩效果，超浅景深（tilt-shift photography, miniature effect, ultra shallow depth of field）",
+      photo_style:"移轴摄影，微缩模型效果，选择性聚焦（tilt-shift photography, miniature effect, selective focus）",
+      art_style:"", style_color_palette:["#87ceeb","#98fb98","#ffb6c1","#dda0dd","#f0e68c"],
+      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"天空晴朗，云朵轻柔",palette:[]},{x:0,y:0.25,w:1,h:0.5,type:"obj",desc:"城市街区如玩具模型，移轴模糊带上下",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"前景模糊虚化，强制浅景深感",palette:[]}] },
+    { label:"古装全身人像", w:768, h:1024, style:"photo",
+      high_level_description:"古装人物全身立像，汉服华美飘逸，姿态优雅，古典东方韵味（Full-body portrait in ancient Chinese Hanfu, elegant flowing robes, classical oriental grace）",
+      background:"古风庭院，红墙绿瓦，梅花枝掩映，晨雾轻笼（Ancient courtyard with red walls and green tiles, plum blossoms, morning mist）",
+      aesthetics:"东方古典意境，柔和色调，水墨留白，雅致温润（classical Eastern atmosphere, soft tones, ink-wash negative space, refined elegance）",
+      lighting:"自然柔光，漫射天光，面部均匀柔和（natural soft light, diffused skylight, even gentle face lighting）",
+      medium:"摄影，85mm镜头，中画幅数字（photograph, 85mm lens, medium format digital）",
+      photo_style:"人像摄影，全身立像，古典风格（portrait photography, full body portrait, classical style）",
+      art_style:"", style_color_palette:["#c0392b","#f5deb3","#8b4513","#2c3e50","#d4a574"],
+      regions:[{x:0.1,y:0,w:0.8,h:0.15,type:"obj",desc:"古风屋檐，梅花枝桠",palette:[]},{x:0.1,y:0.1,w:0.8,h:0.7,type:"obj",desc:"人物全身，汉服华美飘逸，优雅站姿",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"庭院地面，青石砖瓦，落叶点缀",palette:[]}] },
+    { label:"现代全身人像", w:768, h:1024, style:"photo",
+      high_level_description:"现代时尚全身人像，潮流穿搭，自信姿态，都市生活氛围（Modern full-body fashion portrait with trendy outfit, confident pose, urban lifestyle vibe）",
+      background:"城市街道或简洁影棚，干净利落，现代感（Urban street or clean studio backdrop, crisp and modern feel）",
+      aesthetics:"现代简洁，高对比，锐利清晰，时尚杂志感（clean modern, high contrast, sharp clarity, fashion editorial feel）",
+      lighting:"侧光加补光，轮廓分明，面部立体（side light with fill, defined contours, facial dimensionality）",
+      medium:"时尚摄影，50mm镜头，f1.8大光圈（fashion photography, 50mm lens, f1.8 aperture）",
+      photo_style:"时尚摄影，全身造型，街拍风格（fashion photography, full body styling, street style）",
+      art_style:"", style_color_palette:["#2c3e50","#e74c3c","#ecf0f1","#f39c12","#34495e"],
+      regions:[{x:0,y:0,w:1,h:0.15,type:"obj",desc:"城市天空或简洁背景上部",palette:[]},{x:0.1,y:0.1,w:0.8,h:0.7,type:"obj",desc:"人物全身，时尚穿搭，自信姿态",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"地面或街道，倒影投影",palette:[]}] },
+    { label:"俯瞰视角大场景", w:1360, h:768, style:"photo",
+      high_level_description:"高空俯瞰壮阔全景，大地脉络清晰，山河壮丽，气势磅礴（A breathtaking aerial panoramic view with earth's veins visible, magnificent mountains and rivers）",
+      background:"连绵山脉河流，大地纹理，云层投影，色彩丰富（Rolling mountains and rivers, earth textures, cloud shadows, rich colors）",
+      aesthetics:"壮丽辽阔，高对比，细节丰富，色彩饱和（majestic and vast, high contrast, rich details, saturated colors）",
+      lighting:"黄金时段航拍光，低角度暖光，地形光影分明（golden hour aerial light, low-angle warm light, distinct terrain shadows）",
+      medium:"航拍摄影，无人机，广角镜头（aerial drone photography, wide angle lens）",
+      photo_style:"航拍鸟瞰，俯冲视角，风光全景（aerial drone photography, top-down perspective, panoramic landscape）",
+      art_style:"", style_color_palette:["#2ecc71","#3498db","#f39c12","#8e44ad","#1abc9c"],
+      regions:[{x:0,y:0,w:1,h:0.5,type:"obj",desc:"远处地平线，山脉层次，云层投影",palette:[]},{x:0,y:0.4,w:1,h:0.4,type:"obj",desc:"蜿蜒河流穿行峡谷，大地纹理",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"前景山谷森林，纵深细节",palette:[]}] },
+    { label:"厚涂游戏原画", w:1360, h:768, style:"art_style",
+      high_level_description:"厚涂游戏概念原画，角色与场景交融，笔触粗犷有力，史诗感（Impasto game concept art with character and scene fusion, bold brushstrokes, epic feel）",
+      background:"幻想世界战场或神秘遗迹，大气透视，恢弘壮阔（Fantasy battlefield or ancient ruins, atmospheric perspective, grandeur）",
+      aesthetics:"厚涂质感，强笔触，高饱和，电影级构图（impasto texture, strong brushwork, high saturation, cinematic composition）",
+      lighting:"戏剧体积光，丁达尔效应，光尘飞舞（dramatic volumetric light, god rays, floating dust particles）",
+      medium:"数字绘画，厚涂技法，高细节，厚叠笔触（digital painting, impasto technique, highly detailed, thick layered strokes）",
+      photo_style:"", art_style:"厚涂技法，游戏原画风格，史诗构图（impasto technique, game concept art style, epic composition）",
+      style_color_palette:["#8b0000","#daa520","#2c1810","#4a0080","#ff8c00"],
+      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"天空火烧云，丁达尔光束穿透",palette:[]},{x:0.2,y:0.2,w:0.6,h:0.6,type:"obj",desc:"中心角色或主体，厚涂笔触质感",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"前景地面，刮刀纹理，粗犷笔触",palette:[]}] },
+    { label:"3D超写实修仙", w:1024, h:1024, style:"photo",
+      high_level_description:"3D超写实超现实主义修仙场景，仙人飞升，天地异象，玄妙光芒（3D hyperrealistic surreal cultivation scene with immortals ascending, celestial phenomena, mystical light）",
+      background:"云海仙山，悬浮山峰，金光万丈，灵气氤氲（Cloud sea with immortal mountains, floating peaks, golden rays, spiritual energy mist）",
+      aesthetics:"超写实，超现实主义，空灵玄幻，高动态范围（hyperrealistic, surrealist, ethereal mystical, high dynamic range）",
+      lighting:"体积光，金光穿云，神圣光辉，丁达尔弥漫（volumetric light, golden rays through clouds, divine glow, atmospheric god rays）",
+      medium:"3D渲染，光追超写实，虚幻引擎，极致细节（3D render, photorealistic ray tracing, Unreal Engine, extreme detail）",
+      photo_style:"", art_style:"超写实主义，超现实主义，幻想修真（hyperrealism, surrealism, fantasy cultivation）",
+      style_color_palette:["#ffd700","#ffffff","#1a0a2e","#00bfff","#ff4500"],
+      regions:[{x:0,y:0,w:1,h:0.35,type:"obj",desc:"天空金光万丈，云海翻涌，天地异象",palette:[]},{x:0.2,y:0.2,w:0.6,h:0.5,type:"obj",desc:"悬浮仙山，仙人飞升身影，灵气缠绕",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"云海底部，山水倒映，玄妙光影",palette:[]}] },
+    ];
 
 let currentNode = null;
 
@@ -367,7 +421,7 @@ function injectStyles() {
     s.textContent = `
         .cj-pb{display:flex;flex-direction:column;gap:4px;padding:4px;font:12px sans-serif;color:#ccc;overflow-y:auto}
         .cj-pb-r{display:flex;align-items:center;gap:6px}
-        .cj-pb-l{width:5px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .cj-pb-l{width:55px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .cj-pb-i{flex:1;min-width:0;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:3px 6px;outline:none}
         .cj-pb-i:focus{border-color:#46b4e6}
         .cj-pb-i.cj-pb-ml{min-height:36px;resize:vertical;font-family:monospace;line-height:1.4}
