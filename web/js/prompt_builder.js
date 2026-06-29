@@ -750,11 +750,12 @@ function buildUI(node) {
 
     // scene preset
     const scR=mkRow("场景:","一键填充预设场景");
-    const scDropdown=document.createElement("div");scDropdown.className="cj-pb-dw";
+    const scDropdown=document.createElement("div");scDropdown.className="cj-pb-dw";scDropdown.style.cssText="display:inline-flex;align-items:center;gap:4px;";
     const scBtn=document.createElement("button");scBtn.className="cj-pb-db";scBtn.textContent="\u25BC";scBtn.title="预设场景";
+    const scInp=document.createElement("input");scInp.className="cj-pb-i";scInp.value="none";scInp.readOnly=true;scInp.style.cssText="width:120px;flex:0 0 120px;cursor:pointer;background:#1a1a1a;";
     const scList=document.createElement("div");scList.className="cj-pb-dd";
     function positionScList(){
-        const r=scBtn.getBoundingClientRect();
+        const r=scInp.getBoundingClientRect();
         scList.style.position="fixed";
         scList.style.top=r.bottom+"px";
         scList.style.left=r.left+"px";
@@ -774,6 +775,7 @@ function buildUI(node) {
                 updStyle(s.style);
                 stGrp.querySelectorAll(".cj-pb-btn").forEach(b=>{b.classList.toggle("act",b.textContent===s.style);});
                 buildScpSwatches();
+                scInp.value=sc.label;
                 node._cvFit?.(); node._cvDraw?.(); sync();
                 closeScList();
             });
@@ -782,13 +784,15 @@ function buildUI(node) {
     }
     function closeScList(){scList.classList.remove("open");scList.remove();}
     buildScList();
-    scBtn.addEventListener("click",(e)=>{
+    function toggleScList(e){
         e.stopPropagation();
         const was=scList.classList.contains("open");
         document.querySelectorAll(".cj-pb-dd.open").forEach(x=>{x.classList.remove("open");x.remove();});
         if(!was){buildScList();positionScList();document.body.appendChild(scList);scList.classList.add("open");}
-    });
-    scDropdown.append(scBtn); scR.appendChild(scDropdown); wrap.appendChild(scR);
+    }
+    scBtn.addEventListener("click",toggleScList);
+    scInp.addEventListener("click",toggleScList);
+    scDropdown.append(scInp,scBtn); scR.appendChild(scDropdown); wrap.appendChild(scR);
 
     // style
     const stR=mkRow("风格:","");
