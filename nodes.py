@@ -76,6 +76,7 @@ CUSTOM_DISPLAY_NAMES = {
     "AnimaStylePickerNode": "Luy-Anima画师风格选择",
     "CharacterPickerNode": "Luy-角色Tag选择",
     "PromptBuilderNode": "Luy-Ideogram4提示词",
+    "EditRegionNode": "Luy-图片区域编辑提示词",
     "ImageMerge": "Luy-图片合并",
     "Krea2StyleSemanticConditioningImproved": "Luy-Krea2风格语义条件（改进版）",
 }
