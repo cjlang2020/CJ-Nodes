@@ -348,17 +348,8 @@ folder_paths.folder_names_and_paths["LLM"] = ([os.path.join(folder_paths.models_
 # Preset prompts for vision
 preset_prompts = {
     "None": "",
-    "_普通描述": "Describe this @.",
-    "_标签风格": "Your task is to generate a clean list of comma-separated tags for a text-to-@ AI, based *only* on the visual information in the @. Limit the output to a maximum of 50 unique tags. Strictly describe visual elements like subject, clothing, environment, colors, lighting, and composition. Do not include abstract concepts, interpretations, marketing terms, or technical jargon (e.g., no 'SEO', 'brand-aligned', 'viral potential'). The goal is a concise list of visual descriptors. Avoid repeating tags.",
-    "_简单风格": "Analyze the @ and generate a simple, single-sentence text-to-@ prompt. Describe the main subject and the setting concisely.",
-    "_详细风格": "Generate a detailed, artistic text-to-@ prompt based on the @. Combine the subject, their actions, the environment, lighting, and overall mood into a single, cohesive paragraph of about 2-3 sentences. Focus on key visual details.",
-    "_极详细风格": "Generate an extremely detailed and descriptive text-to-@ prompt from the @. Create a rich paragraph that elaborates on the subject's appearance, textures of clothing, specific background elements, the quality and color of light, shadows, and the overall atmosphere. Aim for a highly descriptive and immersive prompt.",
-    "_电影风格": "Act as a master prompt engineer. Create a highly detailed and evocative prompt for an @ generation AI. Describe the subject, their pose, the environment, the lighting, the mood, and the artistic style (e.g., photorealistic, cinematic, painterly). Weave all elements into a single, natural language paragraph, focusing on visual impact.",
-    "_详细分析": "Describe this @ in detail, breaking down the subject, attire, accessories, background, and composition into separate sections.",
-    "_视频总结": "Summarize the key events and narrative points in this video.",
-    "_短故事": "Write a short, imaginative story inspired by this @ or video.",
-    "_优化扩写提示词": "Refine and enhance the following user prompt for creative text-to-@ generation. Keep the meaning and keywords, make it more expressive and visually rich. Output **only the improved prompt text itself**, without any reasoning steps, thinking process, or additional commentary.",
-    "_边界框检测": 'Locate every instance that belongs to the following categories: "#". Report bbox coordinates in {"bbox_2d": [x1, y1, x2, y2], "label": "string"} JSON format as a List.'
+    "_普通描述": "描述这张图片",
+    "_简洁描述":"只描述出图中场景主体、构图、核心氛围，不需要过多修饰词，例如：雨后街道、传统沿街楼房、中式牌坊、未来流线摩天大楼、空中科幻飞行。不要输出多余的内容，简单的主体词语和构图即可。",
 }
 preset_tags = list(preset_prompts.keys())
 
