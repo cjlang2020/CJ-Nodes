@@ -3,413 +3,416 @@ import { app } from "../../../../scripts/app.js";
 const HANDLE = 8;
 const COLORS = ["#e74c3c","#3498db","#2ecc71","#f39c12","#9b59b6","#1abc9c","#e67e22","#34495e"];
 
-// 中文（英文）格式的预置提示词
+// ──────────────────────────────────────────────
+//  PRESETS — values are in English per spec (scene/elements/desc must be English)
+//  Chinese labels are only used in SCENES.label for UI navigation
+// ──────────────────────────────────────────────
 const PRESETS = {
     high_level_description: [
-        "电影感角色肖像，戏剧场景（A cinematic portrait of a character in a dramatic scene）",
-        "宁静风景，柔和光线（A serene landscape with vibrant colors and soft lighting）",
-        "抽象几何构图（An abstract composition with geometric shapes and textures）",
-        "静物写实，自然元素（A detailed still life arrangement with natural elements）",
-        "奇幻场景，魔幻氛围（A fantasy scene with magical atmosphere and ethereal glow）",
-        "城市街景，黄金时刻（A realistic urban street scene at golden hour）",
-        "极简设计，简洁线条（A minimalist design with clean lines and subtle gradients）",
-        "动作场景，动态构图（A dramatic action scene with dynamic composition）",
-        "水下梦幻场景（A dreamy underwater scene with bioluminescent elements）",
-        "温馨室内，暖色灯光（A cozy interior scene with warm ambient lighting）",
-        "超现实梦境，扭曲现实（A surrealist dreamscape with melting clocks and impossible geometry）",
-        "赛博朋克霓虹，雨夜街头（A cyberpunk scene with neon signs, rain-soaked streets and holograms）",
-        "复古胶片生活，怀旧氛围（A vintage film-style lifestyle scene with warm nostalgic tones）",
-        "恐怖暗黑氛围，迷雾笼罩（A dark horror atmosphere with eerie fog and shadowy figures）",
-        "田园牧歌乡村，金色麦田（A pastoral countryside scene with golden wheat fields and rustic charm）",
-        "太空科幻场景，星际探索（A sci-fi space scene with cosmic nebulae and futuristic spacecraft）",
-        "俯瞰鸟瞰视角，壮阔全景（An aerial bird's eye view of a dramatic landscape）",
-        "微观世界奇观，极致细节（A microscopic world wonder with extreme cellular and textural detail）",
-        "后末日废墟，藤蔓覆盖（Post-apocalyptic ruins overgrown with vegetation and decay）",
-        "蒸汽朋克机械，齿轮铜管（A steampunk mechanical contraption with brass gears and copper pipes）",
-        "极光冰川奇景，梦幻光影（Aurora borealis dancing over glacial landscapes with ethereal light）",
-        "东方古典意境，水墨留白（Classical Eastern ink painting atmosphere with elegant negative space）",
+        "A cinematic portrait of a character in a dramatic scene",
+        "A serene landscape with soft lighting and a tranquil atmosphere",
+        "An abstract composition with geometric shapes and layered textures",
+        "A detailed still life arrangement with natural elements and rich textures",
+        "A fantasy scene with magical atmosphere and an ethereal glow",
+        "A realistic urban street scene at golden hour with warm sunlight",
+        "A minimalist design with clean lines, subtle gradients, and ample negative space",
+        "A dramatic action scene with dynamic composition and high energy",
+        "A dreamy underwater scene with bioluminescent organisms and caustic light",
+        "A cozy interior scene with soft ambient lighting and comfortable furnishings",
+        "A surrealist dreamscape with melting clocks, impossible geometry, and floating forms",
+        "A cyberpunk scene with neon signs, rain-soaked streets, and holographic advertisements",
+        "A vintage film-style lifestyle scene with nostalgic period details",
+        "A dark horror atmosphere with eerie fog, shadowy figures, and a foreboding mood",
+        "A pastoral countryside scene with golden wheat fields, rustic charm, and open skies",
+        "A sci-fi space scene with cosmic nebulae, distant stars, and futuristic spacecraft",
+        "An aerial bird's eye view of a dramatic landscape with sweeping topography",
+        "A microscopic world with extreme cellular detail and intricate patterns",
+        "Post-apocalyptic ruins overgrown with creeping vines, moss, and encroaching vegetation",
+        "A steampunk mechanical contraption with brass gears, copper pipes, and Victorian details",
+        "Aurora borealis dancing over glacial ice formations with ethereal green and purple light",
+        "Classical Eastern ink wash painting atmosphere with misty mountains and elegant negative space",
     ],
     background: [
-        "开阔田野，蓝天野花（A vast open field with wildflowers under a blue sky）",
-        "茂密森林，阳光穿透（A dense forest with sunlight filtering through the canopy）",
-        "未来都市，霓虹高楼（A futuristic cityscape with neon lights and towering buildings）",
-        "安静房间，自然光线（A quiet room with large windows and natural light）",
-        "晨雾山景（A misty mountain landscape at dawn）",
-        "阳光海滩，温暖沙粒（A sunlit beach with gentle waves and warm sand）",
-        "暗色小巷，戏剧阴影（A dark moody alley with dramatic shadows）",
-        "花园繁花，蝴蝶飞舞（A lush garden with blooming flowers and butterflies）",
-        "雪山星空（A snowy mountain peak under a starlit sky）",
-        "专业影棚，柔光渐变（A professional studio backdrop with soft gradients）",
-        "工业仓库，砖墙铁梁（An industrial warehouse with exposed brick and metal beams）",
-        "天空浮岛，云层（A floating island in a sky filled with clouds）",
-        "沙漠沙丘，落日金辉（Desert sand dunes stretching to the horizon under a golden sunset）",
-        "水下珊瑚礁，热带鱼群（An underwater coral reef teeming with colorful tropical fish）",
-        "星云太空，璀璨星河（A deep space nebula with swirling cosmic dust and brilliant starlight）",
-        "古代遗迹，藤蔓覆盖（Ancient stone ruins reclaimed by creeping vines and moss）",
-        "雨夜街道，霓虹倒影（Rain-soaked city street with neon signs reflecting on wet pavement）",
-        "夜市烟火，灯笼高挂（A bustling night market with paper lanterns and wisps of smoke）",
-        "悬崖绝壁，海浪拍击（A dramatic cliff edge overlooking crashing ocean waves below）",
-        "图书馆书墙，暖光氛围（A grand library with towering floor-to-ceiling bookshelves）",
-        "废墟藤蔓，末日美学（Abandoned building interior with creeping vines and decay）",
-        "地下水晶洞穴，虹彩光芒（An underground crystal cave with iridescent glowing formations）",
+        "A vast open field with wildflowers under a clear blue sky with soft clouds",
+        "A dense forest interior with broad tree trunks, sunlight filtering through the canopy, and a carpet of fallen leaves",
+        "A futuristic cityscape with sleek skyscrapers, neon accents, and elevated transit lines",
+        "A quiet room with large windows, white walls, and soft natural light entering from the side",
+        "A misty mountain landscape at dawn with layers of fog between the peaks",
+        "A sunlit beach with gentle waves lapping at golden sand and a soft horizon line",
+        "A dark moody alley with brick walls, a single overhead lamp, and deep shadow pools",
+        "A lush garden with dense blooming flowers of mixed colors and hovering butterflies",
+        "A snowy mountain peak under a starlit sky with a crescent moon and deep blue firmament",
+        "A professional studio backdrop with seamless paper, soft gradient lighting, and clean surroundings",
+        "An industrial warehouse with exposed brick walls, metal beams, and concrete flooring",
+        "A floating island suspended in a sky filled with soft cumulus clouds at sunset",
+        "Desert sand dunes stretching to the horizon under a sky transitioning from gold to deep purple",
+        "An underwater coral reef with branching corals, kelp fronds, and rays of light from the surface",
+        "A deep space nebula field with swirling cosmic dust, scattered stars, and distant galaxies",
+        "Ancient stone ruins with weathered pillars, cracked paving, and moss creeping over every surface",
+        "A rain-soaked city street at night with wet pavement reflecting vivid neon signs overhead",
+        "A bustling night market with rows of stalls, hanging paper lanterns, and smoke from food grills",
+        "A dramatic cliff edge of layered sedimentary rock overlooking churning ocean waves below",
+        "A grand library interior with towering floor-to-ceiling bookshelves, a vaulted ceiling, and warm reading lamps",
+        "An abandoned building interior with peeling wallpaper, shattered windows, and vines pushing through cracks",
+        "An underground crystal cave with faceted mineral formations catching and refracting ambient light",
     ],
     aesthetics: [
-        "电影感，胶片颗粒，浅景深（cinematic, film grain, shallow depth of field）",
-        "鲜艳饱和，高对比（vibrant, saturated colors, high contrast）",
-        "柔和色调，粉彩梦幻（muted tones, pastel palette, soft and dreamy）",
-        "戏剧性，明暗对比，高动态（dramatic, chiaroscuro, high dynamic range）",
-        "复古胶片感（vintage, retro, analog film look）",
-        "现代简洁，精致光滑（clean, modern, sleek and polished）",
-        "空灵脱俗，柔和光晕（ethereal, otherworldly, soft glow）",
-        "大胆图形，强视觉冲击（bold, graphic, strong visual impact）",
-        "自然有机，大地色系（natural, organic, earthy tones）",
-        "奢华质感，丰富纹理（luxurious, opulent, rich textures）",
-        "黑色电影，低饱和（noir, moody, desaturated）",
-        "热带风情，暖色系（tropical, vibrant, warm color palette）",
-        "蒸汽朋克，铜绿齿轮（steampunk, brass and copper tones, mechanical details）",
-        "赛博朋克，霓虹雨夜（cyberpunk, neon glow, dark rainy streets, holographic elements）",
-        "全息未来感，虹彩光泽（holographic, iridescent, futuristic sheen, prismatic colors）",
-        "高调明亮，清新通透（high-key, bright, airy, overexposed feel, minimal shadows）",
-        "低调暗黑，深邃阴影（low-key, deep shadows, moody darkness, dramatic contrast）",
-        "双色调极简，双色配色（duotone, two-color palette, graphic simplicity）",
-        "颗粒胶片质感，模拟温暖（grainy film texture, analog warmth, soft halation）",
-        "哑光柔雾，雾面质感（matte finish, soft fog, desaturated, velvety surface）",
-        "光泽玻璃质感，反射通透（glossy, reflective, glass-like surfaces, transparency）",
-        "金属质感，铬面反光（metallic, chrome, reflective surfaces, industrial sheen）",
+        "cinematic, dramatic contrast, moody atmosphere, teal and orange",
+        "vibrant, saturated colors, high contrast, energetic",
+        "muted tones, pastel palette, soft and dreamy, delicate",
+        "dramatic, chiaroscuro, high dynamic range, sculptural light",
+        "vintage, retro, faded colors, analog character",
+        "clean, modern, sleek and polished, refined",
+        "ethereal, otherworldly, translucent, gossamer quality",
+        "bold, graphic, high-impact, strong silhouettes",
+        "natural, organic, earthy tones, grounded",
+        "luxurious, opulent, rich textures, ornate",
+        "noir, moody, desaturated, shadow-heavy",
+        "tropical, vivid botanical hues, saturated greens and corals",
+        "steampunk, brass and copper tones, mechanical intricacy",
+        "cyberpunk, neon accents, dark urban, reflective surfaces",
+        "holographic, iridescent, shifting prismatic highlights, futuristic sheen",
+        "high-key, bright, airy, overexposed quality, minimal shadows",
+        "low-key, deep shadows, moody darkness, dramatic contrast",
+        "duotone, two-color palette, graphic simplicity, flat color fields",
+        "grainy film texture, analog halation, soft emulsion character",
+        "matte finish, soft veiling, desaturated, velvety surface quality",
+        "glossy, reflective, glass-like transparency, specular highlights",
+        "metallic, chrome, polished reflective surfaces, industrial precision",
     ],
     lighting: [
-        "自然光，柔和均匀（natural daylight, soft and even）",
-        "黄金时段，暖侧光（golden hour, warm side lighting）",
-        "轮廓光，逆光（dramatic rim lighting, backlight）",
-        "影棚三点布光（studio lighting, three-point setup）",
-        "月光，冷蓝色调（moonlight, cool blue tones）",
-        "霓虹灯光，彩色反射（neon lighting, colorful reflections）",
-        "烛光，温暖亲密（candlelight, warm intimate glow）",
-        "阴天，漫射柔光（overcast, diffused soft light）",
-        "聚光灯，高对比（spotlight, focused beam, high contrast）",
-        "体积光，光束穿透大气（volumetric light, god rays through atmosphere）",
-        "生物发光，内在光晕（bioluminescent, ethereal glow from within）",
-        "树叶间斑驳光影（dappled light through leaves）",
-        "伦勃朗光，面部三角光影（Rembrandt lighting, triangle of light on cheek, dramatic portrait）",
-        "蝶形光，美容人像（butterfly lighting, glamour portrait, shadow under nose）",
-        "分割光，半面明暗（split lighting, dramatic half-face illumination）",
-        "实景光源， lamp窗光（practical lighting, visible lamps and windows in scene）",
-        "火光映照，跳动暖橙（firelight, warm flickering orange glow, campfire ambiance）",
-        "蓝色时刻，暮光深蓝（blue hour, twilight deep blue, city lights emerging）",
-        "正午硬光，强烈阴影（harsh midday sun, strong defined shadows, high contrast）",
-        "投影光影，图案投射（projected patterns, gobo lighting, decorative shadow play）",
-        "底部打光，戏剧恐怖（uplighting, dramatic from below, horror movie feel）",
-        "烟雾弥漫光，朦胧光束（hazy smoky light, diffused beams, atmospheric fog）",
+        "natural daylight, soft and even, open sky fill",
+        "golden hour, low-angle side light, long soft shadows",
+        "dramatic rim lighting, backlight, edge illumination",
+        "studio lighting, three-point setup, softbox key, fill and rim",
+        "moonlight, cool blue tones, silver ambient glow",
+        "neon lighting, multicolored reflections, saturated color casts",
+        "candlelight, flickering intimate pool of light, amber glow",
+        "overcast, diffused soft light, no hard shadows, even wrapping",
+        "spotlight, focused beam, high contrast, pool of light on subject",
+        "volumetric light, god rays, light piercing through atmospheric particles",
+        "bioluminescent, self-illuminated, soft glow from within",
+        "dappled light through leaves, shifting speckled pattern on surfaces",
+        "Rembrandt lighting, triangle of light on the cheek, dramatic portrait",
+        "butterfly lighting, glamour portrait, soft shadow under the nose",
+        "split lighting, half the face illuminated, the other in shadow",
+        "practical lighting, visible lamps, windows, and fixtures casting scene light",
+        "firelight, flickering orange glow, dancing highlight shift, campfire ambiance",
+        "blue hour, twilight deep blue sky, emerging city lights in the distance",
+        "harsh midday sun, strong defined shadows, high contrast, bright highlights",
+        "projected patterns, gobo lighting, structural shadow shapes on surfaces",
+        "uplighting, dramatic illumination from below, hollow cheek shadows",
+        "hazy smoky light, diffused beam through fog, soft atmospheric glow",
     ],
     medium: [
-        "数字绘画，高细节（digital painting, highly detailed）",
-        "油画，厚涂笔触（oil painting, thick brushstrokes, impasto）",
-        "水彩，透明层叠（watercolor, soft washes, transparent layers）",
-        "铅笔素描，交叉排线（pencil sketch, fine linework, crosshatching）",
-        "3D渲染，光追写实（3D render, photorealistic, ray tracing）",
-        "摄影，85mm镜头（photograph, DSLR, 85mm lens）",
-        "概念艺术，数字哑光（concept art, matte painting, cinematic）",
-        "动漫风格，赛璐珞着色（anime style, cel shading, vibrant colors）",
-        "像素艺术，复古游戏（pixel art, retro gaming aesthetic）",
-        "拼贴，混合媒介（collage, mixed media, textured layers）",
-        "矢量插画，扁平设计（vector illustration, flat design, clean lines）",
-        "炭笔素描，强对比（charcoal drawing, dramatic contrast）",
-        "丙烯画，大胆厚涂（acrylic painting, bold opaque layers, vivid colors）",
-        "水墨画，东方笔韵（ink wash painting, sumi-e, Chinese brush strokes）",
-        "色粉笔画，柔粉质感（pastel drawing, soft powdery texture, blended colors）",
-        "黏土3D渲染，柔和次表面（clay render, soft subsurface scattering, miniature feel）",
-        "马赛克拼贴，镶嵌碎片（mosaic, tile fragments, tessellated patterns）",
-        "彩色玻璃，铅线透光（stained glass, lead lines, luminous translucent panels）",
-        "木刻版画，粗犷刀痕（woodcut print, bold carved lines, high contrast）",
-        "喷涂鸦，滴落飞溅（spray paint graffiti, drips and overspray, urban wall art）",
-        "丝网印刷，扁平分层（screen print, flat color layers, risograph texture）",
-        "刺绣织物，线迹纹理（embroidery, thread texture on fabric, stitched details）",
+        "digital painting",
+        "oil painting",
+        "watercolor",
+        "pencil sketch",
+        "3d_render",
+        "photograph",
+        "concept art",
+        "anime style",
+        "pixel art",
+        "collage",
+        "vector illustration",
+        "charcoal drawing",
+        "acrylic painting",
+        "ink wash painting",
+        "pastel drawing",
+        "clay render",
+        "mosaic",
+        "stained glass",
+        "woodcut print",
+        "spray paint graffiti",
+        "screen print",
+        "embroidery",
     ],
-    photo_style: [
-        "人像摄影，虚化背景（portrait photography, bokeh background）",
-        "风光摄影，广角（landscape photography, wide angle）",
-        "微距摄影，极致细节（macro photography, extreme close-up detail）",
-        "街拍摄影，抓拍瞬间（street photography, candid moments）",
-        "时尚摄影，影棚（fashion photography, studio setup）",
-        "美食摄影，诱人呈现（food photography, appetizing presentation）",
-        "建筑摄影，简洁线条（architectural photography, clean lines）",
-        "野生动物，自然栖息（wildlife photography, natural habitat）",
-        "天文摄影，长曝光星轨（astrophotography, long exposure, star trails）",
-        "纪实风格，新闻摄影（documentary style, photojournalistic）",
-        "艺术摄影，概念性（fine art photography, conceptual）",
-        "产品摄影，干净背景（product photography, clean background）",
-        "航拍鸟瞰，俯冲视角（aerial drone photography, top-down perspective）",
-        "水下摄影，蓝绿色调（underwater photography, blue-green tones, caustics）",
-        "红外摄影，超现实色彩（infrared photography, false color surreal, red foliage）",
-        "长曝光，光轨丝滑（long exposure, light trails, silky water, motion blur）",
-        "双重曝光，重叠剪影（double exposure, overlapping silhouettes, merged imagery）",
-        "移轴摄影，微缩模型（tilt-shift photography, miniature effect, selective focus）",
-        "黑白胶片，颗粒质感（black and white film, strong grain, timeless contrast）",
-        "编辑杂志，叙事风格（editorial magazine photography, styled narrative）",
-        "运动抓拍，冻结瞬间（sports action photography, frozen motion, dynamic）",
-        "夜景城市，长曝光灯光（night cityscape, long exposure, vibrant city lights）",
+    photo: [
+        "portrait photography, 85mm lens, eye-level perspective, shallow depth of field",
+        "landscape photography, wide angle lens, sharp throughout, generous depth of field",
+        "macro photography, extreme close-up, fine detail resolution",
+        "street photography, candid, 35mm wide angle, eye-level",
+        "fashion photography, studio setup, medium format, controlled lighting",
+        "food photography, top-down or 45-degree angle, appetizing styling",
+        "architectural photography, tilt-shift lens, corrected perspective, clean geometry",
+        "wildlife photography, telephoto lens, natural behavior, environmental context",
+        "astrophotography, long exposure, deep sky tracking",
+        "documentary style, photojournalistic framing, natural moment",
+        "fine art photography, conceptual composition, gallery presentation",
+        "product photography, clean background, even lighting, sharp detail",
+        "aerial drone photography, top-down perspective, bird's eye composition",
+        "underwater photography, natural light from surface, blue-green color cast",
+        "infrared photography, false color rendering, surreal foliage tones",
+        "long exposure, light trails, smooth water surface, motion abstraction",
+        "double exposure, layered imagery, translucent overlapping forms",
+        "tilt-shift photography, selective focus plane, miniature scene effect",
+        "black and white film, silver grain, high contrast monochrome",
+        "editorial magazine photography, styled narrative, composed frame",
+        "sports action photography, frozen motion, fast shutter, dynamic angle",
+        "night cityscape, long exposure, vibrant urban lighting, time-lapse quality",
     ],
     art_style: [
-        "印象派，可见笔触（impressionist, visible brushstrokes, light and color）",
-        "超现实主义，梦幻（surrealist, dreamlike, fantastical elements）",
-        "新艺术，流线有机（art nouveau, flowing organic lines, decorative）",
-        "波普艺术，漫画风格（pop art, bold colors, comic book style）",
-        "立体主义，几何碎片（cubist, fragmented geometric forms）",
-        "巴洛克，戏剧光影（baroque, dramatic lighting, rich details）",
-        "浮世绘，日式木版（ukiyo-e, Japanese woodblock print style）",
-        "装饰艺术，几何华丽（art deco, geometric patterns, glamorous）",
-        "表现主义，强烈情感（expressionist, emotional intensity, bold colors）",
-        "极简主义，精简形式（minimalist, reduced forms, essential elements）",
-        "迷幻艺术，万花筒（psychedelic, vibrant patterns, kaleidoscopic）",
-        "哥特风，暗黑华丽（gothic, dark atmosphere, ornate details）",
-        "浪漫主义，壮丽风景（romanticism, emotional landscape, sublime nature）",
-        "现实主义，细腻写实（realism, detailed everyday life, faithful representation）",
-        "新古典主义，秩序庄严（neoclassicism, orderly composition, Greco-Roman ideals）",
-        "洛可可，华丽柔美（rococo, ornate decoration, pastel colors, playful elegance）",
-        "文艺复兴，透视光影（renaissance, chiaroscuro, linear perspective, classical balance）",
-        "野兽派，狂野色彩（fauvism, wild expressive colors, non-naturalistic palette）",
-        "构成主义，几何宣传（constructivism, geometric forms, bold propaganda style）",
-        "风格派，三原色网格（De Stijl, primary colors, grid composition, Mondrian influence）",
-        "超写实主义，照片级细节（hyperrealism, photo-like detail, extreme precision）",
-        "蒸汽波，复古数字（vaporwave, retro digital aesthetic, pink and teal, glitch art）",
+        "impressionist, visible brushstrokes, focus on light and color over detail",
+        "surrealist, dreamlike imagery, unexpected juxtapositions, fantastical elements",
+        "art nouveau, flowing organic lines, decorative borders, nature-inspired motifs",
+        "pop art, bold primary colors, comic-inspired halftone dots, mass culture references",
+        "cubist, fragmented geometric forms, multiple perspectives, angular planes",
+        "baroque, dramatic chiaroscuro, rich ornamentation, opulent detail",
+        "ukiyo-e, Japanese woodblock print, flat color areas, strong outlines, elegant curves",
+        "art deco, geometric patterns, symmetrical compositions, luxurious materials",
+        "expressionist, emotional intensity, distorted forms, bold non-naturalistic colors",
+        "minimalist, reduced forms, essential elements, generous negative space",
+        "psychedelic, vibrant swirling patterns, kaleidoscopic symmetry, intense color",
+        "gothic, dark ornate atmosphere, pointed arches, elaborate tracery",
+        "romanticism, sublime natural scenery, emotional landscape, dramatic skies",
+        "realism, faithful everyday representation, precise detail, natural color",
+        "neoclassicism, orderly composition, classical poses, restrained palette",
+        "rococo, ornate decoration, pastel colors, playful elegance, asymmetrical design",
+        "renaissance, chiaroscuro modeling, linear perspective, balanced pyramidal composition",
+        "fauvism, wild expressive colors, simplified forms, non-naturalistic palette",
+        "constructivism, geometric abstraction, industrial materials, bold typography",
+        "De Stijl, primary colors, grid composition, horizontal and vertical lines",
+        "hyperrealism, extreme precision, photo-like detail, smooth surface finish",
+        "vaporwave, retro digital aesthetic, pink and teal palette, glitch artifacts, neon grids",
     ],
 };
 
 const SCENES = [
     { label:"电影感肖像", w:1024, h:1536, style:"photo",
-      high_level_description:"电影感角色肖像，面部特写，眼神深邃，戏剧性表情（A cinematic close-up portrait with dramatic lighting and intense gaze）",
-      background:"暗色模糊背景，光斑散景（Dark blurred background with bokeh light spots）",
-      aesthetics:"电影感，胶片颗粒，浅景深，冷暖对比（cinematic, film grain, shallow depth of field, teal and orange）",
-      lighting:"伦勃朗光，面部三角光影，暖侧光（Rembrandt lighting, triangle of light on cheek, warm side light）",
-      medium:"摄影，85mm镜头，f1.4大光圈（photograph, 85mm lens, f1.4 aperture, full frame）",
-      photo_style:"人像摄影，虚化背景，85mm定焦（portrait photography, bokeh background, 85mm prime lens）",
-      art_style:"", style_color_palette:["#c87533","#1a3a4a","#e8d5b7","#2d2d2d","#f0e6d3"],
-      regions:[{x:0.2,y:0.05,w:0.6,h:0.7,type:"obj",desc:"角色面部特写，眼神深邃，戏剧性表情",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"暗色模糊背景，光斑散景",palette:[]}] },
+      high_level_description:"A cinematic close-up portrait with dramatic Rembrandt lighting and an intense gaze, shallow depth of field",
+      background:"A dark out-of-focus background with soft circular light orbs and a deep atmosphere",
+      aesthetics:"cinematic, dramatic contrast, moody atmosphere, teal and orange",
+      lighting:"Rembrandt lighting, triangle of light on cheek, side illumination, deep shadow on half the face",
+      medium:"photograph",
+      photo:"portrait photography, 85mm lens, eye-level perspective, shallow depth of field",
+      art_style:"", style_color_palette:["#C87533","#1A3A4A","#E8D5B7","#2D2D2D","#F0E6D3"],
+      regions:[{x:0.15,y:0.05,w:0.7,h:0.7,type:"obj",desc:"A fair-skinned person with a direct intense gaze, dramatic side lighting creating a triangle highlight on one cheek, expression is serious and contemplative",palette:[]}] },
     { label:"赛博朋克都市", w:1360, h:768, style:"photo",
-      high_level_description:"赛博朋克都市夜景，霓虹灯闪烁，雨中街道，全息广告牌（A cyberpunk cityscape at night with neon lights, rain, and holographic billboards）",
-      background:"未来都市街道，霓虹招牌密集，雨水反射光线（Futuristic urban street packed with neon signs, rain reflections）",
-      aesthetics:"赛博朋克，霓虹紫蓝，高对比，潮湿反光（cyberpunk, neon purple and blue, high contrast, wet reflections）",
-      lighting:"霓虹灯光，彩色反射，潮湿路面反光（neon lighting, colorful reflections, wet pavement glow）",
-      medium:"3D渲染，光追写实，超高清细节（3D render, photorealistic, ray tracing, ultra detailed）",
-      photo_style:"夜景城市，长曝光，霓虹灯光（night cityscape, long exposure, neon lights）",
-      art_style:"", style_color_palette:["#ff00ff","#00ffff","#1a0a2e","#ff6b35","#0d1b2a"],
-      regions:[{x:0,y:0,w:1,h:0.35,type:"obj",desc:"霓虹天空，全息广告牌闪烁",palette:[]},{x:0,y:0.3,w:1,h:0.4,type:"obj",desc:"密集高楼，霓虹招牌，雨水反射",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"潮湿街道，霓虹灯光倒影，行人剪影",palette:[]}] },
+      high_level_description:"A cyberpunk cityscape at night with neon signs, rain-soaked streets, and holographic billboards reflecting off wet pavement",
+      background:"A futuristic urban street lined with towering buildings covered in neon signs, wet asphalt road surface reflecting all lights, misty atmosphere",
+      aesthetics:"cyberpunk, neon purple and blue, high contrast, wet reflective surfaces",
+      lighting:"neon lighting, multicolored reflections, wet pavement glow, ambient colored light",
+      medium:"3d_render",
+      photo:"night cityscape, long exposure, vibrant neon lighting, wet surface reflections",
+      art_style:"", style_color_palette:["#FF00FF","#00FFFF","#1A0A2E","#FF6B35","#0D1B2A"],
+      regions:[{x:0,y:0.3,w:1,h:0.4,type:"obj",desc:"A cluster of futuristic skyscrapers covered in glowing neon signs and holographic displays reflecting in the rain",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"A lone figure in a hooded coat walking on a rain-slicked sidewalk under neon glow, surrounded by puddles reflecting pink and blue light",palette:[]}] },
     { label:"奇幻魔法森林", w:1024, h:1024, style:"art_style",
-      high_level_description:"奇幻魔法森林，发光植物，精灵飞舞，神秘薄雾（A mystical enchanted forest with glowing flora, fairy lights, and magical mist）",
-      background:"茂密古老森林，参天巨树，苔藓覆盖，薄雾弥漫（Ancient dense forest with towering trees, moss, and rolling mist）",
-      aesthetics:"空灵脱俗，柔和光晕，梦幻色彩，丁达尔光线（ethereal, soft glow, dreamy colors, god rays through canopy）",
-      lighting:"体积光，光束穿透树冠，生物发光点缀（volumetric light, god rays through canopy, bioluminescent accents）",
-      medium:"数字绘画，高细节，哑光绘制（digital painting, highly detailed, matte painting style）",
-      photo_style:"", art_style:"印象派，可见笔触，光影色彩（impressionist, visible brushstrokes, light and color）",
-      style_color_palette:["#2ecc71","#9b59b6","#1abc9c","#f1c40f","#27ae60"],
-      regions:[{x:0,y:0,w:0.35,h:1,type:"obj",desc:"左侧参天巨树，苔藓覆盖",palette:[]},{x:0.35,y:0,w:0.3,h:0.5,type:"obj",desc:"树冠间隙，丁达尔光束穿透",palette:[]},{x:0.65,y:0,w:0.35,h:1,type:"obj",desc:"右侧古老树木，藤蔓缠绕",palette:[]},{x:0.2,y:0.5,w:0.6,h:0.5,type:"obj",desc:"林间小径，发光植物，精灵飞舞",palette:[]}] },
+      high_level_description:"A mystical enchanted forest with glowing bioluminescent flora, tiny floating lights, and a magical mist weaving through ancient trees",
+      background:"An ancient dense forest with towering broad trunks covered in luminous moss, a thick rolling mist at ground level, and beams of light piercing the canopy above",
+      aesthetics:"ethereal, otherworldly, soft glow, dreamy saturated colors",
+      lighting:"volumetric light, god rays piercing through the canopy, bioluminescent accents from plants and fungi",
+      medium:"digital painting",
+      photo:"", art_style:"impressionist, visible brushstrokes, emphasis on atmospheric light and color rather than hard detail",
+      style_color_palette:["#2ECC71","#9B59B6","#1ABC9C","#F1C40F","#27AE60"],
+      regions:[{x:0,y:0,w:0.3,h:1,type:"obj",desc:"An ancient towering tree trunk covered in glowing moss and tiny luminous fungi dots on the left side of the frame",palette:[]},{x:0.7,y:0,w:0.3,h:1,type:"obj",desc:"A second large tree trunk on the right with hanging vines and swirling mist wrapping around its base",palette:[]},{x:0.2,y:0.4,w:0.6,h:0.5,type:"obj",desc:"A winding forest path glowing with bioluminescent blue mushrooms and floating dust-like light particles",palette:[]}] },
     { label:"宁静湖畔风光", w:1360, h:768, style:"photo",
-      high_level_description:"宁静湖畔清晨，湖面如镜，远山倒影，晨雾轻绕（A serene lakeside at dawn with mirror-like reflections, distant mountains, and gentle mist）",
-      background:"开阔湖面，远处雪山，晨雾笼罩，宁静祥和（Expansive lake surface with distant snow-capped mountains and morning mist）",
-      aesthetics:"柔和色调，清新通透，自然真实，空气感（soft tones, fresh and clear, natural realism, airy atmosphere）",
-      lighting:"黄金时段，柔和晨光，湖面反射（golden hour, soft morning light, lake surface reflection）",
-      medium:"风光摄影，广角镜头，偏振镜（landscape photography, wide angle lens, polarizer filter）",
-      photo_style:"风光摄影，广角，长曝光（landscape photography, wide angle, long exposure）",
-      art_style:"", style_color_palette:["#87ceeb","#2c3e50","#ecf0f1","#3498db","#1a5276"],
-      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"清晨天空，柔和渐变色彩",palette:[]},{x:0,y:0.25,w:1,h:0.2,type:"obj",desc:"远处雪山轮廓，晨雾缭绕",palette:[]},{x:0,y:0.45,w:1,h:0.35,type:"obj",desc:"平静湖面，山体倒影如镜",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"湖畔前景，野花岩石点缀",palette:[]}] },
+      high_level_description:"A serene lakeside at dawn with mirror-like water reflecting distant snow-capped mountains, gentle mist rising, and a soft pastel sky",
+      background:"An expansive lake surface stretching to a low horizon with layered mountain silhouettes in the distance, soft dawn mist, and a sky transitioning from pink to pale blue",
+      aesthetics:"soft muted tones, fresh and clear, natural realism, airy atmosphere",
+      lighting:"golden hour, soft morning light from behind the mountains, mirror-like reflection on still water",
+      medium:"photograph",
+      photo:"landscape photography, wide angle lens, generous depth of field, panoramic composition",
+      art_style:"", style_color_palette:["#87CEEB","#2C3E50","#ECF0F1","#3498DB","#1A5276"],
+      regions:[{x:0,y:0.45,w:1,h:0.35,type:"obj",desc:"The calm lake surface reflecting the mountain silhouettes and soft sky colors with perfect mirror symmetry",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"A rocky shoreline at the lake edge with small pebbles and patches of green moss in soft morning light",palette:[]}] },
     { label:"恐怖古堡", w:1024, h:1536, style:"art_style",
-      high_level_description:"恐怖古堡内部，阴森走廊，摇曳烛光，蛛网密布（A haunted castle interior with eerie corridors, flickering candles, and cobwebs）",
-      background:"古老城堡走廊，石墙斑驳，烛台排列，阴影深邃（Ancient castle corridor with weathered stone walls, candlestick rows, deep shadows）",
-      aesthetics:"黑色电影，低饱和，强烈明暗对比，颗粒感（noir, desaturated, strong chiaroscuro, film grain）",
-      lighting:"烛光，温暖但诡异，长投影，局部照明（candlelight, warm but eerie, long shadows, pools of light）",
-      medium:"概念艺术，数字哑光，电影级构图（concept art, matte painting, cinematic composition）",
-      photo_style:"", art_style:"哥特风，暗黑华丽，精致细节（gothic, dark atmosphere, ornate details）",
-      style_color_palette:["#8b0000","#2c2c2c","#d4a574","#1a1a1a","#c0392b"],
-      regions:[{x:0.1,y:0,w:0.8,h:0.15,type:"obj",desc:"穹顶石拱，蛛网密布",palette:[]},{x:0,y:0.15,w:0.3,h:0.7,type:"obj",desc:"左侧石墙，烛台排列，摇曳烛光",palette:[]},{x:0.7,y:0.15,w:0.3,h:0.7,type:"obj",desc:"右侧石墙，阴影深邃，诡异氛围",palette:[]},{x:0.15,y:0.3,w:0.7,h:0.5,type:"obj",desc:"走廊深处，黑暗延伸，神秘入口",palette:[]},{x:0,y:0.85,w:1,h:0.15,type:"obj",desc:"石板地面，积水反光",palette:[]}] },
+      high_level_description:"A haunted castle interior with a long eerie corridor, flickering candlelight casting long shadows, and heavy cobwebs hanging from the ceiling",
+      background:"An ancient castle corridor with rough stone walls, a vaulted stone ceiling with arches, iron candelabras mounted on walls, deep shadow pools between pools of candlelight, and a stone floor with scattered dust",
+      aesthetics:"noir, desaturated, strong chiaroscuro, film grain texture, moody darkness",
+      lighting:"candlelight, flickering pools of amber light, long dramatic shadows stretching along the floor, partial illumination",
+      medium:"concept art",
+      photo:"", art_style:"gothic, dark ornate atmosphere, pointed arches, elaborate tracery, moody palette",
+      style_color_palette:["#8B0000","#2C2C2C","#D4A574","#1A1A1A","#C0392B"],
+      regions:[{x:0.1,y:0,w:0.8,h:0.12,type:"obj",desc:"A vaulted stone ceiling with heavy cobwebs draping between arches, dust particles visible in the light",palette:[]},{x:0,y:0.15,w:0.25,h:0.7,type:"obj",desc:"A rough stone wall on the left with an iron candelabra holding three lit candles casting warm light upward",palette:[]},{x:0.75,y:0.15,w:0.25,h:0.7,type:"obj",desc:"The right stone wall with deep shadow pools and a dark wooden door slightly ajar",palette:[]},{x:0.2,y:0.25,w:0.6,h:0.5,type:"obj",desc:"The corridor vanishing point deep in shadow with a faint arched window at the far end barely visible through darkness",palette:[]}] },
     { label:"产品广告", w:1024, h:1024, style:"photo",
-      high_level_description:"高端产品广告，精致布光，干净背景，质感突出（Premium product advertisement with refined lighting and clean background）",
-      background:"渐变纯色背景，柔和过渡，专业影棚（Gradient solid background with smooth transition, professional studio）",
-      aesthetics:"现代简洁，精致光滑，高光泽，干净利落（clean, modern, sleek and polished, high gloss）",
-      lighting:"影棚三点布光，柔光箱，反光板补光（studio lighting, three-point setup, softbox, reflector fill）",
-      medium:"产品摄影，微距镜头，焦点堆叠（product photography, macro lens, focus stacking）",
-      photo_style:"产品摄影，干净背景，精致布光（product photography, clean background, refined lighting）",
-      art_style:"", style_color_palette:["#ffffff","#f5f5f5","#e0e0e0","#333333","#c0c0c0"],
-      regions:[{x:0.2,y:0.15,w:0.6,h:0.6,type:"obj",desc:"产品主体，精致细节，高光泽质感",palette:[]},{x:0,y:0,w:1,h:0.15,type:"obj",desc:"渐变背景上部，柔和过渡",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"渐变背景下部，倒影投影",palette:[]}] },
+      high_level_description:"A premium product advertisement with refined studio lighting, a clean gradient background, and elegant composition emphasizing texture and form",
+      background:"A seamless gradient backdrop transitioning from pure white to soft light grey with a subtle shadow beneath the product",
+      aesthetics:"clean, modern, sleek and polished, high gloss, minimal and refined",
+      lighting:"studio lighting, three-point setup, softbox overhead, white reflector fill from below, controlled specular highlights",
+      medium:"photograph",
+      photo:"product photography, macro lens, focus stacking for full sharpness, clean background presentation",
+      art_style:"", style_color_palette:["#FFFFFF","#F5F5F5","#E0E0E0","#333333","#C0C0C0"],
+      regions:[{x:0.2,y:0.2,w:0.6,h:0.55,type:"obj",desc:"A sleek product bottle with a minimalist label and metallic cap, glossy surface catching a controlled specular highlight along the edge",palette:[]}] },
     { label:"时尚大片", w:1024, h:1536, style:"photo",
-      high_level_description:"时尚杂志大片，模特造型，前卫服装，艺术妆容（Fashion magazine editorial with model posing, avant-garde clothing, artistic makeup）",
-      background:"纯色影棚背景，极简构图，色彩纯净（Solid color studio backdrop, minimalist composition, pure colors）",
-      aesthetics:"高调明亮，时尚感，杂志级质感，锐利细节（high-key, fashion-forward, magazine quality, sharp details）",
-      lighting:"柔光箱主光，轮廓光分离，蝴蝶光（softbox key light, rim light separation, butterfly lighting）",
-      medium:"时尚摄影，中画幅，影棚拍摄（fashion photography, medium format, studio shot）",
-      photo_style:"时尚摄影，影棚，高级感（fashion photography, studio setup, high-end feel）",
-      art_style:"", style_color_palette:["#ff1493","#000000","#ffffff","#dc143c","#f0f0f0"],
-      regions:[{x:0.15,y:0.05,w:0.7,h:0.85,type:"obj",desc:"模特全身，前卫服装造型，艺术妆容",palette:[]},{x:0,y:0,w:1,h:0.05,type:"obj",desc:"纯净背景上部",palette:[]},{x:0,y:0.9,w:1,h:0.1,type:"obj",desc:"纯净背景下部，地面投影",palette:[]}] },
+      high_level_description:"A fashion magazine editorial portrait with a model in avant-garde clothing and bold artistic makeup against a solid color studio backdrop",
+      background:"A solid saturated studio backdrop with smooth even color, clean seamless transition to the floor, minimal set design",
+      aesthetics:"high-key, fashion-forward, editorial quality, sharp details, refined color",
+      lighting:"softbox key light from above, rim light for edge separation, butterfly lighting pattern on face",
+      medium:"photograph",
+      photo:"fashion photography, medium format digital, studio setup, controlled directional lighting",
+      art_style:"", style_color_palette:["#FF1493","#000000","#FFFFFF","#DC143C","#F0F0F0"],
+      regions:[{x:0.15,y:0.05,w:0.7,h:0.85,type:"obj",desc:"A female model with bold red lipstick and geometric eyeliner, wearing an avant-garde structured black jacket with sharp shoulders, one hand on hip, direct confident gaze",palette:[]}] },
     { label:"美食特写", w:1024, h:1024, style:"photo",
-      high_level_description:"精致美食特写，摆盘讲究，食材新鲜，诱人食欲（Gourmet food closeup with elegant plating, fresh ingredients, appetizing presentation）",
-      background:"木质桌面，亚麻餐布，餐具点缀（Wooden table surface, linen napkin, utensil accents）",
-      aesthetics:"温暖色调，浅景深，食欲感，自然光质感（warm tones, shallow depth of field, appetizing, natural light feel）",
-      lighting:"侧逆光，窗光漫射，高光食物表面（side backlight, window light diffusion, food surface highlights）",
-      medium:"美食摄影，微距镜头，焦点堆叠（food photography, macro lens, focus stacking）",
-      photo_style:"美食摄影，诱人呈现，浅景深（food photography, appetizing presentation, shallow DOF）",
-      art_style:"", style_color_palette:["#d4a574","#8b4513","#f5deb3","#2e8b57","#cd853f"],
-      regions:[{x:0.15,y:0.1,w:0.7,h:0.55,type:"obj",desc:"美食主体，精致摆盘，诱人色泽",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"木质桌面，亚麻餐布，餐具",palette:[]},{x:0.7,y:0.05,w:0.3,h:0.3,type:"obj",desc:"窗光来源，柔和侧逆光",palette:[]}] },
+      high_level_description:"A gourmet food close-up with elegant plating, fresh ingredients, and appetizing textures captured in soft natural window light",
+      background:"A wooden table surface with a subtle linen placemat, soft natural light from a nearby window creating gentle shadows",
+      aesthetics:"natural tones, fresh and organic, appetizing textures, soft natural light quality",
+      lighting:"side backlight from a window, diffused daylight, gentle highlights on food surfaces, soft shadows on the table",
+      medium:"photograph",
+      photo:"food photography, 100mm macro lens, 45-degree angle, shallow depth of field on hero ingredient",
+      art_style:"", style_color_palette:["#D4A574","#8B4513","#F5DEB3","#2E8B57","#CD853F"],
+      regions:[{x:0.1,y:0.1,w:0.8,h:0.5,type:"obj",desc:"A plate with seared steak topped with fresh herbs and a red wine reduction drizzle, garnished with micro greens on the side",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"A wooden table surface with a folded white linen napkin, a polished fork and knife placed beside the plate, soft shadows cast by the window light",palette:[]}] },
     { label:"建筑空间", w:1360, h:768, style:"photo",
-      high_level_description:"现代建筑空间，几何线条，光影交错，极简美学（Modern architectural space with geometric lines, light and shadow interplay, minimalist aesthetics）",
-      background:"混凝土与玻璃结构，开放式空间，天窗采光（Concrete and glass structure, open space, skylight illumination）",
-      aesthetics:"现代简洁，几何构成，光影对比，空间感（clean, geometric composition, light-shadow contrast, spatial depth）",
-      lighting:"自然光，天窗漫射，几何投影（natural daylight, skylight diffusion, geometric shadow patterns）",
-      medium:"建筑摄影，移轴镜头，透视校正（architectural photography, tilt-shift lens, perspective correction）",
-      photo_style:"建筑摄影，简洁线条，对称构图（architectural photography, clean lines, symmetrical composition）",
-      art_style:"", style_color_palette:["#808080","#f5f5f5","#2c3e50","#bdc3c7","#ecf0f1"],
-      regions:[{x:0,y:0,w:1,h:0.2,type:"obj",desc:"天窗结构，自然光漫射进入",palette:[]},{x:0,y:0.2,w:0.35,h:0.6,type:"obj",desc:"左侧混凝土墙面，几何线条",palette:[]},{x:0.65,y:0.2,w:0.35,h:0.6,type:"obj",desc:"右侧玻璃幕墙，光影投射",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"地面光影图案，几何投影",palette:[]}] },
+      high_level_description:"A modern architectural interior with clean geometric lines, interplay of natural light and shadow, and minimalist material palette",
+      background:"An open-plan concrete and glass structure with a white ceiling, polished concrete flooring, a floor-to-ceiling window wall allowing natural light to pour in",
+      aesthetics:"clean, geometric composition, light-shadow contrast, spatial depth, minimalist refinement",
+      lighting:"natural daylight from large windows, skylight diffusion, geometric shadow patterns cast by structural elements",
+      medium:"photograph",
+      photo:"architectural photography, tilt-shift lens, corrected perspective, symmetrical composition",
+      art_style:"", style_color_palette:["#808080","#F5F5F5","#2C3E50","#BDC3C7","#ECF0F1"],
+      regions:[{x:0,y:0.2,w:0.4,h:0.6,type:"obj",desc:"A raw concrete wall on the left with horizontal formwork lines and a sharp geometric shadow from the window frame",palette:[]},{x:0.6,y:0.2,w:0.4,h:0.6,type:"obj",desc:"A floor-to-ceiling glass curtain wall on the right framing a view of the sky and city skyline beyond",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"Polished concrete floor reflecting the window grid pattern in soft grey tones",palette:[]}] },
     { label:"动漫角色", w:768, h:1024, style:"art_style",
-      high_level_description:"日系动漫角色，大眼睛，动态姿势，鲜艳色彩（Japanese anime character with large eyes, dynamic pose, vibrant colors）",
-      background:"渐变色背景，光效粒子，氛围渲染（Gradient background with light particles, atmospheric rendering）",
-      aesthetics:"鲜艳饱和，赛璐珞着色，清晰线条，日式美学（vibrant, cel shading, clean linework, Japanese aesthetics）",
-      lighting:"均匀柔光，面部补光，发丝高光（even soft light, face fill light, hair highlights）",
-      medium:"动漫风格，赛璐珞着色，数字绘画（anime style, cel shading, digital painting）",
-      photo_style:"", art_style:"动漫风格，赛璐珞着色，日式美学（anime style, cel shading, Japanese aesthetic）",
-      style_color_palette:["#ff6b9d","#c44dff","#4dc9f6","#ffe066","#ff4757"],
-      regions:[{x:0.1,y:0.05,w:0.8,h:0.7,type:"obj",desc:"动漫角色主体，大眼睛，动态姿势",palette:[]},{x:0,y:0,w:1,h:0.05,type:"obj",desc:"渐变背景上部",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"光效粒子，氛围渲染，渐变背景",palette:[]}] },
+      high_level_description:"An anime-style character with large expressive eyes, a dynamic pose, vibrant hair color, and clean cel-shaded rendering against a gradient background",
+      background:"A gradient background shifting from bright cyan at the top to soft pink at the bottom with floating light particle effects",
+      aesthetics:"vibrant, cel-shaded, clean linework, saturated colors, Japanese animation aesthetic",
+      lighting:"even soft light, face fill illumination, bright specular highlights on hair strands",
+      medium:"anime style",
+      photo:"", art_style:"anime style, cel shading, clean outlines, flat color areas with soft shadow shapes, Japanese aesthetic",
+      style_color_palette:["#FF6B9D","#C44DFF","#4DC9F6","#FFE066","#FF4757"],
+      regions:[{x:0.1,y:0.05,w:0.8,h:0.7,type:"obj",desc:"A female anime character with long flowing pink hair, large bright blue eyes with star-shaped highlights, a school uniform with a red ribbon, one arm raised with a peace sign",palette:[]}] },
     { label:"蒸汽朋克世界", w:1360, h:768, style:"art_style",
-      high_level_description:"蒸汽朋克世界，齿轮机械，飞艇天空，维多利亚建筑（A steampunk world with brass gears, airships in sky, Victorian architecture）",
-      background:"蒸汽工厂内部，铜管管道，齿轮咬合，蒸汽弥漫（Steam factory interior with copper pipes, interlocking gears, steam clouds）",
-      aesthetics:"蒸汽朋克，铜绿齿轮，暖棕色调，复古机械（steampunk, brass and copper tones, warm brown palette, retro mechanical）",
-      lighting:"火光映照，蒸汽漫射，金属高光（firelight glow, steam diffusion, metallic highlights）",
-      medium:"概念艺术，数字哑光，丰富细节（concept art, matte painting, rich details）",
-      photo_style:"", art_style:"新艺术，流线有机，装饰细节（art nouveau, flowing organic lines, decorative details）",
-      style_color_palette:["#b87333","#cd853f","#8b4513","#daa520","#704214"],
-      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"蒸汽天空，飞艇漂浮，烟囱冒烟",palette:[]},{x:0,y:0.25,w:0.4,h:0.5,type:"obj",desc:"左侧齿轮机械装置，铜管管道",palette:[]},{x:0.6,y:0.25,w:0.4,h:0.5,type:"obj",desc:"右侧维多利亚建筑，蒸汽管道",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"地面蒸汽弥漫，金属反射",palette:[]}] },
+      high_level_description:"A steampunk world with brass gear mechanisms, a hydrogen airship floating in the sky, and ornate Victorian architecture",
+      background:"An industrial sky with a sepia-toned haze, copper pipe networks along building exteriors, steam venting from pressure valves, and a warm overcast atmosphere",
+      aesthetics:"steampunk, brass and copper tones, warm brown palette, retro-futuristic mechanical details",
+      lighting:"firelight glow from furnaces, steam diffusion softening the light, warm metallic highlights on brass surfaces",
+      medium:"digital painting",
+      photo:"", art_style:"art nouveau inspired, flowing organic lines, decorative mechanical details, ornate borders and flourishes",
+      style_color_palette:["#B87333","#CD853F","#8B4513","#DAA520","#704214"],
+      regions:[{x:0,y:0,w:0.35,h:0.55,type:"obj",desc:"A large mechanical apparatus with brass gears, copper steam pipes with riveted joints, pressure gauges, and a coal furnace glowing orange",palette:[]},{x:0.65,y:0,w:0.35,h:0.55,type:"obj",desc:"A Victorian brick building facade with arched windows, a wrought-iron balcony, and a copper pipe network running up the wall",palette:[]},{x:0.25,y:0.05,w:0.5,h:0.3,type:"obj",desc:"A hydrogen airship with a brass gondola and a large striped canvas envelope floating in the hazy sky",palette:[]}] },
     { label:"末日废墟", w:1360, h:768, style:"photo",
-      high_level_description:"后末日城市废墟，建筑坍塌，藤蔓覆盖，荒芜寂静（Post-apocalyptic city ruins with collapsed buildings, overgrown vines, desolate silence）",
-      background:"废弃城市街道，残破建筑，植被入侵，灰尘弥漫（Abandoned city street, crumbling structures, vegetation reclaiming, dust in air）",
-      aesthetics:"低饱和，灰绿色调，衰败美感，末日氛围（desaturated, grey-green tones, decay beauty, apocalyptic atmosphere）",
-      lighting:"阴天漫射光，均匀灰调，无强烈阴影（overcast diffused light, uniform grey tone, no harsh shadows）",
-      medium:"摄影，35mm镜头，纪实风格（photograph, 35mm lens, documentary style）",
-      photo_style:"纪实风格，新闻摄影，raw真实感（documentary style, photojournalistic, raw realism）",
-      art_style:"", style_color_palette:["#556b2f","#696969","#8fbc8f","#2f4f4f","#a9a9a9"],
-      regions:[{x:0,y:0,w:0.4,h:0.6,type:"obj",desc:"左侧坍塌建筑残骸，钢筋外露",palette:[]},{x:0.6,y:0,w:0.4,h:0.5,type:"obj",desc:"右侧倾斜建筑，藤蔓覆盖",palette:[]},{x:0.3,y:0.1,w:0.4,h:0.3,type:"obj",desc:"灰暗天空，灰尘弥漫",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"废弃街道，植被入侵，碎石瓦砾",palette:[]}] },
+      high_level_description:"Post-apocalyptic city ruins with collapsed concrete buildings, exposed rebar, vegetation reclaiming the structures, and a desolate atmosphere",
+      background:"A wide abandoned city street flanked by crumbling high-rise buildings, broken asphalt cracked by tree roots, dust particles suspended in the air, an overcast grey sky above",
+      aesthetics:"desaturated, grey-green tones, decay aesthetic, raw and weathered",
+      lighting:"overcast diffused light, even grey ambient illumination, no harsh shadows, flat shadowless daylight",
+      medium:"photograph",
+      photo:"documentary style, photojournalistic framing, natural moment, raw realism",
+      art_style:"", style_color_palette:["#556B2F","#696969","#8FBC8F","#2F4F4F","#A9A9A9"],
+      regions:[{x:0,y:0,w:0.4,h:0.5,type:"obj",desc:"A partially collapsed concrete building with exposed steel rebar, shattered windows, and climbing ivy covering the remaining facade",palette:[]},{x:0.6,y:0,w:0.4,h:0.5,type:"obj",desc:"A leaning building facade with a large crack running diagonally and a rusted fire escape hanging loose from the wall",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"A broken asphalt road surface with large cracks, weeds and grass pushing through, scattered rubble and a rusted car skeleton",palette:[]}] },
     { label:"深海奇遇", w:1024, h:1536, style:"art_style",
-      high_level_description:"深海奇幻世界，发光水母，珊瑚礁群，神秘光束（A fantastical deep sea world with glowing jellyfish, coral reefs, mysterious light beams）",
-      background:"深海环境，珊瑚礁群，海藻摇曳，气泡上升（Deep sea environment with coral reefs, swaying kelp, rising bubbles）",
-      aesthetics:"空灵脱俗，生物发光，蓝绿色调，梦幻水下（ethereal, bioluminescent, blue-green tones, dreamy underwater）",
-      lighting:"体积光，水面光束穿透，生物发光点缀（volumetric light, surface light beams, bioluminescent accents）",
-      medium:"数字绘画，高细节，光效渲染（digital painting, highly detailed, light effects rendering）",
-      photo_style:"水下摄影，蓝绿色调，焦散光（underwater photography, blue-green tones, caustics）",
-      art_style:"", style_color_palette:["#006994","#40e0d0","#00ced1","#20b2aa","#008b8b"],
-      regions:[{x:0,y:0,w:1,h:0.2,type:"obj",desc:"水面光线穿透，体积光束",palette:[]},{x:0.2,y:0.2,w:0.6,h:0.35,type:"obj",desc:"发光水母群，生物发光",palette:[]},{x:0,y:0.55,w:1,h:0.25,type:"obj",desc:"珊瑚礁群，海藻摇曳",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"深海底部，气泡上升，神秘光点",palette:[]}] },
+      high_level_description:"A fantastical deep-sea world with glowing jellyfish drifting upward, vibrant coral formations, and shafts of light piercing the water from the surface",
+      background:"A deep ocean environment with a dark blue gradient fading to black toward the bottom, a coral reef structure on the sea floor, and long rays of sunlight descending from the surface above",
+      aesthetics:"ethereal, bioluminescent, deep blue-green tones, dreamy underwater atmosphere",
+      lighting:"volumetric light beams from the surface, bioluminescent glow from marine organisms, caustic light patterns on surfaces",
+      medium:"digital painting",
+      photo:"", art_style:"impressionist, soft blended brushwork, emphasis on atmospheric light and glowing color",
+      style_color_palette:["#006994","#40E0D0","#00CED1","#20B2AA","#008B8B"],
+      regions:[{x:0.15,y:0.15,w:0.7,h:0.35,type:"obj",desc:"A cluster of translucent glowing jellyfish with long trailing tentacles drifting upward toward the light, their bodies emitting a soft bioluminescent blue",palette:[]},{x:0,y:0.55,w:1,h:0.3,type:"obj",desc:"A coral reef structure with branching corals in shades of orange and purple, sea anemones, and small tropical fish swimming between the formations",palette:[]},{x:0,y:0.85,w:1,h:0.15,type:"obj",desc:"The sandy ocean floor with scattered shells and small glowing organisms embedded in the sediment",palette:[]}] },
     { label:"太空科幻", w:1360, h:768, style:"photo",
-      high_level_description:"太空科幻场景，星际飞船，星云背景，宇宙深邃（A space sci-fi scene with interstellar spacecraft, nebula backdrop, cosmic depth）",
-      background:"深空星云，璀璨星河，远处星系，宇宙尘埃（Deep space nebula, brilliant starfield, distant galaxies, cosmic dust）",
-      aesthetics:"高对比，冷色调，光晕效果，未来科技感（high contrast, cool tones, lens flare, futuristic tech feel）",
-      lighting:"恒星直射，星云漫射，飞船灯光（direct starlight, nebula ambient glow, spacecraft lights）",
-      medium:"3D渲染，光追写实，超高清（3D render, photorealistic, ray tracing, ultra HD）",
-      photo_style:"天文摄影，长曝光，深空天体（astrophotography, long exposure, deep sky objects）",
-      art_style:"", style_color_palette:["#0a0a2e","#4a0080","#00bfff","#191970","#e0ffff"],
-      regions:[{x:0,y:0,w:1,h:0.5,type:"obj",desc:"深空星云，璀璨星河，宇宙尘埃",palette:[]},{x:0.25,y:0.3,w:0.5,h:0.3,type:"obj",desc:"星际飞船主体，科技细节",palette:[]},{x:0,y:0.5,w:1,h:0.5,type:"obj",desc:"远处星系，行星轮廓，光晕效果",palette:[]}] },
+      high_level_description:"A space sci-fi scene featuring an interstellar spacecraft drifting through a colorful nebula with dense star fields and distant galaxies",
+      background:"Deep space with a swirling emission nebula in magenta and cyan, scattered bright stars of varying sizes, and faint distant spiral galaxies visible in the background",
+      aesthetics:"high contrast, cool tones, cosmic scale, deep color saturation",
+      lighting:"direct starlight from a nearby star system, ambient nebula glow, spacecraft navigation lights",
+      medium:"3d_render",
+      photo:"astrophotography, long exposure, deep sky objects, wide field perspective",
+      art_style:"", style_color_palette:["#0A0A2E","#4A0080","#00BFFF","#191970","#E0FFFF"],
+      regions:[{x:0.2,y:0.25,w:0.6,h:0.35,type:"obj",desc:"A sleek interstellar spacecraft with a long hull, glowing engine nacelles emitting blue exhaust, solar panel arrays, and a cockpit window glowing amber",palette:[]},{x:0,y:0.5,w:1,h:0.5,type:"obj",desc:"A dense nebula cloud in magenta, cyan, and deep purple with bright embedded stars, wisps of cosmic dust, and a spiral galaxy faintly visible in the distance",palette:[]}] },
     { label:"复古怀旧", w:1024, h:1024, style:"photo",
-      high_level_description:"复古怀旧场景，老式汽车，暖黄街灯，年代感街道（Vintage nostalgic scene with classic car, warm street lamps, period street）",
-      background:"老城区街道，欧式建筑，暖黄灯光，黄昏时分（Old town street, European buildings, warm yellow lights, dusk）",
-      aesthetics:"复古胶片感，暖色调，颗粒质感，柔焦效果（vintage film look, warm tones, grain texture, soft focus）",
-      lighting:"黄金时段，暖侧光，长投影，路灯点缀（golden hour, warm side light, long shadows, street lamp accents）",
-      medium:"摄影，50mm胶片机，Kodak Portra 400（photograph, 50mm film camera, Kodak Portra 400）",
-      photo_style:"黑白胶片，颗粒质感，经典构图（black and white film, grain texture, classic composition）",
-      art_style:"", style_color_palette:["#d4a574","#c19a6b","#8b7355","#daa520","#f5deb3"],
-      regions:[{x:0,y:0,w:0.4,h:0.6,type:"obj",desc:"左侧欧式建筑，暖黄灯光",palette:[]},{x:0.6,y:0,w:0.4,h:0.6,type:"obj",desc:"右侧建筑立面，窗台花盆",palette:[]},{x:0.3,y:0.2,w:0.4,h:0.4,type:"obj",desc:"老式汽车，复古造型",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"石板街道，暖黄街灯投影",palette:[]}] },
+      high_level_description:"A vintage nostalgic street scene with a classic 1960s automobile parked beneath a warm yellow street lamp at dusk in a European old town",
+      background:"A narrow European old town street with historic buildings with shuttered windows, cobblestone pavement, a gentle dusk sky transitioning from blue to amber, and a single street lamp casting a warm pool of light",
+      aesthetics:"vintage film look, muted warm tones, soft halation, nostalgic atmosphere",
+      lighting:"golden hour fading into dusk, street lamp as primary light source, warm directional side light, long soft shadows across the street",
+      medium:"photograph",
+      photo:"street photography, 50mm lens, candid mood, available light, film character",
+      art_style:"", style_color_palette:["#D4A574","#C19A6B","#8B7355","#DAA520","#F5DEB3"],
+      regions:[{x:0,y:0,w:0.35,h:0.6,type:"obj",desc:"A row of historic townhouses with warm-lit ground-floor windows, decorative wrought-iron balcony rails, and window boxes with red geraniums",palette:[]},{x:0.65,y:0,w:0.35,h:0.6,type:"obj",desc:"A matching row of buildings on the opposite side with a corner bistro showing amber light through a glass door",palette:[]},{x:0.25,y:0.25,w:0.5,h:0.4,type:"obj",desc:"A vintage teal 1960s sedan parked at the curb with chrome bumpers catching the street lamp reflection and a curved windshield",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"Cobblestone paving with a wet sheen reflecting the warm street lamp light and the car's silhouette",palette:[]}] },
     { label:"极简抽象", w:1024, h:1024, style:"art_style",
-      high_level_description:"极简抽象设计，几何形状，留白空间，纯净色彩（Minimalist abstract design with geometric shapes, negative space, pure colors）",
-      background:"纯白背景，大面积留白，呼吸感（Pure white background, large negative space, breathing room）",
-      aesthetics:"极简主义，精简形式，少即是多，纯净利落（minimalist, reduced forms, less is more, pure and clean）",
-      lighting:"均匀漫射光，无阴影，平面感（even diffused light, no shadows, flat feel）",
-      medium:"矢量插画，扁平设计，精确几何（vector illustration, flat design, precise geometry）",
-      photo_style:"", art_style:"极简主义，精简形式，留白美学（minimalist, reduced forms, negative space aesthetics）",
-      style_color_palette:["#ffffff","#000000","#e74c3c","#f5f5f5","#333333"],
-      regions:[{x:0.15,y:0.15,w:0.35,h:0.35,type:"obj",desc:"圆形几何形状，纯净色块",palette:[]},{x:0.55,y:0.45,w:0.3,h:0.4,type:"obj",desc:"矩形几何形状，对比色彩",palette:[]}] },
+      high_level_description:"A minimalist abstract composition with precise geometric shapes, generous negative space, and a restrained pure color palette",
+      background:"A pure white background with subtle off-white texture, expansive negative space framing the composition",
+      aesthetics:"minimalist, reduced forms, less is more, pure and clean, balanced",
+      lighting:"even diffused light, no shadows, flat uniform illumination",
+      medium:"vector illustration",
+      photo:"", art_style:"minimalist, reduced essential forms, generous negative space, clean geometric precision",
+      style_color_palette:["#FFFFFF","#000000","#E74C3C","#F5F5F5","#333333"],
+      regions:[{x:0.15,y:0.15,w:0.3,h:0.3,type:"obj",desc:"A perfect red circle in the upper-left quadrant, solid fill with no outline, positioned with balanced negative space around it",palette:[]},{x:0.55,y:0.5,w:0.3,h:0.35,type:"obj",desc:"A black right-angled triangle in the lower-right quadrant, sharp clean edges, positioned to counterbalance the red circle",palette:[]}] },
     { label:"微距自然", w:1024, h:1024, style:"photo",
-      high_level_description:"微距自然世界，露珠晶莹，花瓣纹理，昆虫细节（Macro nature world with crystal dewdrops, petal textures, insect details）",
-      background:"模糊绿色植被，柔和散景，自然虚化（Blurred green foliage, soft bokeh, natural defocus）",
-      aesthetics:"鲜艳自然，极致细节，浅景深，露珠折射（vibrant natural, extreme detail, shallow DOF, dewdrop refraction）",
-      lighting:"逆光，轮廓光，露珠高光，柔和散射（backlight, rim light, dewdrop highlights, soft diffusion）",
-      medium:"微距摄影，100mm微距镜头，焦点堆叠（macro photography, 100mm macro lens, focus stacking）",
-      photo_style:"微距摄影，极致细节，浅景深（macro photography, extreme close-up detail, shallow DOF）",
-      art_style:"", style_color_palette:["#2ecc71","#27ae60","#f1c40f","#e74c3c","#1abc9c"],
-      regions:[{x:0.1,y:0.1,w:0.8,h:0.6,type:"obj",desc:"花瓣主体，露珠晶莹，极致纹理细节",palette:[]},{x:0,y:0,w:1,h:0.1,type:"obj",desc:"逆光来源，轮廓光高光",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"模糊绿色散景，柔和虚化",palette:[]}] },
+      high_level_description:"An extreme macro nature shot of a dewdrop-covered flower petal with intricate surface texture, backlit by soft warm light",
+      background:"Soft out-of-focus green foliage in the background creating a gentle colorful bokeh, natural atmosphere",
+      aesthetics:"vibrant natural color, extreme detail, shallow depth of field, fresh morning quality",
+      lighting:"backlight through the petal creating translucent glow, rim light on dewdrops, soft diffusion from overcast sky",
+      medium:"photograph",
+      photo:"macro photography, 100mm macro lens, extreme close-up, natural light, early morning",
+      art_style:"", style_color_palette:["#2ECC71","#27AE60","#F1C40F","#E74C3C","#1ABC9C"],
+      regions:[{x:0.05,y:0.05,w:0.9,h:0.65,type:"obj",desc:"A pink flower petal filling most of the frame with visible cellular texture, crystal-clear dewdrops of varying sizes catching and refracting the backlight, one large drop in the center showing an inverted image inside",palette:[]}] },
     { label:"街头纪实", w:1360, h:768, style:"photo",
-      high_level_description:"街头纪实摄影，行人匆匆，城市节奏，真实瞬间（Street documentary photography, bustling pedestrians, city rhythm, authentic moments）",
-      background:"繁忙城市街道，建筑林立，车辆穿梭，生活气息（Busy urban street with buildings, vehicles, life energy）",
-      aesthetics:"纪实风格，自然色彩，抓拍感，raw真实（documentary style, natural colors, candid feel, raw realism）",
-      lighting:"自然光，阴天漫射，真实环境光（natural light, overcast diffusion, authentic ambient light）",
-      medium:"摄影，35mm镜头，徕卡M系列（photograph, 35mm lens, Leica M series）",
-      photo_style:"街拍摄影，抓拍瞬间，35mm广角（street photography, candid moments, 35mm wide angle）",
-      art_style:"", style_color_palette:["#2c3e50","#7f8c8d","#95a5a6","#bdc3c7","#34495e"],
-      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"城市建筑天际线，招牌广告",palette:[]},{x:0.2,y:0.25,w:0.6,h:0.4,type:"obj",desc:"行人匆匆，抓拍瞬间，城市节奏",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"街道地面，车辆穿梭，生活气息",palette:[]}] },
+      high_level_description:"An authentic street documentary photograph capturing bustling pedestrians in a busy urban intersection, natural light, candid moment",
+      background:"A busy city intersection with mixed commercial architecture, street-level storefronts with awnings, traffic signals, and a grey overcast sky above",
+      aesthetics:"documentary style, natural muted colors, candid feel, raw authenticity",
+      lighting:"natural light, overcast diffusion, soft even ambient light, no directional shadows",
+      medium:"photograph",
+      photo:"street photography, 35mm wide angle, candid moment, available light",
+      art_style:"", style_color_palette:["#2C3E50","#7F8C8D","#95A5A6","#BDC3C7","#34495E"],
+      regions:[{x:0.15,y:0.2,w:0.7,h:0.45,type:"obj",desc:"A crowd of pedestrians crossing a street intersection in various directions, mixed ages and styles of clothing, one person looking directly at the camera, expressions natural and unposed",palette:[]}] },
     { label:"油画古典肖像", w:1024, h:1536, style:"art_style",
-      high_level_description:"古典油画肖像，华丽服饰，深色背景，大师笔触（Classical oil painting portrait with elaborate clothing, dark background, masterful brushwork）",
-      background:"深色渐变背景，帷幔质感，低调奢华（Dark gradient background, drapery texture, understated luxury）",
-      aesthetics:"巴洛克，戏剧光影，丰富细节，厚涂质感（baroque, dramatic lighting, rich details, impasto texture）",
-      lighting:"伦勃朗光，侧光照明，面部立体感（Rembrandt lighting, side illumination, facial dimensionality）",
-      medium:"油画，厚涂笔触，古典技法（oil painting, thick brushstrokes, classical technique）",
-      photo_style:"", art_style:"巴洛克，戏剧光影，古典肖像（baroque, dramatic lighting, classical portrait）",
-      style_color_palette:["#8b4513","#daa520","#2c1810","#f5deb3","#cd853f"],
-      regions:[{x:0.15,y:0.05,w:0.7,h:0.6,type:"obj",desc:"人物肖像，华丽服饰，面部表情",palette:[]},{x:0,y:0,w:0.25,h:0.8,type:"obj",desc:"左侧帷幔，深色褶皱质感",palette:[]},{x:0.75,y:0,w:0.25,h:0.8,type:"obj",desc:"右侧帷幔，低调奢华背景",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"深色渐变背景下部，手部细节",palette:[]}] },
+      high_level_description:"A classical oil painting portrait of a noble figure in elaborate period clothing against a dark drapery background with masterful chiaroscuro",
+      background:"A dark gradient background with heavy velvet drapery in deep burgundy, rich shadow gradient receding into darkness behind the sitter",
+      aesthetics:"baroque, dramatic chiaroscuro, rich warm tones, impasto texture, ornate detail",
+      lighting:"Rembrandt lighting, single strong light source from upper left, deep shadow on the right side, warm skin illumination",
+      medium:"oil painting",
+      photo:"", art_style:"baroque, dramatic chiaroscuro, rich ornamentation, classical portrait tradition, visible brushwork",
+      style_color_palette:["#8B4513","#DAA520","#2C1810","#F5DEB3","#CD853F"],
+      regions:[{x:0.15,y:0.05,w:0.7,h:0.6,type:"obj",desc:"A nobleman with a curled wig and fair skin, wearing an embroidered velvet coat in deep blue with gold trim, a white lace cravat at the neck, a composed authoritative expression with a slight hint of a smile",palette:[]},{x:0,y:0,w:0.2,h:0.8,type:"obj",desc:"Heavy burgundy velvet drapery on the left side with deep folds catching the light at the crest of each fold",palette:[]},{x:0.8,y:0,w:0.2,h:0.8,type:"obj",desc:"Dark velvet drapery on the right falling into near-complete shadow, only the top fold edges catching the light",palette:[]}] },
     { label:"黄金时段风景", w:1360, h:768, style:"photo",
-      high_level_description:"黄金时段壮丽风景，阳光洒落，山脉剪影，天空渐变（Magnificent golden hour landscape with sunlight rays, mountain silhouettes, sky gradient）",
-      background:"连绵山脉，天空渐变橙红紫，云层层次（Rolling mountains, sky gradient of orange-red-purple, layered clouds）",
-      aesthetics:"鲜艳饱和，高对比，金色暖调，壮丽感（vibrant, high contrast, golden warm tones, majestic feel）",
-      lighting:"黄金时段，低角度暖光，长投影，轮廓光（golden hour, low-angle warm light, long shadows, rim lighting）",
-      medium:"风光摄影，广角镜头，渐变滤镜（landscape photography, wide angle lens, graduated filter）",
-      photo_style:"风光摄影，广角，黄金时段（landscape photography, wide angle, golden hour）",
-      art_style:"", style_color_palette:["#ff8c00","#ff6347","#ffd700","#4a0080","#191970"],
-      regions:[{x:0,y:0,w:1,h:0.35,type:"obj",desc:"天空渐变橙红紫，云层层次丰富",palette:[]},{x:0.3,y:0.15,w:0.4,h:0.2,type:"obj",desc:"太阳位置，金色光芒散射",palette:[]},{x:0,y:0.3,w:1,h:0.3,type:"obj",desc:"连绵山脉剪影，层次分明",palette:[]},{x:0,y:0.6,w:1,h:0.4,type:"obj",desc:"前景草甸，暖光洒落，长投影",palette:[]}] },
+      high_level_description:"A magnificent golden hour landscape with layered mountain silhouettes, dramatic cloud formations, and sun rays spreading across the scene",
+      background:"A wide horizon with multiple layers of mountain ridges receding into the distance, a sky filled with textured clouds transitioning from deep orange to purple, and a golden sun low on the horizon",
+      aesthetics:"vibrant, high contrast, golden tones, majestic natural beauty",
+      lighting:"golden hour, low-angle sunlight, long shadows stretching across the foreground, warm directional rim light on clouds and mountain edges",
+      medium:"photograph",
+      photo:"landscape photography, wide angle lens, graduated neutral density filter, generous depth of field",
+      art_style:"", style_color_palette:["#FF8C00","#FF6347","#FFD700","#4A0080","#191970"],
+      regions:[{x:0.25,y:0.1,w:0.5,h:0.15,type:"obj",desc:"The golden sun near the horizon partially obscured by a thin layer of clouds radiating visible sunbeams in all directions",palette:[]},{x:0,y:0.3,w:1,h:0.35,type:"obj",desc:"Three distinct layers of mountain ridges silhouetted against the sunset sky, each layer a deeper purple than the one before it",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"A grassy meadow in the foreground with wild grass catching the golden light, long shadows stretching toward the viewer",palette:[]}] },
     { label:"微缩模型场景", w:1360, h:768, style:"photo",
-      high_level_description:"移轴微缩模型效果，城市街道如玩具，选择性聚焦，超浅景深（A tilt-shift miniature scene making real city look like tiny toys with selective focus and ultra shallow DOF）",
-      background:"城市街区俯瞰，建筑如模型，迷你车辆行人（Urban block aerial view with buildings like miniature models, tiny cars and pedestrians）",
-      aesthetics:"鲜艳饱和，高对比，清晰锐利，趣味移轴效果（vibrant, saturated, high contrast, sharp, fun tilt-shift effect）",
-      lighting:"日光直射，明亮均匀，色彩通透（direct sunlight, bright and even, clear colors）",
-      medium:"移轴摄影，微缩效果，超浅景深（tilt-shift photography, miniature effect, ultra shallow depth of field）",
-      photo_style:"移轴摄影，微缩模型效果，选择性聚焦（tilt-shift photography, miniature effect, selective focus）",
-      art_style:"", style_color_palette:["#87ceeb","#98fb98","#ffb6c1","#dda0dd","#f0e68c"],
-      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"天空晴朗，云朵轻柔",palette:[]},{x:0,y:0.25,w:1,h:0.5,type:"obj",desc:"城市街区如玩具模型，移轴模糊带上下",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"前景模糊虚化，强制浅景深感",palette:[]}] },
+      high_level_description:"A tilt-shift miniature effect photograph making a real city intersection look like a tiny scale model with selective focus creating an extremely shallow depth of field",
+      background:"An urban intersection viewed from an elevated angle with buildings arranged like a model train set, bright daylight, and a clear blue sky",
+      aesthetics:"vibrant, saturated, high contrast, sharp central detail with graduated blur, toy-like scale",
+      lighting:"direct sunlight, bright and even, clear blue sky, crisp shadows with defined edges",
+      medium:"photograph",
+      photo:"tilt-shift photography, selective focus plane, miniature scene effect, bird's eye composition",
+      art_style:"", style_color_palette:["#87CEEB","#98FB98","#FFB6C1","#DDA0DD","#F0E68C"],
+      regions:[{x:0.05,y:0.2,w:0.9,h:0.5,type:"obj",desc:"A city intersection with miniature-looking cars in red, blue, and yellow, tiny pedestrian figures crossing crosswalks, and small-scale buildings with colorful facades, all rendered with extreme sharpness in the center fading to blur at the edges",palette:[]}] },
     { label:"古装全身人像", w:768, h:1024, style:"photo",
-      high_level_description:"古装人物全身立像，汉服华美飘逸，姿态优雅，古典东方韵味（Full-body portrait in ancient Chinese Hanfu, elegant flowing robes, classical oriental grace）",
-      background:"古风庭院，红墙绿瓦，梅花枝掩映，晨雾轻笼（Ancient courtyard with red walls and green tiles, plum blossoms, morning mist）",
-      aesthetics:"东方古典意境，柔和色调，水墨留白，雅致温润（classical Eastern atmosphere, soft tones, ink-wash negative space, refined elegance）",
-      lighting:"自然柔光，漫射天光，面部均匀柔和（natural soft light, diffused skylight, even gentle face lighting）",
-      medium:"摄影，85mm镜头，中画幅数字（photograph, 85mm lens, medium format digital）",
-      photo_style:"人像摄影，全身立像，古典风格（portrait photography, full body portrait, classical style）",
-      art_style:"", style_color_palette:["#c0392b","#f5deb3","#8b4513","#2c3e50","#d4a574"],
-      regions:[{x:0.1,y:0,w:0.8,h:0.15,type:"obj",desc:"古风屋檐，梅花枝桠",palette:[]},{x:0.1,y:0.1,w:0.8,h:0.7,type:"obj",desc:"人物全身，汉服华美飘逸，优雅站姿",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"庭院地面，青石砖瓦，落叶点缀",palette:[]}] },
+      high_level_description:"A full-body portrait in traditional Chinese Hanfu, the flowing robes elegant and graceful, set in a classical courtyard garden with morning mist",
+      background:"A traditional Chinese courtyard with a red-lacquered wooden wall, grey tile roof eaves, and a plum blossom branch extending from the left, soft morning mist hanging in the air",
+      aesthetics:"classical Eastern elegance, soft muted tones, refined and graceful, natural light",
+      lighting:"natural soft light, diffused morning skylight, even gentle illumination across the figure and courtyard",
+      medium:"photograph",
+      photo:"portrait photography, 85mm lens, full-body framing, soft natural light, classical composition",
+      art_style:"", style_color_palette:["#C0392B","#F5DEB3","#8B4513","#2C3E50","#D4A574"],
+      regions:[{x:0.05,y:0.05,w:0.9,h:0.1,type:"obj",desc:"A traditional grey tile roof eaves with carved wooden brackets and a plum blossom branch with pink flowers extending into the frame",palette:[]},{x:0.1,y:0.1,w:0.8,h:0.7,type:"obj",desc:"A woman in full-length flowing Hanfu in pale celadon green and cream, with wide silk sleeves and a layered skirt, her hair styled in a classical updo with a jade hairpin, hands clasped gracefully at the waist, a serene gentle expression",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"A stone-paved courtyard ground with grey flagstones, a few fallen pink plum blossom petals scattered near the hem of the robe",palette:[]}] },
     { label:"现代全身人像", w:768, h:1024, style:"photo",
-      high_level_description:"现代时尚全身人像，潮流穿搭，自信姿态，都市生活氛围（Modern full-body fashion portrait with trendy outfit, confident pose, urban lifestyle vibe）",
-      background:"城市街道或简洁影棚，干净利落，现代感（Urban street or clean studio backdrop, crisp and modern feel）",
-      aesthetics:"现代简洁，高对比，锐利清晰，时尚杂志感（clean modern, high contrast, sharp clarity, fashion editorial feel）",
-      lighting:"侧光加补光，轮廓分明，面部立体（side light with fill, defined contours, facial dimensionality）",
-      medium:"时尚摄影，50mm镜头，f1.8大光圈（fashion photography, 50mm lens, f1.8 aperture）",
-      photo_style:"时尚摄影，全身造型，街拍风格（fashion photography, full body styling, street style）",
-      art_style:"", style_color_palette:["#2c3e50","#e74c3c","#ecf0f1","#f39c12","#34495e"],
-      regions:[{x:0,y:0,w:1,h:0.15,type:"obj",desc:"城市天空或简洁背景上部",palette:[]},{x:0.1,y:0.1,w:0.8,h:0.7,type:"obj",desc:"人物全身，时尚穿搭，自信姿态",palette:[]},{x:0,y:0.8,w:1,h:0.2,type:"obj",desc:"地面或街道，倒影投影",palette:[]}] },
+      high_level_description:"A modern full-body fashion portrait with a model in contemporary streetwear, a confident pose, set against an urban backdrop with late afternoon light",
+      background:"A clean urban street with a light grey wall, a minimalist architectural backdrop, and a soft blue sky with wispy clouds",
+      aesthetics:"clean modern, sharp contrast, editorial clarity, fashion-forward",
+      lighting:"side light with a soft fill from the opposite side, defined facial contours, bright natural daylight",
+      medium:"photograph",
+      photo:"fashion photography, 50mm lens, full-body styling, natural light with reflector fill",
+      art_style:"", style_color_palette:["#2C3E50","#E74C3C","#ECF0F1","#F39C12","#34495E"],
+      regions:[{x:0.08,y:0.05,w:0.84,h:0.75,type:"obj",desc:"A young man in an oversized cream knit sweater, loose beige trousers, and white sneakers, one hand in a pocket, the other holding a phone, a relaxed confident stance, looking slightly off-camera with a neutral expression",palette:[]}] },
     { label:"俯瞰视角大场景", w:1360, h:768, style:"photo",
-      high_level_description:"高空俯瞰壮阔全景，大地脉络清晰，山河壮丽，气势磅礴（A breathtaking aerial panoramic view with earth's veins visible, magnificent mountains and rivers）",
-      background:"连绵山脉河流，大地纹理，云层投影，色彩丰富（Rolling mountains and rivers, earth textures, cloud shadows, rich colors）",
-      aesthetics:"壮丽辽阔，高对比，细节丰富，色彩饱和（majestic and vast, high contrast, rich details, saturated colors）",
-      lighting:"黄金时段航拍光，低角度暖光，地形光影分明（golden hour aerial light, low-angle warm light, distinct terrain shadows）",
-      medium:"航拍摄影，无人机，广角镜头（aerial drone photography, wide angle lens）",
-      photo_style:"航拍鸟瞰，俯冲视角，风光全景（aerial drone photography, top-down perspective, panoramic landscape）",
-      art_style:"", style_color_palette:["#2ecc71","#3498db","#f39c12","#8e44ad","#1abc9c"],
-      regions:[{x:0,y:0,w:1,h:0.5,type:"obj",desc:"远处地平线，山脉层次，云层投影",palette:[]},{x:0,y:0.4,w:1,h:0.4,type:"obj",desc:"蜿蜒河流穿行峡谷，大地纹理",palette:[]},{x:0,y:0.75,w:1,h:0.25,type:"obj",desc:"前景山谷森林，纵深细节",palette:[]}] },
+      high_level_description:"A breathtaking aerial panoramic view showing a river winding through a dramatic valley with layered mountain ranges under golden hour light",
+      background:"A vast landscape seen from altitude with a meandering river cutting through a valley, multiple mountain ranges receding to the horizon, cloud shadows creating areas of light and dark on the terrain",
+      aesthetics:"majestic and vast, high contrast, rich detail across the scene, saturated natural colors",
+      lighting:"golden hour aerial light, low-angle illumination emphasizing terrain texture, long shadows from mountain ridges",
+      medium:"photograph",
+      photo:"aerial drone photography, wide angle lens, top-down perspective, panoramic landscape",
+      art_style:"", style_color_palette:["#2ECC71","#3498DB","#F39C12","#8E44AD","#1ABC9C"],
+      regions:[{x:0,y:0.35,w:1,h:0.35,type:"obj",desc:"A wide meandering river with a blue-green color snaking through the valley floor with visible sandbars and oxbow bends",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"A dense pine forest covering the lower valley slopes with patches of exposed rock and small clearings visible through the canopy",palette:[]}] },
     { label:"厚涂游戏原画", w:1360, h:768, style:"art_style",
-      high_level_description:"厚涂游戏概念原画，角色与场景交融，笔触粗犷有力，史诗感（Impasto game concept art with character and scene fusion, bold brushstrokes, epic feel）",
-      background:"幻想世界战场或神秘遗迹，大气透视，恢弘壮阔（Fantasy battlefield or ancient ruins, atmospheric perspective, grandeur）",
-      aesthetics:"厚涂质感，强笔触，高饱和，电影级构图（impasto texture, strong brushwork, high saturation, cinematic composition）",
-      lighting:"戏剧体积光，丁达尔效应，光尘飞舞（dramatic volumetric light, god rays, floating dust particles）",
-      medium:"数字绘画，厚涂技法，高细节，厚叠笔触（digital painting, impasto technique, highly detailed, thick layered strokes）",
-      photo_style:"", art_style:"厚涂技法，游戏原画风格，史诗构图（impasto technique, game concept art style, epic composition）",
-      style_color_palette:["#8b0000","#daa520","#2c1810","#4a0080","#ff8c00"],
-      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"天空火烧云，丁达尔光束穿透",palette:[]},{x:0.2,y:0.2,w:0.6,h:0.6,type:"obj",desc:"中心角色或主体，厚涂笔触质感",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"前景地面，刮刀纹理，粗犷笔触",palette:[]}] },
+      high_level_description:"An impasto game concept art piece with a heroic character standing on a battlefield under a dramatic stormy sky, with bold layered brushwork",
+      background:"A fantasy battlefield with a dark stormy sky, smoking ruins in the distance, a rugged rocky terrain, and dramatic atmospheric perspective with dust and mist",
+      aesthetics:"impasto texture, bold visible brushwork, high saturation, cinematic epic composition",
+      lighting:"dramatic volumetric lighting, god rays breaking through storm clouds, rim light on the central figure, floating dust particles catching the light",
+      medium:"digital painting",
+      photo:"", art_style:"impasto technique, game concept art, thick layered strokes, painterly epic composition",
+      style_color_palette:["#8B0000","#DAA520","#2C1810","#4A0080","#FF8C00"],
+      regions:[{x:0,y:0,w:1,h:0.25,type:"obj",desc:"A stormy sky with dark purple-blue clouds parted in the center revealing golden light, god rays descending diagonally through the scene",palette:[]},{x:0.25,y:0.15,w:0.5,h:0.6,type:"obj",desc:"A warrior figure in dark armor with a red cape billowing in the wind, holding a large sword point-down, standing on a rocky outcrop with a heroic silhouette against the light",palette:[]},{x:0,y:0.7,w:1,h:0.3,type:"obj",desc:"A rocky terrain with broken stone, scattered weapons, and smoke rising from small fires, rendered with thick palette-knife-style brush strokes",palette:[]}] },
     { label:"3D超写实修仙", w:1024, h:1024, style:"photo",
-      high_level_description:"3D超写实超现实主义修仙场景，仙人飞升，天地异象，玄妙光芒（3D hyperrealistic surreal cultivation scene with immortals ascending, celestial phenomena, mystical light）",
-      background:"云海仙山，悬浮山峰，金光万丈，灵气氤氲（Cloud sea with immortal mountains, floating peaks, golden rays, spiritual energy mist）",
-      aesthetics:"超写实，超现实主义，空灵玄幻，高动态范围（hyperrealistic, surrealist, ethereal mystical, high dynamic range）",
-      lighting:"体积光，金光穿云，神圣光辉，丁达尔弥漫（volumetric light, golden rays through clouds, divine glow, atmospheric god rays）",
-      medium:"3D渲染，光追超写实，虚幻引擎，极致细节（3D render, photorealistic ray tracing, Unreal Engine, extreme detail）",
-      photo_style:"", art_style:"超写实主义，超现实主义，幻想修真（hyperrealism, surrealism, fantasy cultivation）",
-      style_color_palette:["#ffd700","#ffffff","#1a0a2e","#00bfff","#ff4500"],
-      regions:[{x:0,y:0,w:1,h:0.35,type:"obj",desc:"天空金光万丈，云海翻涌，天地异象",palette:[]},{x:0.2,y:0.2,w:0.6,h:0.5,type:"obj",desc:"悬浮仙山，仙人飞升身影，灵气缠绕",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"云海底部，山水倒映，玄妙光影",palette:[]}] },
+      high_level_description:"A hyperrealistic 3D rendered cultivation fantasy scene with a figure ascending through golden clouds toward a celestial light, floating mountain peaks and mystical energy",
+      background:"A sea of golden-tinted clouds with floating mountain peaks at various altitudes, a brilliant celestial light source above, and streams of luminous particles flowing through the scene",
+      aesthetics:"hyperrealistic, surreal and mystical, luminous, high dynamic range, ethereal atmosphere",
+      lighting:"volumetric golden light from above piercing through cloud layers, divine atmospheric glow, rim light on all foreground elements",
+      medium:"3d_render",
+      photo:"", art_style:"hyperrealism combined with fantasy surrealism, extreme detail, smooth polished surface finish",
+      style_color_palette:["#FFD700","#FFFFFF","#1A0A2E","#00BFFF","#FF4500"],
+      regions:[{x:0,y:0,w:1,h:0.3,type:"obj",desc:"A brilliant golden light source radiating from the upper center with visible volumetric rays spreading outward through layered clouds",palette:[]},{x:0.2,y:0.2,w:0.6,h:0.5,type:"obj",desc:"A floating rocky mountain peak with ancient pine trees and a small traditional pavilion on top, a figure in flowing white robes standing on the edge with arms raised toward the light, surrounded by glowing particles",palette:[]},{x:0,y:0.65,w:1,h:0.35,type:"obj",desc:"A lower sea of golden and pink clouds with smaller floating stone fragments, a waterfall cascading off the side of the main island into the void below",palette:[]}] },
     ];
 
 let currentNode = null;
@@ -487,33 +490,156 @@ function mkParamField(label, tooltip, ml, presets, getter, setter) {
     return { row: r, input: i };
 }
 
+// ──────────────────────────────────────────────
+//  restoreWorkflowData — handles both flat (old) and
+//  nested (Ideogram 4) formats from saved prompt_data
+// ──────────────────────────────────────────────
+function restoreWorkflowData(node, raw) {
+    const s = node._pb;
+    let d;
+    try { d = JSON.parse(raw); } catch(e) { return; }
+    if (!d) return;
+
+    // Detect nested format (has composition_deconstruction)
+    if (d.compositional_deconstruction) {
+        s.high_level_description = d.high_level_description || "";
+        const sd = d.style_description || {};
+        s.aesthetics = sd.aesthetics || "";
+        s.lighting = sd.lighting || "";
+        s.medium = sd.medium || "";
+        s.photo_style = sd.photo || "";
+        s.art_style = sd.art_style || "";
+        s.style = sd.photo ? "photo" : (sd.art_style ? "art_style" : "none");
+        s.style_color_palette = sd.color_palette || [];
+
+        const cd = d.compositional_deconstruction || {};
+        s.background = cd.background || "";
+
+        const elements = cd.elements || [];
+        s.regions = elements.map(el => {
+            const r = {
+                type: el.type || "obj",
+                text: el.text || "",
+                desc: el.desc || "",
+                palette: el.color_palette || [],
+                x: 0, y: 0, w: 1, h: 0
+            };
+            if (el.bbox && el.bbox.length === 4) {
+                r.x = Math.min(el.bbox[1] / 1000, 1);
+                r.y = Math.min(el.bbox[0] / 1000, 1);
+                r.w = Math.min((el.bbox[3] - el.bbox[1]) / 1000, 1 - r.x);
+                r.h = Math.min((el.bbox[2] - el.bbox[0]) / 1000, 1 - r.y);
+            }
+            return r;
+        });
+    } else {
+        // Flat format — direct assign
+        Object.assign(s, d);
+        if (!s.regions) s.regions = [];
+    }
+    if (s.activeRegion == null) s.activeRegion = -1;
+}
+
 function sync() {
     const node = currentNode; if (!node) return;
     syncPreview(node); saveState(node);
     if (app?.graph) app.graph.setDirtyCanvas(true, true);
 }
-function syncTokens(node) {} // placeholder for token counting
+
+// ──────────────────────────────────────────────
+//  saveState — transforms flat pb structure into
+//  Ideogram 4 compliant JSON caption schema
+// ──────────────────────────────────────────────
 function saveState(node) {
     const w = node.widgets?.find((w) => w.name === "prompt_data");
-    if (w) w.value = JSON.stringify(node._pb);
+    if (!w) return;
+    const s = node._pb;
+
+    const caption = {};
+
+    if (s.high_level_description) {
+        caption.high_level_description = s.high_level_description;
+    }
+
+    // style_description — only emit when it has meaningful content
+    const sd = {};
+    let hasSD = false;
+    if (s.aesthetics) { sd.aesthetics = s.aesthetics; hasSD = true; }
+    if (s.lighting) { sd.lighting = s.lighting; hasSD = true; }
+    if (s.medium) { sd.medium = s.medium; hasSD = true; }
+    if (s.style === "photo" && s.photo_style) {
+        sd.photo = s.photo_style; hasSD = true;
+    } else if (s.style === "art_style" && s.art_style) {
+        sd.art_style = s.art_style; hasSD = true;
+    }
+    if (s.style_color_palette && s.style_color_palette.length > 0) {
+        sd.color_palette = s.style_color_palette.map(c => {
+            if (!c.startsWith("#")) c = "#" + c;
+            return c.toUpperCase();
+        });
+        hasSD = true;
+    }
+    if (hasSD) caption.style_description = sd;
+
+    // compositional_deconstruction — always emit when data exists
+    const cd = {};
+    let hasCD = false;
+    if (s.background) { cd.background = s.background; hasCD = true; }
+
+    const elements = [];
+    for (const region of (s.regions || [])) {
+        const el = { type: region.type || "obj" };
+
+        if (region.x !== undefined && region.y !== undefined &&
+            region.w !== undefined && region.h !== undefined &&
+            region.w > 0 && region.h > 0) {
+            const x1 = Math.round(region.x * 1000);
+            const y1 = Math.round(region.y * 1000);
+            const x2 = Math.round((region.x + region.w) * 1000);
+            const y2 = Math.round((region.y + region.h) * 1000);
+            if (x2 > 0 && y2 > 0) {
+                el.bbox = [Math.min(y1, 1000), Math.min(x1, 1000), Math.min(y2, 1000), Math.min(x2, 1000)];
+            }
+        }
+
+        if (region.type === "text" && region.text) {
+            el.text = region.text;
+        }
+        if (region.desc) {
+            el.desc = region.desc;
+        }
+        if (region.palette && region.palette.length > 0) {
+            el.color_palette = region.palette.map(c => {
+                if (!c.startsWith("#")) c = "#" + c;
+                return c.toUpperCase();
+            });
+        }
+        elements.push(el);
+    }
+
+    if (elements.length > 0) { cd.elements = elements; hasCD = true; }
+    if (hasCD) caption.compositional_deconstruction = cd;
+
+    w.value = JSON.stringify(caption, null, 2);
 }
+
 function syncPreview(node) {
     if (!node._pbPV) return;
     const s = node._pb;
     const lines = [];
-    if (s.high_level_description) lines.push(`描述: ${s.high_level_description}`);
-    if (s.aesthetics) lines.push(`美学: ${s.aesthetics}`);
-    if (s.lighting) lines.push(`光影: ${s.lighting}`);
-    if (s.medium) lines.push(`媒介: ${s.medium}`);
-    if (s.photo_style) lines.push(`摄影: ${s.photo_style}`);
-    if (s.background) lines.push(`背景: ${s.background}`);
+    if (s.high_level_description) lines.push(`HLD: ${s.high_level_description}`);
+    if (s.aesthetics) lines.push(`Aesthetic: ${s.aesthetics}`);
+    if (s.lighting) lines.push(`Lighting: ${s.lighting}`);
+    if (s.medium) lines.push(`Medium: ${s.medium}`);
+    if (s.style === "photo" && s.photo_style) lines.push(`Photo: ${s.photo_style}`);
+    else if (s.style === "art_style" && s.art_style) lines.push(`Art: ${s.art_style}`);
+    if (s.background) lines.push(`BG: ${s.background}`);
     if (s.regions.length) {
-        lines.push(`区域: ${s.regions.length}`);
+        lines.push(`Elements: ${s.regions.length}`);
         for (let i = 0; i < s.regions.length; i++) {
             const rg = s.regions[i];
             let t = `  [${String(i+1).padStart(2,"0")}] ${rg.type}`;
-            const bbox = rg.bbox;
-            if (bbox) t += ` [${bbox[0]},${bbox[1]},${bbox[2]},${bbox[3]}]`;
+            if (rg.x !== undefined) t += ` [${Math.round(rg.x*1000)},${Math.round(rg.y*1000)},${Math.round((rg.x+rg.w)*1000)},${Math.round((rg.y+rg.h)*1000)}]`;
             if (rg.desc) t += ` - ${rg.desc.slice(0,40)}`;
             lines.push(t);
         }
@@ -602,7 +728,7 @@ function buildCanvasEditor(node) {
             ctx.font="bold 10px monospace"; const tw=ctx.measureText(tag).width+6;
             ctx.fillStyle=col; ctx.fillRect(x1,y1,tw,13);
             ctx.fillStyle=active?"#000":textOn(col); ctx.fillText(tag,x1+3,y1+10);
-            // desc text clipped - 居中显示
+            // desc text clipped
             if(b.desc||b.text){
                 ctx.save(); ctx.beginPath(); ctx.rect(x1,y1,w,h); ctx.clip();
                 ctx.font="10px monospace"; ctx.fillStyle=readableText(col);
@@ -642,14 +768,12 @@ function buildCanvasEditor(node) {
         draw();
     }
 
-    // Observer to re-fit when visible again
     try{
         node._pbVisObs=new IntersectionObserver((entries)=>{
             if(entries.some(en=>en.isIntersecting))fitCanvas();
         });
         node._pbVisObs.observe(cvWrap);
     }catch(e){}
-    // Observer to re-fit on resize
     try{
         node._pbResizeObs=new ResizeObserver(()=>fitCanvas());
         node._pbResizeObs.observe(cvWrap);
@@ -680,7 +804,7 @@ function buildCanvasEditor(node) {
         const mN=mouseNClamped(e);
         const dx=mN.x-dragStart.x,dy=mN.y-dragStart.y;
         s.regions[s.activeRegion]=normBox(applyDrag(dragMode,boxStart,dx,dy));
-        draw(); syncPreview(node); syncTokens(node);
+        draw(); syncPreview(node);
     }
     function onUp(){
         drawing=false;
@@ -776,7 +900,7 @@ function renderRegionPanel(node) {
     const descInp = document.createElement("input");
     descInp.className = "cj-pb-i";
     descInp.value = b.desc || "";
-    descInp.placeholder = "区域描述";
+    descInp.placeholder = "元素描述(英文)";
     descInp.addEventListener("input", () => { b.desc = descInp.value; node._cvDraw?.(); sync(); });
     descRow.append(descLbl, descInp);
     panel.appendChild(descRow);
@@ -790,12 +914,10 @@ function buildUI(node) {
     const dimR=mkRow("尺寸:","画布尺寸");
     const wInp=document.createElement("input");wInp.className="cj-pb-num";wInp.type="number";wInp.min="64";wInp.max="16384";wInp.step="16";wInp.value=s.width;
     wInp.addEventListener("input",()=>{s.width=parseInt(wInp.value)||1024;node._cvFit?.();sync();});
-    // Swap button
     const swapBtn=document.createElement("button");swapBtn.className="cj-pb-btn";swapBtn.textContent="\u21C4";swapBtn.title="交换宽高";
     swapBtn.addEventListener("click",()=>{const tmp=s.width;s.width=s.height;s.height=tmp;wInp.value=s.width;hInp.value=s.height;node._cvFit?.();sync();});
     const hInp=document.createElement("input");hInp.className="cj-pb-num";hInp.type="number";hInp.min="64";hInp.max="16384";hInp.step="16";hInp.value=s.height;
     hInp.addEventListener("input",()=>{s.height=parseInt(hInp.value)||1024;node._cvFit?.();sync();});
-    // Preset sizes dropdown
     const presetSizes=[
         {label:"1:1 (1024×1024)",w:1024,h:1024},
         {label:"4:3 (1152×896)",w:1152,h:896},
@@ -877,7 +999,7 @@ function buildUI(node) {
     const stGrp=document.createElement("div");stGrp.style.cssText="display:flex;gap:4px;flex:1;";
     const photoR=mkRow("摄影:","");const artR=mkRow("艺术风格:","");
     const photoI=mkInp(s.photo_style||"",false,"");photoI.addEventListener("input",()=>{s.photo_style=photoI.value;sync();});
-    photoR.appendChild(photoI);photoR.appendChild(mkDropdown(PRESETS.photo_style,v=>{photoI.value=v;s.photo_style=v;sync();}));
+    photoR.appendChild(photoI);photoR.appendChild(mkDropdown(PRESETS.photo,v=>{photoI.value=v;s.photo_style=v;sync();}));
     const artI=mkInp(s.art_style||"",false,"");artI.addEventListener("input",()=>{s.art_style=artI.value;sync();});
     artR.appendChild(artI);artR.appendChild(mkDropdown(PRESETS.art_style,v=>{artI.value=v;s.art_style=v;sync();}));
     function updStyle(t){
@@ -893,11 +1015,11 @@ function buildUI(node) {
 
     // param fields
     const fields=[
-        {l:"描述:",t:"整体画面概述",ml:false,p:PRESETS.high_level_description,k:"high_level_description"},
-        {l:"背景:",t:"场景背景描述",ml:false,p:PRESETS.background,k:"background"},
-        {l:"美学:",t:"美学风格",ml:false,p:PRESETS.aesthetics,k:"aesthetics"},
-        {l:"光影:",t:"光照",ml:false,p:PRESETS.lighting,k:"lighting"},
-        {l:"媒介:",t:"媒介",ml:false,p:PRESETS.medium,k:"medium"},
+        {l:"描述:",t:"整体画面概述（英文）",ml:false,p:PRESETS.high_level_description,k:"high_level_description"},
+        {l:"背景:",t:"场景背景描述（英文）",ml:false,p:PRESETS.background,k:"background"},
+        {l:"美学:",t:"美学风格（英文，禁止: film grain/DOF/bokeh等渲染术语）",ml:false,p:PRESETS.aesthetics,k:"aesthetics"},
+        {l:"光影:",t:"光照（英文，禁止: warm作为调色形容词）",ml:false,p:PRESETS.lighting,k:"lighting"},
+        {l:"媒介:",t:"媒介（仅媒介名称，如photograph/3d_render/digital painting）",ml:false,p:PRESETS.medium,k:"medium"},
     ];
     const fEls={};
     for(const f of fields){
@@ -905,8 +1027,8 @@ function buildUI(node) {
         fEls[f.k]=r;wrap.appendChild(r.row);
     }
 
-    // style color palette
-    const scpR=mkRow("色板:","风格色板（最多5色）");
+    // style color palette (max 16 per spec)
+    const scpR=mkRow("色板:","风格色板（最多16色）");
     const scpSwatches=document.createElement("div");scpSwatches.style.cssText="display:flex;gap:3px;flex:1;flex-wrap:wrap;";
     function buildScpSwatches(){
         scpSwatches.innerHTML="";
@@ -916,25 +1038,25 @@ function buildUI(node) {
             sw.addEventListener("click",()=>{s.style_color_palette.splice(i,1);buildScpSwatches();sync();});
             scpSwatches.appendChild(sw);
         });
-        if((s.style_color_palette||[]).length<5){
+        if((s.style_color_palette||[]).length<16){
             const addB=document.createElement("div");addB.className="cj-pb-sw";addB.style.cssText="background:#333;cursor:pointer;width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;color:#888;font-size:12px;";addB.textContent="+";addB.title="添加颜色";
             const ci=document.createElement("input");ci.type="color";ci.value="#ffffff";ci.style.cssText="position:absolute;opacity:0;width:0;height:0;pointer-events:none;";
             addB.appendChild(ci);
             addB.style.position="relative";
             addB.addEventListener("click",()=>ci.click());
-            ci.addEventListener("input",()=>{if(!s.style_color_palette)s.style_color_palette=[];s.style_color_palette.push(ci.value);buildScpSwatches();sync();});
+            ci.addEventListener("input",()=>{if(!s.style_color_palette)s.style_color_palette=[];const h=ci.value.toUpperCase();if(!s.style_color_palette.includes(h)){s.style_color_palette.push(h);}buildScpSwatches();sync();});
             scpSwatches.appendChild(addB);
         }
     }
     buildScpSwatches();
     scpR.appendChild(scpSwatches);wrap.appendChild(scpR);
 
-    // region edit panel (standalone row)
+    // region edit panel
     const regionPanel = document.createElement("div"); regionPanel.className = "cj-pb-panel";
     node._pbPanel = regionPanel;
     wrap.appendChild(regionPanel);
 
-    // canvas only (no splitter/bottom panel)
+    // canvas
     const cvWrap=buildCanvasEditor(node);
     wrap.appendChild(cvWrap);
 
@@ -972,12 +1094,11 @@ app.registerExtension({
         injectStyles();
         chainCallback(nodeType.prototype,"onNodeCreated",function(){
             const node=this;currentNode=node;
-            node._pb={width:1360,height:768,high_level_description:"",background:"",style:"none",aesthetics:"",lighting:"",medium:"",photo_style:"",art_style:"",style_color_palette:[],regions:[],activeRegion:-1};
+            node._pb={width:1360,height:768,style:"none",high_level_description:"",background:"",aesthetics:"",lighting:"",medium:"",photo_style:"",art_style:"",style_color_palette:[],regions:[],activeRegion:-1};
             const pdW=node.widgets?.find(w=>w.name==="prompt_data");
-            if(pdW){pdW.hidden=true;pdW.computeSize=()=>[0,-4];if(pdW.value){try{const d=JSON.parse(pdW.value);Object.assign(node._pb,d);if(!node._pb.regions)node._pb.regions=[];if(node._pb.activeRegion==null)node._pb.activeRegion=-1;}catch(e){}}}
+            if(pdW){pdW.hidden=true;pdW.computeSize=()=>[0,-4];if(pdW.value){try{restoreWorkflowData(node,pdW.value);}catch(e){}}}
             buildUI(node);
             node.setSize([Math.max(440,node.size[0]),Math.max(500,node.size[1])]);
-            // Cleanup observers when node is removed
             chainCallback(node,"onRemoved",()=>{
                 if(node._pbVisObs){node._pbVisObs.disconnect();node._pbVisObs=null;}
                 if(node._pbResizeObs){node._pbResizeObs.disconnect();node._pbResizeObs=null;}
@@ -986,4 +1107,4 @@ app.registerExtension({
     }
 });
 
-console.log("CJ-Nodes PromptBuilder with canvas regions loaded");
+console.log("CJ-Nodes PromptBuilder v2 — Ideogram 4 compliant");

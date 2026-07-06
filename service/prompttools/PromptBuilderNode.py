@@ -2,7 +2,7 @@ import json
 
 
 class PromptBuilderNode:
-    """可视化提示词构建器 - 所有参数由前端管理，后端只负责组装输出"""
+    """可视化提示词构建器 - 前端输出Ideogram 4嵌套格式，后端透传或组装"""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -18,9 +18,43 @@ class PromptBuilderNode:
     FUNCTION = "build_prompt"
     CATEGORY = "luy/提示词"
 
+    NESTED_MARKER = "compositional_deconstruction"
+
     def build_prompt(self, prompt_data=""):
         data = self._parse(prompt_data)
+        if not data:
+            return ("", 1024, 1024)
 
+        # ── 检测是否为前端输出的嵌套格式（Ideogram 4 JSON caption） ──
+        if self.NESTED_MARKER in data:
+            return self._forward_nested(data)
+
+        # ── 向后兼容：旧版扁平格式 ──
+        return self._build_from_flat(data)
+
+    # ──────────────────────────────────────────────
+    #  嵌套格式 — prompt_data 已经是 Ideogram 4 JSON
+    #  直接透传，仅提取 width/height
+    # ──────────────────────────────────────────────
+    def _forward_nested(self, data):
+        width = int(data.get("width", 1024))
+        height = int(data.get("height", 1024))
+        # 移除内部字段，只保留 caption schema
+        out = {}
+        if data.get("high_level_description"):
+            out["high_level_description"] = data["high_level_description"]
+        sd = data.get("style_description")
+        if sd:
+            out["style_description"] = sd
+        cd = data.get("compositional_deconstruction")
+        if cd:
+            out["compositional_deconstruction"] = cd
+        return (json.dumps(out, ensure_ascii=False, indent=2), width, height)
+
+    # ──────────────────────────────────────────────
+    #  扁平格式 — 旧版兼容
+    # ──────────────────────────────────────────────
+    def _build_from_flat(self, data):
         high_level_description = data.get("high_level_description", "")
         background = data.get("background", "")
         style = data.get("style", "none")
@@ -91,7 +125,7 @@ class PromptBuilderNode:
         if photo_style.strip(): sd["photo"] = photo_style.strip()
         if medium.strip(): sd["medium"] = medium.strip()
         scp = [c.upper() for c in style_color_palette if c]
-        if scp: sd["color_palette"] = scp[:5]
+        if scp: sd["color_palette"] = scp
         out["style_description"] = sd
 
         cd = {}
@@ -101,11 +135,12 @@ class PromptBuilderNode:
         for rg in regions:
             elem = {"type": rg.get("type", "obj")}
             x, y, w, h = rg.get("x", 0), rg.get("y", 0), rg.get("w", 0), rg.get("h", 0)
-            elem["bbox"] = self._to_grid(x, y, w, h, width, height)
-            elem["desc"] = rg.get("desc", "")
+            if w > 0 and h > 0:
+                elem["bbox"] = self._to_grid(x, y, w, h, width, height)
+            if rg.get("desc"): elem["desc"] = rg["desc"]
             pal = rg.get("palette", [])
             clean = [c.upper() for c in pal if c]
-            if clean: elem["color_palette"] = clean[:5]
+            if clean: elem["color_palette"] = clean
             elems.append(elem)
         cd["elements"] = elems
         out["compositional_deconstruction"] = cd
@@ -113,14 +148,14 @@ class PromptBuilderNode:
         return json.dumps(out, ensure_ascii=False, indent=2)
 
     def _to_grid(self, x, y, w, h, img_width=1024, img_height=1024):
-        """将归一化坐标(0-1)转换为图像像素坐标"""
-        xmin = round(x * img_width)
-        ymin = round(y * img_height)
-        xmax = round((x + w) * img_width)
-        ymax = round((y + h) * img_height)
-        if xmin > xmax: xmin, xmax = xmax, xmin
-        if ymin > ymax: ymin, ymax = ymax, ymin
-        return [xmin, ymin, xmax, ymax]
+        """将归一化坐标(0-1)转换为 0-1000 坐标系 [y1,x1,y2,x2]"""
+        x1 = round(x * 1000)
+        y1 = round(y * 1000)
+        x2 = round((x + w) * 1000)
+        y2 = round((y + h) * 1000)
+        if x1 > x2: x1, x2 = x2, x1
+        if y1 > y2: y1, y2 = y2, y1
+        return [min(y1, 1000), min(x1, 1000), min(y2, 1000), min(x2, 1000)]
 
     def _build_preview(self, high_level_description, background,
                        style, aesthetics, lighting, medium,
