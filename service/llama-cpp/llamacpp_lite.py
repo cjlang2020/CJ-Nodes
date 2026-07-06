@@ -12,6 +12,8 @@ from base import (
     load_text_presets, image_to_base64_jpeg, cqdm, _MTMD
 )
 
+_CACHE = {}
+
 import folder_paths
 import comfy.model_management as mm
 
@@ -41,6 +43,10 @@ class llama_run_lite:
                 "preset_prompt": (preset_tags, {"default": preset_tags[1] if len(preset_tags) > 1 else preset_tags[0]}),
                 "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "user_prompt"}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1}),
+                "use_cache": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Use cached result from last run. Skips model inference and returns previous output."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -55,7 +61,7 @@ class llama_run_lite:
     FUNCTION = "run"
     CATEGORY = "luy/llama-cpp"
 
-    def run(self, model, preset_prompt, custom_prompt, seed, unique_id, images=None):
+    def run(self, model, preset_prompt, custom_prompt, seed, use_cache, unique_id, images=None):
         lite_models = _load_lite_config()
         cfg = lite_models.get(model)
         if cfg is None:
@@ -126,8 +132,13 @@ class llama_run_lite:
             user_text = p
         user_content.append({"type": "text", "text": user_text})
 
-        out1 = ""
         uid = unique_id.rpartition('.')[-1]
+
+        if use_cache and uid in _CACHE:
+            print(f"[llama-cpp_lite] Cache hit for node {uid}, skipping inference.")
+            return _CACHE[uid]
+
+        out1 = ""
 
         if images is not None and image_count > 0:
             if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:
@@ -166,6 +177,7 @@ class llama_run_lite:
         LLAMA_CPP_STORAGE.clean_state(uid)
         LLAMA_CPP_STORAGE.clean()
 
+        _CACHE[uid] = (out1, user_text)
         return (out1, user_text)
 
 

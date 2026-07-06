@@ -313,6 +313,8 @@ function saveState(node) {
     if (node._imgInfo) { imgW = node._imgInfo.imgW; imgH = node._imgInfo.imgH; }
     const cw = node._cvEl?.offsetWidth || 1;
     const ch = node._cvEl?.offsetHeight || 1;
+    const normW = node.widgets?.find(w => w.name === "normalize");
+    const normalize = normW ? normW.value : true;
     const items = s.edit_items.map(item => {
         let bbox_px = [0, 0, 0, 0];
         if (node._imgInfo && node._imgInfo.scale > 0) {
@@ -321,11 +323,20 @@ function saveState(node) {
             const py1 = Math.max(0, (item.y * ch - iy) / scale);
             const px2 = Math.min(imgW, ((item.x + item.w) * cw - ix) / scale);
             const py2 = Math.min(imgH, ((item.y + item.h) * ch - iy) / scale);
-            bbox_px = [Math.round(px1), Math.round(py1), Math.round(px2), Math.round(py2)];
+            if (normalize) {
+                bbox_px = [
+                    Math.round(px1 / imgW * 1000),
+                    Math.round(py1 / imgH * 1000),
+                    Math.round(px2 / imgW * 1000),
+                    Math.round(py2 / imgH * 1000)
+                ];
+            } else {
+                bbox_px = [Math.round(px1), Math.round(py1), Math.round(px2), Math.round(py2)];
+            }
         }
         return { edit_text: item.edit_text || "", bbox_px };
     });
-    const data = { prompt_text: s.prompt_text, image_data: s.image_data, image_width: imgW, image_height: imgH, edit_items: items };
+    const data = { prompt_text: s.prompt_text, image_data: s.image_data, image_width: imgW, image_height: imgH, edit_items: items, normalize };
     const w = node.widgets?.find(w => w.name === "frontend_data");
     if (w) w.value = JSON.stringify(data);
 }
@@ -419,6 +430,16 @@ app.registerExtension({
                 }
             }
             buildUI(node);
+
+            const normW = node.widgets?.find(w => w.name === "normalize");
+            if (normW) {
+                const origCb = normW.callback;
+                normW.callback = function(v) {
+                    if (origCb) origCb(v);
+                    saveState(node);
+                };
+            }
+
             node.setSize([Math.max(440, node.size[0]), Math.max(600, node.size[1])]);
             chainCallback(node, "onRemoved", () => {
                 if (node._erVisObs) { node._erVisObs.disconnect(); node._erVisObs = null; }

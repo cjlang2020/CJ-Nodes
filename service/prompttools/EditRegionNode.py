@@ -15,6 +15,7 @@ class EditRegionNode:
             "optional": {
                 "frontend_data": ("STRING", {"default": "", "multiline": True,
                                             "tooltip": "前端序列化的完整参数JSON（隐藏）"}),
+                "normalize": ("BOOLEAN", {"default": True, "tooltip": "归一化坐标到0~1000"}),
             }
         }
 
@@ -23,7 +24,7 @@ class EditRegionNode:
     FUNCTION = "process"
     CATEGORY = "luy/提示词"
 
-    def process(self, frontend_data=""):
+    def process(self, frontend_data="", normalize=True):
         data = self._parse(frontend_data)
 
         image = self._decode_image(data.get("image_data", ""))
@@ -44,7 +45,8 @@ class EditRegionNode:
 
         prompt_json = json.dumps({
             "prompt_text": prompt_text,
-            "edit_items": output_items
+            "edit_items": output_items,
+            "normalize": normalize
         }, ensure_ascii=False, indent=2)
 
         return (image, prompt_json)

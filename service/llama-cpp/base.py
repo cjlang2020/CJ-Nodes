@@ -348,8 +348,7 @@ folder_paths.folder_names_and_paths["LLM"] = ([os.path.join(folder_paths.models_
 # Preset prompts for vision
 preset_prompts = {
     "None": "",
-    "_普通描述": "描述这张图片",
-    "_简洁描述":"只描述出图中场景主体、构图、核心氛围，不需要过多修饰词，例如：雨后街道、传统沿街楼房、中式牌坊、未来流线摩天大楼、空中科幻飞行。不要输出多余的内容，简单的主体词语和构图即可。",
+    "_普通描述": "描述这张图片"
 }
 preset_tags = list(preset_prompts.keys())
 
