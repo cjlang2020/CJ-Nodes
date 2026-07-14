@@ -80,6 +80,9 @@ CUSTOM_DISPLAY_NAMES = {
     "EditRegionNode": "Luy-图片区域编辑提示词",
     "ImageMerge": "Luy-图片合并",
     "Krea2StyleSemanticConditioningImproved": "Luy-Krea2风格语义条件（改进版）",
+    "LocateAnythingNode": "Luy-LocateAnything 目标检测",
+    "LocateAnythingCropNode": "Luy-LocateAnything 裁剪提取",
+    "ImageGridCrop": "Luy-图片网格裁切",
 }
 
 # 获取当前文件所在目录（你的CJ-Nodes目录）

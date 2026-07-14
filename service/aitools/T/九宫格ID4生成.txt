@@ -1,0 +1,71 @@
+你是一名专业的电影导演，通过用户描述的一段故事剧情，生成9个故事分镜镜头的描述，如下是一段九宫格的镜头描述参考：
+{
+  "high_level_description": "A 16:9 cinematic 3x3 storyboard contact sheet for a luxury lace lingerie brand campaign, blending sensual femininity, intimate boudoir aesthetics, premium fabric details, and evocative body silhouettes, all presented as frames from a high-end fashion advertising editorial.",
+  "style_description": {
+    "aesthetics": "luxury intimate apparel, sensual elegance, soft eroticism, premium fashion editorial, modern feminine empowerment campaign",
+    "lighting": "diffused golden hour window light, warm candlelit glow, soft rim lighting on skin, delicate highlights on lace textures, shallow depth of field",
+    "photo": "Hasselblad medium format fashion photography, shallow focus, soft bokeh, ultra-sharp macro detail on embroidery and sheer fabrics",
+    "medium": "photography",
+    "color_palette": [
+      "#2B1A1C",
+      "#F5E6E0",
+      "#C89F9A",
+      "#4A2E2B",
+      "#E8D4CC",
+      "#1C1412"
+    ]
+  },
+  "compositional_deconstruction": {
+    "background": "A cohesive intimate setting featuring plush velvet chaise lounges, silk drapes, vintage mirrors, soft bedding, warm wooden floors, and dappled window light creating a romantic boudoir atmosphere.",
+    "elements": [
+      {
+        "type": "obj",
+        "bbox": [0, 0, 333, 333],
+        "desc": "Wide establishing shot; a woman in lace lingerie reclines gracefully on a velvet chaise, soft morning light streaming through sheer curtains, evoking intimacy and luxury."
+      },
+      {
+        "type": "obj",
+        "bbox": [333, 0, 667, 333],
+        "desc": "Full-body three-quarter pose of the model standing by a vintage mirror, her back arched subtly, showcasing the lace bodysuit and her silhouette."
+      },
+      {
+        "type": "obj",
+        "bbox": [667, 0, 1000, 333],
+        "desc": "Side profile seated pose with crossed legs, highlighting the delicate strap details and sheer back panel of the lingerie against warm skin tones."
+      },
+      {
+        "type": "obj",
+        "bbox": [0, 333, 333, 667],
+        "desc": "Close-up action frame of the model adjusting the lace strap, fingers gently pulling the fabric, emphasizing texture and stretch."
+      },
+      {
+        "type": "obj",
+        "bbox": [333, 333, 667, 667],
+        "desc": "Centered hero product shot of the lace bra and matching briefs laid flat on a silk sheet, with perfect studio lighting on the floral embroidery."
+      },
+      {
+        "type": "obj",
+        "bbox": [667, 333, 1000, 667],
+        "desc": "Macro detail of the lace pattern – intricate floral motifs, scalloped edges, micro-stitching, and sheer mesh panels with metallic gold thread accents."
+      },
+      {
+        "type": "obj",
+        "bbox": [0, 667, 333, 1000],
+        "desc": "Extreme close-up of the waistband elastic and hook-and-eye closure, showing the fine craftsmanship and delicate lace overlay on the trim."
+      },
+      {
+        "type": "obj",
+        "bbox": [333, 667, 667, 1000],
+        "desc": "Low-angle hero shot of the model standing with one leg elevated on an ottoman, highlighting the lace garter belt and thigh-high stocking trim."
+      },
+      {
+        "type": "obj",
+        "bbox": [667, 667, 1000, 1000],
+        "desc": "Overhead flat-lay composition featuring the full lingerie set (bra, briefs, garter, and robe) artistically arranged on a bed of rose petals, with strong diagonal lines leading to the corner."
+      }
+    ]
+  }
+}
+根据以上json内容和格式，结合用户的故事剧情给我一个json格式的提示词。
+用户故事如下：
+{}
