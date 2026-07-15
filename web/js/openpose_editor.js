@@ -236,10 +236,15 @@ function createJoint(st, pos, colorIdx) {
       roughness: 0.4
     });
     const cone = new THREE.Mesh(coneGeo, coneMat);
-    cone.rotation.x = Math.PI / 2;
     cone.position.set(0, 0, 0.06);
     m.add(cone);
     st.neckDirectionCone = cone;
+
+    // 立即设置方向
+    cone.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, 0, 1)
+    );
   }
 
   return m;
@@ -300,7 +305,7 @@ function addPerson(st, kp4d) {
   const person = { id: pid, joints: joints.filter(j => j), meshes };
   st.people.push(person);
   st.boneLengths = calcBoneLengths(st, person);
-  createBoneLengthLabels(st, person);
+  initDirectionCone(st, person);
   return person;
 }
 
@@ -321,24 +326,17 @@ function rebuildBones(st, person) {
     const bone = createBone(st, a.mesh.position, b.mesh.position, pair[0]);
     if (bone) person.meshes.push(bone);
   });
-
-  updateBoneLengthLabels(st, person);
-  updateDirectionCone(st, person);
 }
 
-function updateDirectionCone(st, person) {
+function initDirectionCone(st, person) {
   const neck = person.joints.find(j => j.idx === 1);
-  const nose = person.joints.find(j => j.idx === 0);
-  if (!neck || !nose || !st.neckDirectionCone) return;
+  if (!neck || !st.neckDirectionCone) return;
 
-  const neckPos = neck.mesh.position;
-  const nosePos = nose.mesh.position;
-  
-  const dir = new THREE.Vector3().subVectors(nosePos, neckPos).normalize();
-  
+  // 人物默认面向 z 轴正方向，圆锥体尖端指向 z 轴正方向
+  // ConeGeometry 尖端默认沿着 y 轴正方向，需要旋转到 z 轴正方向
   st.neckDirectionCone.quaternion.setFromUnitVectors(
-    new THREE.Vector3(0, 0, 1),
-    dir
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, 1)
   );
 }
 
@@ -378,6 +376,35 @@ function calcBoneLengths(st, person) {
   if (lHip && rHip) {
     lengths['hip_width'] = lHip.mesh.position.distanceTo(rHip.mesh.position);
   }
+
+  // 脊柱长度（脖子到两髋中心）
+  const neck = person.joints.find(j => j.idx === 1);
+  if (neck && lHip && rHip) {
+    const hipCenter = new THREE.Vector3().addVectors(lHip.mesh.position, rHip.mesh.position).multiplyScalar(0.5);
+    lengths['spine_length'] = neck.mesh.position.distanceTo(hipCenter);
+  }
+
+  // 头部刚体约束（鼻子到各头部关节的距离）
+  const nose = person.joints.find(j => j.idx === 0);
+  if (nose) {
+    [14, 15, 16, 17].forEach(idx => {
+      const j = person.joints.find(jj => jj.idx === idx);
+      if (j) {
+        lengths[`head_${idx}`] = nose.mesh.position.distanceTo(j.mesh.position);
+      }
+    });
+  }
+
+  // 头部关节之间的距离
+  const headPairs = [[14, 16], [15, 17], [14, 15], [16, 17]];
+  headPairs.forEach(([a, idx]) => {
+    const ja = person.joints.find(jj => jj.idx === a);
+    const jb = person.joints.find(jj => jj.idx === idx);
+    if (ja && jb) {
+      lengths[`head_${a}_${idx}`] = ja.mesh.position.distanceTo(jb.mesh.position);
+    }
+  });
+
   return lengths;
 }
 
@@ -437,13 +464,85 @@ function maintainHipWidth(person, boneLengths) {
   }
 }
 
+function maintainSpineLength(person, boneLengths) {
+  const neck = person.joints.find(j => j.idx === 1);
+  const lHip = person.joints.find(j => j.idx === 11);
+  const rHip = person.joints.find(j => j.idx === 8);
+  if (!neck || !lHip || !rHip) return;
+
+  const hipCenter = new THREE.Vector3().addVectors(lHip.mesh.position, rHip.mesh.position).multiplyScalar(0.5);
+  const targetLen = boneLengths['spine_length'] || neck.mesh.position.distanceTo(hipCenter);
+  const currentLen = neck.mesh.position.distanceTo(hipCenter);
+
+  if (Math.abs(currentLen - targetLen) > 0.001 && currentLen > 0) {
+    const dir = new THREE.Vector3().subVectors(neck.mesh.position, hipCenter).normalize();
+    neck.mesh.position.copy(hipCenter).add(dir.multiplyScalar(targetLen));
+  }
+}
+
+function maintainHeadRigid(person, boneLengths) {
+  const nose = person.joints.find(j => j.idx === 0);
+  if (!nose) return;
+
+  // 保持鼻子到各头部关节的距离
+  [14, 15, 16, 17].forEach(idx => {
+    const j = person.joints.find(jj => jj.idx === idx);
+    if (j) {
+      const targetDist = boneLengths[`head_${idx}`];
+      if (targetDist !== undefined) {
+        const currentDist = nose.mesh.position.distanceTo(j.mesh.position);
+        if (Math.abs(currentDist - targetDist) > 0.001 && currentDist > 0) {
+          const dir = new THREE.Vector3().subVectors(j.mesh.position, nose.mesh.position).normalize();
+          j.mesh.position.copy(nose.mesh.position).add(dir.multiplyScalar(targetDist));
+        }
+      }
+    }
+  });
+
+  // 保持头部关节之间的距离
+  const headPairs = [[14, 16], [15, 17], [14, 15], [16, 17]];
+  headPairs.forEach(([a, b]) => {
+    const ja = person.joints.find(jj => jj.idx === a);
+    const jb = person.joints.find(jj => jj.idx === b);
+    if (ja && jb) {
+      const targetDist = boneLengths[`head_${a}_${b}`];
+      if (targetDist !== undefined) {
+        const currentDist = ja.mesh.position.distanceTo(jb.mesh.position);
+        if (Math.abs(currentDist - targetDist) > 0.001 && currentDist > 0) {
+          const mid = new THREE.Vector3().addVectors(ja.mesh.position, jb.mesh.position).multiplyScalar(0.5);
+          const dir = new THREE.Vector3().subVectors(jb.mesh.position, ja.mesh.position).normalize();
+          ja.mesh.position.copy(mid).sub(dir.multiplyScalar(targetDist / 2));
+          jb.mesh.position.copy(mid).add(dir.multiplyScalar(targetDist / 2));
+        }
+      }
+    }
+  });
+}
+
+// 检查是否是头部关节
+function isHeadJoint(idx) {
+  return idx === 0 || idx === 14 || idx === 15 || idx === 16 || idx === 17;
+}
+
+// 检查是否是腰部关节
+function isHipJoint(idx) {
+  return idx === 8 || idx === 11;
+}
+
+// 移动整个身体
+function moveWholeBody(person, delta) {
+  person.joints.forEach(j => j.mesh.position.add(delta));
+}
+
 function applyIKConstraint(st, person, draggedIdx, newPos) {
   const neck = person.joints.find(j => j.idx === NECK_IDX);
   if (!neck) return;
 
-  if (draggedIdx === NECK_IDX) {
-    const delta = new THREE.Vector3().subVectors(newPos, neck.mesh.position);
-    person.joints.forEach(j => j.mesh.position.add(delta));
+  // 脖子或腰部圆球：移动整个身体
+  if (draggedIdx === NECK_IDX || isHipJoint(draggedIdx)) {
+    const currentPos = person.joints.find(j => j.idx === draggedIdx).mesh.position;
+    const delta = new THREE.Vector3().subVectors(newPos, currentPos);
+    moveWholeBody(person, delta);
   } else if (END_EFFECTORS.has(draggedIdx)) {
     fabrikSolve(person, draggedIdx, newPos, st.boneLengths);
   } else if (MID_JOINTS.has(draggedIdx)) {
@@ -473,11 +572,39 @@ function applyIKConstraint(st, person, draggedIdx, newPos) {
       const dir = new THREE.Vector3().subVectors(child.mesh.position, newPos).normalize();
       child.mesh.position.copy(newPos).add(dir.multiplyScalar(dist));
     }
+  } else if (isHeadJoint(draggedIdx)) {
+    // 头部关节：保持头部刚体，移动鼻子带动整个头部
+    if (draggedIdx === 0) {
+      // 拖动鼻子：移动整个头部
+      const nose = person.joints.find(j => j.idx === 0);
+      const delta = new THREE.Vector3().subVectors(newPos, nose.mesh.position);
+      [0, 14, 15, 16, 17].forEach(idx => {
+        const j = person.joints.find(jj => jj.idx === idx);
+        if (j) j.mesh.position.add(delta);
+      });
+    } else {
+      // 拖动其他头部关节：保持与鼻子的距离，旋转头部
+      const nose = person.joints.find(j => j.idx === 0);
+      const draggedJoint = person.joints.find(j => j.idx === draggedIdx);
+      if (nose && draggedJoint) {
+        // 保持与鼻子的距离
+        const targetDist = st.boneLengths[`head_${draggedIdx}`];
+        if (targetDist !== undefined) {
+          const dir = new THREE.Vector3().subVectors(newPos, nose.mesh.position).normalize();
+          draggedJoint.mesh.position.copy(nose.mesh.position).add(dir.multiplyScalar(targetDist));
+        } else {
+          draggedJoint.mesh.position.copy(newPos);
+        }
+        // 保持头部刚体
+        maintainHeadRigid(person, st.boneLengths);
+      }
+    }
   } else {
     person.joints.find(j => j.idx === draggedIdx).mesh.position.copy(newPos);
   }
 
   maintainHipWidth(person, st.boneLengths);
+  maintainSpineLength(person, st.boneLengths);
 }
 
 /* ---------- bone length visualization ---------- */
