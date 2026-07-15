@@ -16,11 +16,11 @@ class CJOpenPoseEditor:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "output_width": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 64}),
-                "output_height": ("INT", {"default": 512, "min": 64, "max": 4096, "step": 64}),
+                "output_width": ("INT", {"default": 1024, "min": 64, "max": 4096, "step": 64}),
+                "output_height": ("INT", {"default": 1024, "min": 64, "max": 4096, "step": 64}),
             },
-            "hidden": {
-                "pose_data": ("STRING", {"multiline": True, "rows": 5}),
+            "optional": {
+                "pose_data": ("STRING", {"multiline": True, "rows": 5, "default": "", "hidden": True}),
             }
         }
 
@@ -290,8 +290,46 @@ class CJOpenPoseEditor:
         result = "，".join(parts) if parts else "标准站立姿势"
         return result
 
-    def pose3d_to_pixel(self, x, y):
-        return x * 470 + 256, -y * 470 + 256
+    def pose3d_to_pixel(self, x, y, camera_info=None):
+        """将3D坐标投影到2D像素坐标，支持相机视角"""
+        if camera_info:
+            # 从相机信息获取位置和目标点
+            cam_pos = camera_info.get('position', {})
+            cam_target = camera_info.get('target', {})
+            
+            cx = cam_pos.get('x', 0)
+            cy = cam_pos.get('y', 0)
+            cz = cam_pos.get('z', 1.8)
+            
+            tx = cam_target.get('x', 0)
+            ty = cam_target.get('y', 0)
+            tz = cam_target.get('z', 0)
+            
+            # 计算相机方向向量
+            dx = tx - cx
+            dy = ty - cy
+            dz = tz - cz
+            
+            # 计算距离（假设焦距与距离相关）
+            dist = (dx*dx + dy*dy + dz*dz) ** 0.5
+            if dist < 0.01:
+                dist = 1.0
+            
+            # 简单透视投影：将3D点相对于相机位置投影
+            # 相机看向-z方向，需要转换坐标
+            rel_x = x - cx
+            rel_y = y - cy
+            rel_z = 0 - cz  # 假设z=0平面
+            
+            # 投影到2D（简化版，假设焦距为1）
+            scale = 1.0 / max(abs(cz), 0.1) * 200  # 缩放因子
+            px = rel_x * scale + 256
+            py = -rel_y * scale + 256
+            
+            return px, py
+        else:
+            # 原始的简单投影
+            return x * 470 + 256, -y * 470 + 256
 
     def extract_keypoints_2d(self, pose_json):
         """提取关键点，支持3D和2D格式，返回包含z坐标的元组"""
@@ -299,6 +337,10 @@ class CJOpenPoseEditor:
             data = json.loads(pose_json)
         except json.JSONDecodeError:
             return []
+        
+        # 获取相机信息
+        camera_info = data.get('camera', None)
+        
         people = data.get('people', [])
         result = []
         for person in people:
@@ -310,7 +352,7 @@ class CJOpenPoseEditor:
                 for i in range(18):
                     idx = i * 4
                     if kp3d[idx + 3] > 0:
-                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1])
+                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info)
                         pz = kp3d[idx + 2]  # 保留z坐标
                         kps.append((px, py, pz))
                     else:
@@ -347,6 +389,9 @@ class CJOpenPoseEditor:
         if not people:
             return canvas
 
+        # 获取相机信息
+        camera_info = data.get('camera', None)
+
         base_thickness = 2.0
         target_max_side = max(target_w, target_h)
         scale_factor = target_max_side / 512.0
@@ -361,7 +406,7 @@ class CJOpenPoseEditor:
                 for i in range(18):
                     idx = i * 4
                     if kp3d[idx + 3] > 0:
-                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1])
+                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info)
                         kps.append((int(px * scale_x), int(py * scale_y)))
                     else:
                         kps.append(None)

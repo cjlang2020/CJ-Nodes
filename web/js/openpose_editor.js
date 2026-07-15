@@ -83,11 +83,12 @@ function buildScene(container) {
   grid.position.y = -0.55;
   scene.add(grid);
 
-  /* shared geometry - make joints larger for easier clicking */
-  const jointGeo = new THREE.SphereGeometry(0.07, 12, 12);
+  /* shared geometry - smaller joints for adult proportion */
+  const bodyJointGeo = new THREE.SphereGeometry(0.035, 10, 10);
+  const headJointGeo = new THREE.SphereGeometry(0.02, 8, 8);
 
   let state = {
-    scene, camera, renderer, jointGeo,
+    scene, camera, renderer, bodyJointGeo, headJointGeo,
     people: [], nextId: 0,
     selPerson: null, selJoint: null, isDragging: false, draggingAll: false,
     hitPt: new THREE.Vector3(), dragOff: new THREE.Vector3(),
@@ -111,6 +112,7 @@ function buildScene(container) {
       controls.minDistance = 0.3;
       controls.maxDistance = 5;
       controls.maxPolarAngle = Math.PI;
+      // Start with target at origin, will be updated when people are added
       controls.target.set(0, 0, 0);
       state.controls = controls;
       state.useOrbitControls = true;
@@ -161,6 +163,9 @@ function updateCam(st, target) {
 
 /* ---------- joints / bones ---------- */
 
+// Head joint indices: 0 (nose), 14 (right eye), 15 (left eye), 16 (right ear), 17 (left ear)
+const HEAD_INDICES = new Set([0, 14, 15, 16, 17]);
+
 function createJoint(st, pos, colorIdx) {
   const c = COLORS[colorIdx] || [255,255,255];
   const mat = new THREE.MeshStandardMaterial({
@@ -169,7 +174,8 @@ function createJoint(st, pos, colorIdx) {
     emissiveIntensity: 0.15,
     roughness: 0.3
   });
-  const m = new THREE.Mesh(st.jointGeo, mat);
+  const geo = HEAD_INDICES.has(colorIdx) ? st.headJointGeo : st.bodyJointGeo;
+  const m = new THREE.Mesh(geo, mat);
   m.position.copy(pos);
   m.userData.isJoint = true;
   m.userData.jointIdx = colorIdx;
@@ -190,8 +196,8 @@ function createBone(st, posA, posB, colorIdx) {
     transparent: true, opacity: 0.6, roughness: 0.5
   });
 
-  /* cylinder along Y, shift so bottom at origin */
-  const geo = new THREE.CylinderGeometry(0.02, 0.02, len, 6);
+  /* cylinder along Y, shift so bottom at origin - thinner bones for adult proportion */
+  const geo = new THREE.CylinderGeometry(0.012, 0.012, len, 6);
   geo.translate(0, len / 2, 0);
 
   const m = new THREE.Mesh(geo, mat);
@@ -300,6 +306,7 @@ function centerCameraOnPeople(st) {
   distance = Math.max(0.5, Math.min(3, distance));
   
   if (st.controls && st.useOrbitControls) {
+    // Set orbit target to model center - rotation will be around the model
     st.controls.target.copy(center);
     // Position camera at an angle to see the full pose
     st.camera.position.set(
@@ -555,11 +562,19 @@ function serializeState(st) {
   // Include posture description from frontend analysis
   const postureDesc = st.people.length > 0 ? analyzePerson(st.people[0].joints) : "";
   
+  // Get camera info
+  const cam = st.camera;
+  const cameraInfo = {
+    position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
+    target: { x: st.controls?.target?.x || 0, y: st.controls?.target?.y || 0, z: st.controls?.target?.z || 0 }
+  };
+  
   return JSON.stringify({ 
-    width: 512, 
-    height: 512, 
+    width: 1024, 
+    height: 1024, 
     people: all,
-    posture_description: postureDesc
+    posture_description: postureDesc,
+    camera: cameraInfo
   });
 }
 
@@ -688,16 +703,17 @@ function setupInput(st, container, onDragEnd) {
       if (!st.draggingAll && st.selJoint.mesh.material) {
         st.selJoint.mesh.material.emissiveIntensity = 0.15;
       }
-      updatePreview(st);
+      
       st.selJoint = null; st.isDragging = false; st.draggingAll = false;
-      st.needsUpdate = true;
       
       // Re-enable OrbitControls after dragging
       if (st.controls && st.useOrbitControls) {
         st.controls.enabled = true;
       }
       
-      if (onDragEnd) onDragEnd();
+      // Always sync data after drag ends
+      updatePreview(st);
+      if (st.onUpdate) st.onUpdate(serializeState(st));
     }
   });
 
@@ -714,9 +730,13 @@ function setupInput(st, container, onDragEnd) {
 /* ---------- UI ---------- */
 
 function buildUI(node) {
-  const pdW = node.widgets?.find(w => w.name === "pose_data");
-  if (pdW) { pdW.hidden = true; pdW.computeSize = () => [0, -4]; }
-
+  // Find the pose_data widget and hide it
+  let pdW = node.widgets?.find(w => w.name === "pose_data");
+  if (pdW) { 
+    pdW.hidden = true; 
+    pdW.computeSize = () => [0, -4]; 
+  }
+  
   const wrap = document.createElement("div");
   wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;width:100%;height:100%;overflow:hidden;";
 
@@ -745,27 +765,27 @@ function buildUI(node) {
   const rotN = btn("-30°", () => { if (node._st) { rotatePoseState(node._st, -30); syncState(node); } }, "逆时针旋转30度");
   const flipBtn = btn("镜像", () => { if (node._st) { flipPoseState(node._st); syncState(node); } }, "水平镜像翻转");
   
-  // Camera view buttons
+  // Camera view buttons - rotate around model center
   const frontViewBtn = btn("正视", () => {
     if (node._st && node._st.controls && node._st.useOrbitControls) {
-      node._st.controls.target.set(0, 0, 0);
-      node._st.camera.position.set(0, 0, 1.8);
+      const target = node._st.controls.target.clone();
+      node._st.camera.position.set(target.x, target.y, target.z + 1.8);
       node._st.controls.update();
     }
   }, "切换到正视图");
   
   const sideViewBtn = btn("侧视", () => {
     if (node._st && node._st.controls && node._st.useOrbitControls) {
-      node._st.controls.target.set(0, 0, 0);
-      node._st.camera.position.set(1.8, 0, 0);
+      const target = node._st.controls.target.clone();
+      node._st.camera.position.set(target.x + 1.8, target.y, target.z);
       node._st.controls.update();
     }
   }, "切换到侧视图");
   
   const topViewBtn = btn("顶视", () => {
     if (node._st && node._st.controls && node._st.useOrbitControls) {
-      node._st.controls.target.set(0, 0, 0);
-      node._st.camera.position.set(0, 1.8, 0.001);
+      const target = node._st.controls.target.clone();
+      node._st.camera.position.set(target.x, target.y + 1.8, target.z + 0.001);
       node._st.controls.update();
     }
   }, "切换到顶视图");
@@ -795,12 +815,14 @@ function buildUI(node) {
     st.node = node;
     st.onUpdate = (data) => {
       node._poseData = data;
+      // Update both widget and properties
       if (pdW) pdW.value = data;
+      node.properties.pose_data = data;
       app.graph.setDirtyCanvas(true, true);
     };
     node._st = st;
 
-    const initData = node._poseData || pdW?.value || "";
+    const initData = node._poseData || pdW?.value || node.properties?.pose_data || "";
     if (initData && initData !== "{}") loadData(st, initData);
     else { resetPoseState(st); syncState(node); }
   });
@@ -849,8 +871,10 @@ function syncState(node) {
   if (!node._st) return;
   const data = serializeState(node._st);
   node._poseData = data;
+  // Update both widget and properties
   const w = node.widgets?.find(w => w.name === "pose_data");
   if (w) w.value = data;
+  node.properties.pose_data = data;
   app.graph.setDirtyCanvas(true, true);
 }
 
