@@ -24,8 +24,8 @@ class CJOpenPoseEditor:
             }
         }
 
-    RETURN_TYPES = ("IMAGE", "STRING")
-    RETURN_NAMES = ("dw_pose_image", "posture_text")
+    RETURN_TYPES = ("IMAGE", "STRING", "STRING")
+    RETURN_NAMES = ("dw_pose_image", "posture_text", "camera_prompt")
     FUNCTION = "process"
     CATEGORY = "luy/姿态"
 
@@ -439,15 +439,18 @@ class CJOpenPoseEditor:
         if not pose_data or not pose_data.strip():
             dw_pose_np = np.zeros((output_height, output_width, 3), dtype=np.uint8)
             posture_text = "未检测到有效姿势"
+            camera_prompt = ""
         else:
             dw_pose_np = self.render_dw_pose(pose_data, output_width, output_height)
             
-            # Directly use posture_description from frontend
+            # Directly use posture_description and camera_prompt from frontend
             try:
                 data = json.loads(pose_data)
                 posture_text = data.get("posture_description", "标准站立姿势")
+                camera_prompt = data.get("camera_prompt", "")
             except:
                 posture_text = "标准站立姿势"
+                camera_prompt = ""
 
         dw_pose_image = torch.from_numpy(dw_pose_np.astype(np.float32) / 255.0).unsqueeze(0)
-        return (dw_pose_image, posture_text)
+        return (dw_pose_image, posture_text, camera_prompt)

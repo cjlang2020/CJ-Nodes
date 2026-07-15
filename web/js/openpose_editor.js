@@ -114,6 +114,12 @@ function buildScene(container) {
       controls.maxPolarAngle = Math.PI;
       // Start with target at origin, will be updated when people are added
       controls.target.set(0, 0, 0);
+      
+      // Update camera info display when controls change
+      controls.addEventListener('change', () => {
+        updatePreview(state);
+      });
+      
       state.controls = controls;
       state.useOrbitControls = true;
       console.log('[PoseEditor] Using OrbitControls');
@@ -541,6 +547,15 @@ function updatePreview(st) {
   // Only show posture description without "人物1:" prefix
   const txt = analyzePerson(st.people[0].joints);
   if (el.textContent !== txt) el.textContent = txt;
+  
+  // Update camera angle display
+  const angles = calcCameraAngles(st);
+  const hEl = document.getElementById('cj-h-angle');
+  const vEl = document.getElementById('cj-v-angle');
+  const zEl = document.getElementById('cj-zoom');
+  if (hEl) hEl.textContent = angles.horizontal + '°';
+  if (vEl) vEl.textContent = angles.vertical + '°';
+  if (zEl) zEl.textContent = angles.zoom;
 }
 
 /* ---------- serialization ---------- */
@@ -562,24 +577,90 @@ function serializeState(st) {
   // Include posture description from frontend analysis
   const postureDesc = st.people.length > 0 ? analyzePerson(st.people[0].joints) : "";
   
-  // Get camera info
+  // Get camera info and angles
   const cam = st.camera;
   const cameraInfo = {
     position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
     target: { x: st.controls?.target?.x || 0, y: st.controls?.target?.y || 0, z: st.controls?.target?.z || 0 }
   };
   
+  const angles = calcCameraAngles(st);
+  const cameraPrompt = generateCameraPrompt(angles.horizontal, angles.vertical, angles.zoom);
+  
   return JSON.stringify({ 
     width: 1024, 
     height: 1024, 
     people: all,
     posture_description: postureDesc,
-    camera: cameraInfo
+    camera: cameraInfo,
+    camera_angles: angles,
+    camera_prompt: cameraPrompt
   });
 }
 
 function sendUpdate(st) {
   if (st.onUpdate) st.onUpdate(serializeState(st));
+}
+
+/* ---------- camera angle calculation ---------- */
+
+function calcCameraAngles(st) {
+  const cam = st.camera;
+  const target = st.controls?.target || new THREE.Vector3(0, 0, 0);
+  
+  // 计算相机相对于目标的向量
+  const dx = cam.position.x - target.x;
+  const dy = cam.position.y - target.y;
+  const dz = cam.position.z - target.z;
+  
+  // 计算水平角度 (0-360, 正面为0)
+  let h_angle = Math.atan2(dx, dz) * (180 / Math.PI);
+  h_angle = ((h_angle % 360) + 360) % 360;
+  
+  // 计算垂直角度 (-90到90)
+  const distXZ = Math.sqrt(dx * dx + dz * dz);
+  let v_angle = Math.atan2(dy, distXZ) * (180 / Math.PI);
+  
+  // 计算相机距离（zoom）
+  const zoom = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  
+  return {
+    horizontal: Math.round(h_angle),
+    vertical: Math.round(v_angle),
+    zoom: Math.round(zoom * 10) / 10
+  };
+}
+
+function generateCameraPrompt(h_angle, v_angle, zoom) {
+  // 水平方向
+  const h = h_angle % 360;
+  let h_direction;
+  if (h < 22.5 || h >= 337.5) h_direction = "front view";
+  else if (h < 67.5) h_direction = "front-right view";
+  else if (h < 112.5) h_direction = "right side view";
+  else if (h < 157.5) h_direction = "back-right view";
+  else if (h < 202.5) h_direction = "back view";
+  else if (h < 247.5) h_direction = "back-left view";
+  else if (h < 292.5) h_direction = "left side view";
+  else h_direction = "front-left view";
+  
+  // 垂直方向
+  let v_direction;
+  if (v_angle < -15) v_direction = "low angle";
+  else if (v_angle < 15) v_direction = "eye level";
+  else if (v_angle < 45) v_direction = "high angle";
+  else if (v_angle < 75) v_direction = "bird's eye view";
+  else v_direction = "top-down view";
+  
+  // 远近
+  let distance;
+  if (zoom < 1.5) distance = "close-up";
+  else if (zoom < 3) distance = "medium close-up";
+  else if (zoom < 5) distance = "medium shot";
+  else if (zoom < 7) distance = "medium-wide shot";
+  else distance = "wide shot";
+  
+  return `${h_direction}, ${v_direction}, ${distance}`;
 }
 
 /* ---------- input ---------- */
@@ -754,6 +835,12 @@ function buildUI(node) {
   preview.style.cssText = "background:#0d0d0d;color:#fff;border:1px solid #555;border-radius:3px;padding:3px 6px;font-size:10px;font-family:monospace;line-height:1.6;min-height:20px;overflow:hidden;";
   preview.innerText = "加载中...";
 
+  // Camera angle display
+  const cameraInfo = document.createElement("div");
+  cameraInfo.className = "cj-camera-info";
+  cameraInfo.style.cssText = "background:#0a0a0f;color:#E93D82;border:1px solid rgba(233,61,130,0.3);border-radius:3px;padding:3px 6px;font-size:10px;font-family:monospace;line-height:1.4;display:flex;gap:8px;justify-content:space-between;";
+  cameraInfo.innerHTML = '<span>水平: <span id="cj-h-angle">0°</span></span><span>垂直: <span id="cj-v-angle">0°</span></span><span>远近: <span id="cj-zoom">1.8</span></span>';
+
   const btnRow = document.createElement("div");
   btnRow.style.cssText = "display:flex;gap:3px;flex-wrap:wrap;";
 
@@ -797,7 +884,7 @@ function buildUI(node) {
   }, "切换到顶视图");
 
   btnRow.append(resetBtn, rotP, rotN, flipBtn, frontViewBtn, sideViewBtn, topViewBtn);
-  wrap.append(cvWrap, preview, btnRow);
+  wrap.append(cvWrap, preview, cameraInfo, btnRow);
 
   node._poseContainer = cvWrap;
   node._posePreviewEl = preview;
@@ -811,7 +898,7 @@ function buildUI(node) {
       if (st) loadData(st, v);
     }
   });
-  widget.computeSize = (w) => [w || 300, (w || 300) + 80];
+  widget.computeSize = (w) => [w || 300, (w || 300) + 100];
 
   node.setSize([Math.max(340, node.size[0]), Math.max(460, node.size[1])]);
 
