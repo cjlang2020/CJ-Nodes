@@ -9,6 +9,40 @@ const COLORS = [
   [0,255,85],[0,255,170],[0,255,255],[0,170,255],[0,85,255],[85,0,255],[170,0,255],[255,0,255],[255,0,170],[255,0,85]
 ];
 
+/* ---------- IK constants ---------- */
+
+// 骨骼链定义（用于 IK 解算）
+const BONE_CHAINS = {
+  rightArm: [2, 3, 4],
+  leftArm: [5, 6, 7],
+  rightLeg: [8, 9, 10],
+  leftLeg: [11, 12, 13],
+};
+
+// 末端关节（IK 末端效应器）
+const END_EFFECTORS = new Set([4, 7, 10, 13]);
+
+// 中间关节
+const MID_JOINTS = new Set([3, 6, 9, 12]);
+
+// 脖子是全局根
+const NECK_IDX = 1;
+
+// 骨骼父子关系
+const PARENT_MAP = {
+  0: 1, 1: null, 2: 1, 3: 2, 4: 3, 5: 1, 6: 5, 7: 6,
+  8: 1, 9: 8, 10: 9, 11: 1, 12: 11, 13: 12,
+  14: 0, 15: 0, 16: 14, 17: 15
+};
+
+// 关节名称
+const JOINT_NAMES = {
+  0: '鼻子', 1: '脖子', 2: '右肩', 3: '右肘', 4: '右腕',
+  5: '左肩', 6: '左肘', 7: '左腕', 8: '右髋', 9: '右膝',
+  10: '右踝', 11: '左髋', 12: '左膝', 13: '左踝',
+  14: '右眼', 15: '左眼', 16: '右耳', 17: '左耳'
+};
+
 /* convert original 2D keypoints (512×512, y-down) to 3D (y-up) normalized to ~±0.5 */
 function kp2dto3d(x2d, y2d) {
   const s = 1 / 470;
@@ -99,7 +133,11 @@ function buildScene(container) {
     camTarget: new THREE.Vector3(0, 0, 0),
     viewLocked: false, needsUpdate: false,
     previewEl: null, onUpdate: null,
-    controls: null, useOrbitControls: false
+    controls: null, useOrbitControls: false,
+    boneLengths: {},
+    showBoneLengths: true,
+    boneLengthLabels: [],
+    ikIterations: 10
   };
 
   // Try to use OrbitControls if available
@@ -185,8 +223,25 @@ function createJoint(st, pos, colorIdx) {
   m.position.copy(pos);
   m.userData.isJoint = true;
   m.userData.jointIdx = colorIdx;
-  m.raycast = THREE.Mesh.prototype.raycast; // Ensure raycast works
+  m.raycast = THREE.Mesh.prototype.raycast;
   st.scene.add(m);
+
+  // 为脖子关节添加方向圆锥体
+  if (colorIdx === 1) {
+    const coneGeo = new THREE.ConeGeometry(0.025, 0.08, 8);
+    const coneMat = new THREE.MeshStandardMaterial({
+      color: 0xff4444,
+      emissive: 0xff4444,
+      emissiveIntensity: 0.3,
+      roughness: 0.4
+    });
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.rotation.x = Math.PI / 2;
+    cone.position.set(0, 0, 0.06);
+    m.add(cone);
+    st.neckDirectionCone = cone;
+  }
+
   return m;
 }
 
@@ -244,6 +299,8 @@ function addPerson(st, kp4d) {
 
   const person = { id: pid, joints: joints.filter(j => j), meshes };
   st.people.push(person);
+  st.boneLengths = calcBoneLengths(st, person);
+  createBoneLengthLabels(st, person);
   return person;
 }
 
@@ -264,6 +321,25 @@ function rebuildBones(st, person) {
     const bone = createBone(st, a.mesh.position, b.mesh.position, pair[0]);
     if (bone) person.meshes.push(bone);
   });
+
+  updateBoneLengthLabels(st, person);
+  updateDirectionCone(st, person);
+}
+
+function updateDirectionCone(st, person) {
+  const neck = person.joints.find(j => j.idx === 1);
+  const nose = person.joints.find(j => j.idx === 0);
+  if (!neck || !nose || !st.neckDirectionCone) return;
+
+  const neckPos = neck.mesh.position;
+  const nosePos = nose.mesh.position;
+  
+  const dir = new THREE.Vector3().subVectors(nosePos, neckPos).normalize();
+  
+  st.neckDirectionCone.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, 1),
+    dir
+  );
 }
 
 function removePerson(st, person) {
@@ -281,6 +357,229 @@ function getDefaultKp4d() {
   const out = [];
   DEF_PTS.forEach(p => out.push(p[0], p[1], p[2], 1.0));
   return out;
+}
+
+/* ---------- IK system ---------- */
+
+function calcBoneLengths(st, person) {
+  const lengths = {};
+  for (const [chainName, chain] of Object.entries(BONE_CHAINS)) {
+    for (let i = 0; i < chain.length - 1; i++) {
+      const a = person.joints.find(j => j.idx === chain[i]);
+      const b = person.joints.find(j => j.idx === chain[i + 1]);
+      if (a && b) {
+        const key = `${chain[i]}_${chain[i+1]}`;
+        lengths[key] = a.mesh.position.distanceTo(b.mesh.position);
+      }
+    }
+  }
+  const lHip = person.joints.find(j => j.idx === 11);
+  const rHip = person.joints.find(j => j.idx === 8);
+  if (lHip && rHip) {
+    lengths['hip_width'] = lHip.mesh.position.distanceTo(rHip.mesh.position);
+  }
+  return lengths;
+}
+
+function fabrikSolve(person, targetIdx, targetPos, boneLengths) {
+  let chain = null;
+  for (const [name, indices] of Object.entries(BONE_CHAINS)) {
+    if (indices.includes(targetIdx)) {
+      chain = indices;
+      break;
+    }
+  }
+  if (!chain) return;
+
+  const joints = chain.map(idx => person.joints.find(j => j.idx === idx)).filter(Boolean);
+  if (joints.length < 2) return;
+
+  const lengths = [];
+  for (let i = 0; i < joints.length - 1; i++) {
+    const key = `${chain[i]}_${chain[i+1]}`;
+    lengths.push(boneLengths[key] || joints[i].mesh.position.distanceTo(joints[i+1].mesh.position));
+  }
+
+  const positions = joints.map(j => j.mesh.position.clone());
+  const rootPos = positions[0].clone();
+
+  for (let iter = 0; iter < 10; iter++) {
+    positions[positions.length - 1].copy(targetPos);
+    for (let i = positions.length - 2; i >= 0; i--) {
+      const dir = new THREE.Vector3().subVectors(positions[i], positions[i + 1]).normalize();
+      positions[i].copy(positions[i + 1]).add(dir.multiplyScalar(lengths[i]));
+    }
+    positions[0].copy(rootPos);
+    for (let i = 1; i < positions.length; i++) {
+      const dir = new THREE.Vector3().subVectors(positions[i], positions[i - 1]).normalize();
+      positions[i].copy(positions[i - 1]).add(dir.multiplyScalar(lengths[i - 1]));
+    }
+  }
+
+  for (let i = 1; i < joints.length; i++) {
+    joints[i].mesh.position.copy(positions[i]);
+  }
+}
+
+function maintainHipWidth(person, boneLengths) {
+  const lHip = person.joints.find(j => j.idx === 11);
+  const rHip = person.joints.find(j => j.idx === 8);
+  if (!lHip || !rHip) return;
+
+  const targetDist = boneLengths['hip_width'] || 0.2;
+  const currentDist = lHip.mesh.position.distanceTo(rHip.mesh.position);
+
+  if (Math.abs(currentDist - targetDist) > 0.001) {
+    const center = new THREE.Vector3().addVectors(lHip.mesh.position, rHip.mesh.position).multiplyScalar(0.5);
+    const dir = new THREE.Vector3().subVectors(rHip.mesh.position, lHip.mesh.position).normalize();
+    rHip.mesh.position.copy(center).add(dir.multiplyScalar(targetDist / 2));
+    lHip.mesh.position.copy(center).sub(dir.multiplyScalar(targetDist / 2));
+  }
+}
+
+function applyIKConstraint(st, person, draggedIdx, newPos) {
+  const neck = person.joints.find(j => j.idx === NECK_IDX);
+  if (!neck) return;
+
+  if (draggedIdx === NECK_IDX) {
+    const delta = new THREE.Vector3().subVectors(newPos, neck.mesh.position);
+    person.joints.forEach(j => j.mesh.position.add(delta));
+  } else if (END_EFFECTORS.has(draggedIdx)) {
+    fabrikSolve(person, draggedIdx, newPos, st.boneLengths);
+  } else if (MID_JOINTS.has(draggedIdx)) {
+    const parent = person.joints.find(j => j.idx === PARENT_MAP[draggedIdx]);
+    let childIdx = null;
+    for (const [name, chain] of Object.entries(BONE_CHAINS)) {
+      const idx = chain.indexOf(draggedIdx);
+      if (idx >= 0 && idx < chain.length - 1) {
+        childIdx = chain[idx + 1];
+        break;
+      }
+    }
+    const child = childIdx !== null ? person.joints.find(j => j.idx === childIdx) : null;
+
+    if (parent) {
+      const parentKey = `${PARENT_MAP[draggedIdx]}_${draggedIdx}`;
+      const dist = st.boneLengths[parentKey] || parent.mesh.position.distanceTo(newPos);
+      const dir = new THREE.Vector3().subVectors(newPos, parent.mesh.position).normalize();
+      newPos.copy(parent.mesh.position).add(dir.multiplyScalar(dist));
+    }
+
+    person.joints.find(j => j.idx === draggedIdx).mesh.position.copy(newPos);
+
+    if (child) {
+      const childKey = `${draggedIdx}_${child.idx}`;
+      const dist = st.boneLengths[childKey] || newPos.distanceTo(child.mesh.position);
+      const dir = new THREE.Vector3().subVectors(child.mesh.position, newPos).normalize();
+      child.mesh.position.copy(newPos).add(dir.multiplyScalar(dist));
+    }
+  } else {
+    person.joints.find(j => j.idx === draggedIdx).mesh.position.copy(newPos);
+  }
+
+  maintainHipWidth(person, st.boneLengths);
+}
+
+/* ---------- bone length visualization ---------- */
+
+function createBoneLengthLabels(st, person) {
+  clearBoneLengthLabels(st);
+  if (!st.showBoneLengths) return;
+
+  for (const [chainName, chain] of Object.entries(BONE_CHAINS)) {
+    for (let i = 0; i < chain.length - 1; i++) {
+      const a = person.joints.find(j => j.idx === chain[i]);
+      const b = person.joints.find(j => j.idx === chain[i + 1]);
+      if (a && b) {
+        const midPos = new THREE.Vector3().addVectors(a.mesh.position, b.mesh.position).multiplyScalar(0.5);
+        const key = `${chain[i]}_${chain[i+1]}`;
+        const len = st.boneLengths[key] || a.mesh.position.distanceTo(b.mesh.position);
+        const label = createTextLabel(st, `${JOINT_NAMES[chain[i]]}-${JOINT_NAMES[chain[i+1]]}: ${len.toFixed(2)}`, midPos, key);
+        label.userData.jointA = chain[i];
+        label.userData.jointB = chain[i + 1];
+        st.boneLengthLabels.push(label);
+      }
+    }
+  }
+
+  const lHip = person.joints.find(j => j.idx === 11);
+  const rHip = person.joints.find(j => j.idx === 8);
+  if (lHip && rHip) {
+    const midPos = new THREE.Vector3().addVectors(lHip.mesh.position, rHip.mesh.position).multiplyScalar(0.5);
+    const len = st.boneLengths['hip_width'] || lHip.mesh.position.distanceTo(rHip.mesh.position);
+    const label = createTextLabel(st, `腰宽: ${len.toFixed(2)}`, midPos, 'hip_width');
+    label.userData.jointA = 11;
+    label.userData.jointB = 8;
+    st.boneLengthLabels.push(label);
+  }
+}
+
+function clearBoneLengthLabels(st) {
+  st.boneLengthLabels.forEach(label => {
+    st.scene.remove(label);
+    if (label.material) label.material.dispose();
+    if (label.material.map) label.material.map.dispose();
+  });
+  st.boneLengthLabels = [];
+}
+
+function updateBoneLengthLabels(st, person) {
+  if (!st.showBoneLengths) return;
+
+  st.boneLengthLabels.forEach(label => {
+    const a = person.joints.find(j => j.idx === label.userData.jointA);
+    const b = person.joints.find(j => j.idx === label.userData.jointB);
+    if (a && b) {
+      label.position.lerpVectors(a.mesh.position, b.mesh.position, 0.5);
+      const len = a.mesh.position.distanceTo(b.mesh.position);
+      const nameA = JOINT_NAMES[label.userData.jointA] || '';
+      const nameB = JOINT_NAMES[label.userData.jointB] || '';
+      const prefix = label.userData.key === 'hip_width' ? '腰宽' : `${nameA}-${nameB}`;
+      updateTextLabel(label, `${prefix}: ${len.toFixed(2)}`);
+    }
+  });
+}
+
+function createTextLabel(st, text, position, key) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  ctx.roundRect(0, 0, 256, 64, 4);
+  ctx.fill();
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 32);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+  const sprite = new THREE.Sprite(material);
+  sprite.position.copy(position);
+  sprite.scale.set(0.15, 0.04, 1);
+  sprite.userData.key = key;
+  sprite.userData.canvas = canvas;
+  sprite.userData.texture = texture;
+  st.scene.add(sprite);
+  return sprite;
+}
+
+function updateTextLabel(sprite, text) {
+  const canvas = sprite.userData.canvas;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 256, 64);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+  ctx.roundRect(0, 0, 256, 64, 4);
+  ctx.fill();
+  ctx.fillStyle = '#00ff88';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 128, 32);
+  sprite.userData.texture.needsUpdate = true;
 }
 
 /* ---------- pose commands ---------- */
@@ -767,8 +1066,10 @@ function setupInput(st, container, onDragEnd) {
         const camDir = new THREE.Vector3().subVectors(st.camera.position, st.selJoint.mesh.position).normalize();
         const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, st.selJoint.mesh.position);
         if (ray.ray.intersectPlane(plane, st.hitPt)) {
-          st.selJoint.mesh.position.copy(st.hitPt).add(st.dragOff);
-          rebuildBones(st, st.selJoint.person);
+          const newPos = st.hitPt.clone().add(st.dragOff);
+          applyIKConstraint(st, st.selPerson, st.selJoint.joint.idx, newPos);
+          rebuildBones(st, st.selPerson);
+          updateBoneLengthLabels(st, st.selPerson);
         }
       }
       updatePreview(st);
@@ -873,7 +1174,16 @@ function buildUI(node) {
     return b;
   }
 
-  const resetBtn = btn("重置", () => { if (node._st) { resetPoseState(node._st); syncState(node); updatePreview(node._st); } }, "重置姿态到默认状态");
+  const resetViewBtn = btn("重置视角", () => {
+    if (node._st && node._st.controls && node._st.useOrbitControls) {
+      centerCameraOnPeople(node._st);
+      node._st.controls.update();
+      updatePreview(node._st);
+      if (node._st.onUpdate) node._st.onUpdate(serializeState(node._st));
+    }
+  }, "重置相机视角到默认位置");
+  
+  const resetPoseBtn = btn("重置骨骼", () => { if (node._st) { resetPoseState(node._st); syncState(node); updatePreview(node._st); } }, "重置骨骼姿势到默认状态");
   const rotP = btn("+30°", () => { if (node._st) { rotatePoseState(node._st, 30); syncState(node); updatePreview(node._st); } }, "顺时针旋转30度");
   const rotN = btn("-30°", () => { if (node._st) { rotatePoseState(node._st, -30); syncState(node); updatePreview(node._st); } }, "逆时针旋转30度");
   const flipBtn = btn("镜像", () => { if (node._st) { flipPoseState(node._st); syncState(node); updatePreview(node._st); } }, "水平镜像翻转");
@@ -909,7 +1219,20 @@ function buildUI(node) {
     }
   }, "切换到顶视图");
 
-  btnRow.append(resetBtn, rotP, rotN, flipBtn, frontViewBtn, sideViewBtn, topViewBtn);
+  const toggleBoneLengths = btn("骨骼", () => {
+    if (node._st) {
+      node._st.showBoneLengths = !node._st.showBoneLengths;
+      if (node._st.showBoneLengths) {
+        if (node._st.people.length > 0) {
+          createBoneLengthLabels(node._st, node._st.people[0]);
+        }
+      } else {
+        clearBoneLengthLabels(node._st);
+      }
+    }
+  }, "显示/隐藏骨骼长度约束");
+
+  btnRow.append(resetViewBtn, resetPoseBtn, rotP, rotN, flipBtn, frontViewBtn, sideViewBtn, topViewBtn, toggleBoneLengths);
   wrap.append(cvWrap, preview, cameraInfo, btnRow);
 
   node._poseContainer = cvWrap;
