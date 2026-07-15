@@ -3,6 +3,6 @@
     "version": "1.0.0",
     "description": "个人插件",
     "author": "luy",
-    "js": ["index.js","js/qwen_multiangle.js","js/qwen_multiangle_plus.js","js/qwen_multiangle_lora.js","js/image_edit.js","js/draw_photo.js","js/prompt_manage.js","js/sdxl_prompt_choice.js","js/sdxl_prompt.js","js/sdxl.js","js/camera_viewer.js","js/viewer_inline.js","js/qwen_camera.js"],
+    "js": ["index.js","js/qwen_multiangle.js","js/qwen_multiangle_plus.js","js/qwen_multiangle_lora.js","js/image_edit.js","js/draw_photo.js","js/prompt_manage.js","js/sdxl_prompt_choice.js","js/sdxl_prompt.js","js/sdxl.js","js/camera_viewer.js","js/viewer_inline.js","js/qwen_camera.js","js/openpose_editor.js"],
     "dependencies": []
 }
