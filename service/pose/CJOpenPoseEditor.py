@@ -243,36 +243,94 @@ class CJOpenPoseEditor:
         result = "，".join(parts) if parts else "标准站立姿势"
         return result
 
-    def pose3d_to_pixel(self, x, y, camera_info=None, output_width=1024, output_height=1024):
-        """将3D坐标投影到2D像素坐标，支持相机视角和自定义输出尺寸"""
-        # 计算中心点和缩放比例
-        # 3D坐标范围约±0.55，需要映射到输出尺寸的80%区域
+    def pose3d_to_pixel(self, x, y, z, camera_info=None, output_width=1024, output_height=1024):
+        """将3D坐标根据相机视角投影到2D像素坐标
+        
+        Args:
+            x, y, z: 3D世界坐标
+            camera_info: 相机信息，包含position和target
+            output_width, output_height: 输出图像尺寸
+        """
         center_x = output_width / 2
         center_y = output_height / 2
         
         if camera_info:
-            # 从相机信息获取位置
             cam_pos = camera_info.get('position', {})
+            cam_target = camera_info.get('target', {})
+            
             cx = cam_pos.get('x', 0)
             cy = cam_pos.get('y', 0)
             cz = cam_pos.get('z', 1.8)
             
-            # 根据相机距离计算缩放，使骨架填充约80%的画面
-            # 相机距离1.8时，3D坐标±0.55应该映射到画面的80%
-            zoom = 1.0 / max(abs(cz), 0.1)
-            scale = min(output_width, output_height) * 0.4 * zoom  # 0.4 = 80% / 2
+            tx = cam_target.get('x', 0)
+            ty = cam_target.get('y', 0)
+            tz = cam_target.get('z', 0)
             
-            rel_x = x - cx
-            rel_y = y - cy
+            # 计算相机观察方向
+            forward = {"x": tx - cx, "y": ty - cy, "z": tz - cz}
+            forward_len = (forward["x"]**2 + forward["y"]**2 + forward["z"]**2) ** 0.5
+            if forward_len > 0:
+                forward = {"x": forward["x"]/forward_len, "y": forward["y"]/forward_len, "z": forward["z"]/forward_len}
             
-            px = rel_x * scale + center_x
-            py = -rel_y * scale + center_y
+            # 计算右向量 (forward x up)
+            up = {"x": 0, "y": 1, "z": 0}
+            right = {
+                "x": forward["y"] * up["z"] - forward["z"] * up["y"],
+                "y": forward["z"] * up["x"] - forward["x"] * up["z"],
+                "z": forward["x"] * up["y"] - forward["y"] * up["x"]
+            }
+            right_len = (right["x"]**2 + right["y"]**2 + right["z"]**2) ** 0.5
+            if right_len > 0:
+                right = {"x": right["x"]/right_len, "y": right["y"]/right_len, "z": right["z"]/right_len}
             
-            return px, py
+            # 计算上向量 (right x forward)
+            up_calc = {
+                "x": right["y"] * forward["z"] - right["z"] * forward["y"],
+                "y": right["z"] * forward["x"] - right["x"] * forward["z"],
+                "z": right["x"] * forward["y"] - right["y"] * forward["x"]
+            }
+            
+            # 计算点相对于相机的位置
+            rel = {"x": x - cx, "y": y - cy, "z": z - cz}
+            
+            # 投影到相机坐标系
+            cam_x = rel["x"] * right["x"] + rel["y"] * right["y"] + rel["z"] * right["z"]
+            cam_y = rel["x"] * up_calc["x"] + rel["y"] * up_calc["y"] + rel["z"] * up_calc["z"]
+            cam_z = rel["x"] * forward["x"] + rel["y"] * forward["y"] + rel["z"] * forward["z"]
+            
+            # 透视投影
+            fov = 40 * math.pi / 180  # 40度FOV，与前端一致
+            focal_length = 1.0 / math.tan(fov / 2)
+            
+            if cam_z > 0.01:  # 在相机前面
+                screen_x = (cam_x / cam_z) * focal_length
+                screen_y = (cam_y / cam_z) * focal_length
+                
+                # 自适应缩放：根据相机距离调整，使人物填充画面约70%
+                # 计算相机到目标点的距离
+                cam_dist = (cx**2 + cy**2 + cz**2) ** 0.5
+                if cam_dist < 0.1:
+                    cam_dist = 1.8
+                
+                # 基础缩放：根据相机距离和FOV计算
+                # 在距离cam_dist处，1单位长度对应的屏幕比例
+                base_scale = focal_length / cam_dist
+                
+                # 自适应缩放因子，使人物在不同距离下大小合适
+                # 目标：让人物在画面中占约70%的高度
+                adaptive_scale = min(output_width, output_height) * 0.35 * base_scale
+                
+                px = screen_x * adaptive_scale + center_x
+                py = -screen_y * adaptive_scale + center_y
+                
+                return px, py
+            else:
+                # 在相机后面，使用简单投影
+                scale = min(output_width, output_height) * 0.35
+                return x * scale + center_x, -y * scale + center_y
         else:
-            # 无相机信息时，直接缩放填充画面
-            # 3D范围约1.1，映射到输出尺寸的80%
-            scale = min(output_width, output_height) * 0.4  # 0.4 = 80% / 2 / 0.55 ≈ 0.36，取0.4使骨架更大
+            # 无相机信息时，使用正交投影
+            scale = min(output_width, output_height) * 0.35
             return x * scale + center_x, -y * scale + center_y
 
     def extract_keypoints_2d(self, pose_json, output_width=1024, output_height=1024):
@@ -296,7 +354,7 @@ class CJOpenPoseEditor:
                 for i in range(18):
                     idx = i * 4
                     if kp3d[idx + 3] > 0:
-                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info, output_width, output_height)
+                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], kp3d[idx + 2], camera_info, output_width, output_height)
                         pz = kp3d[idx + 2]  # 保留z坐标
                         kps.append((px, py, pz))
                     else:
@@ -350,7 +408,7 @@ class CJOpenPoseEditor:
                 for i in range(18):
                     idx = i * 4
                     if kp3d[idx + 3] > 0:
-                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info, target_w, target_h)
+                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], kp3d[idx + 2], camera_info, target_w, target_h)
                         kps.append((int(px), int(py)))
                     else:
                         kps.append(None)
