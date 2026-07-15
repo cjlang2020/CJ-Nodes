@@ -290,48 +290,39 @@ class CJOpenPoseEditor:
         result = "，".join(parts) if parts else "标准站立姿势"
         return result
 
-    def pose3d_to_pixel(self, x, y, camera_info=None):
-        """将3D坐标投影到2D像素坐标，支持相机视角"""
+    def pose3d_to_pixel(self, x, y, camera_info=None, output_width=1024, output_height=1024):
+        """将3D坐标投影到2D像素坐标，支持相机视角和自定义输出尺寸"""
+        # 计算中心点和缩放比例
+        # 3D坐标范围约±0.55，需要映射到输出尺寸的80%区域
+        center_x = output_width / 2
+        center_y = output_height / 2
+        
         if camera_info:
-            # 从相机信息获取位置和目标点
+            # 从相机信息获取位置
             cam_pos = camera_info.get('position', {})
-            cam_target = camera_info.get('target', {})
-            
             cx = cam_pos.get('x', 0)
             cy = cam_pos.get('y', 0)
             cz = cam_pos.get('z', 1.8)
             
-            tx = cam_target.get('x', 0)
-            ty = cam_target.get('y', 0)
-            tz = cam_target.get('z', 0)
+            # 根据相机距离计算缩放，使骨架填充约80%的画面
+            # 相机距离1.8时，3D坐标±0.55应该映射到画面的80%
+            zoom = 1.0 / max(abs(cz), 0.1)
+            scale = min(output_width, output_height) * 0.4 * zoom  # 0.4 = 80% / 2
             
-            # 计算相机方向向量
-            dx = tx - cx
-            dy = ty - cy
-            dz = tz - cz
-            
-            # 计算距离（假设焦距与距离相关）
-            dist = (dx*dx + dy*dy + dz*dz) ** 0.5
-            if dist < 0.01:
-                dist = 1.0
-            
-            # 简单透视投影：将3D点相对于相机位置投影
-            # 相机看向-z方向，需要转换坐标
             rel_x = x - cx
             rel_y = y - cy
-            rel_z = 0 - cz  # 假设z=0平面
             
-            # 投影到2D（简化版，假设焦距为1）
-            scale = 1.0 / max(abs(cz), 0.1) * 200  # 缩放因子
-            px = rel_x * scale + 256
-            py = -rel_y * scale + 256
+            px = rel_x * scale + center_x
+            py = -rel_y * scale + center_y
             
             return px, py
         else:
-            # 原始的简单投影
-            return x * 470 + 256, -y * 470 + 256
+            # 无相机信息时，直接缩放填充画面
+            # 3D范围约1.1，映射到输出尺寸的80%
+            scale = min(output_width, output_height) * 0.4  # 0.4 = 80% / 2 / 0.55 ≈ 0.36，取0.4使骨架更大
+            return x * scale + center_x, -y * scale + center_y
 
-    def extract_keypoints_2d(self, pose_json):
+    def extract_keypoints_2d(self, pose_json, output_width=1024, output_height=1024):
         """提取关键点，支持3D和2D格式，返回包含z坐标的元组"""
         try:
             data = json.loads(pose_json)
@@ -352,7 +343,7 @@ class CJOpenPoseEditor:
                 for i in range(18):
                     idx = i * 4
                     if kp3d[idx + 3] > 0:
-                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info)
+                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info, output_width, output_height)
                         pz = kp3d[idx + 2]  # 保留z坐标
                         kps.append((px, py, pz))
                     else:
@@ -406,8 +397,8 @@ class CJOpenPoseEditor:
                 for i in range(18):
                     idx = i * 4
                     if kp3d[idx + 3] > 0:
-                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info)
-                        kps.append((int(px * scale_x), int(py * scale_y)))
+                        px, py = self.pose3d_to_pixel(kp3d[idx], kp3d[idx + 1], camera_info, target_w, target_h)
+                        kps.append((int(px), int(py)))
                     else:
                         kps.append(None)
             elif kp2d and len(kp2d) >= 54:

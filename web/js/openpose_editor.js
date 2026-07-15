@@ -59,13 +59,13 @@ function loadThree(cb) {
 /* ---------- three scene ---------- */
 
 function buildScene(container) {
-  const w = container.clientWidth || 400;
-  const h = container.clientHeight || 400;
+  const w = 300;
+  const h = 300;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x1a1a1a);
 
-  const camera = new THREE.PerspectiveCamera(40, w / h, 0.01, 20);
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 20);
   camera.position.set(0, 0.3, 1.8);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -741,7 +741,13 @@ function buildUI(node) {
   wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;width:100%;height:100%;overflow:hidden;";
 
   const cvWrap = document.createElement("div");
-  cvWrap.style.cssText = "flex:1;position:relative;overflow:hidden;min-height:200px;background:#1a1a1a;border:1px solid #333;border-radius:4px;touch-action:none;";
+  cvWrap.style.cssText = "position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;background:#1a1a1a;border:1px solid #333;border-radius:4px;touch-action:none;max-height:400px;";
+  
+  // Style canvas to fill container
+  const style = document.createElement("style");
+  style.textContent = `.cj-canvas-wrap canvas { width: 100% !important; height: 100% !important; display: block; }`;
+  document.head.appendChild(style);
+  cvWrap.classList.add("cj-canvas-wrap");
 
   const preview = document.createElement("div");
   preview.className = "cj-pose-preview";
@@ -805,7 +811,7 @@ function buildUI(node) {
       if (st) loadData(st, v);
     }
   });
-  widget.computeSize = (w) => [w || 300, Math.max(420, (w || 300) * 1.25)];
+  widget.computeSize = (w) => [w || 300, (w || 300) + 80];
 
   node.setSize([Math.max(340, node.size[0]), Math.max(460, node.size[1])]);
 
@@ -821,6 +827,16 @@ function buildUI(node) {
       app.graph.setDirtyCanvas(true, true);
     };
     node._st = st;
+
+    // Update renderer size after DOM is ready
+    requestAnimationFrame(() => {
+      const w = cvWrap.clientWidth || 300;
+      const h = cvWrap.clientHeight || w; // Default to square
+      st.renderer.setSize(w, h);
+      st.camera.aspect = w / h;
+      st.camera.updateProjectionMatrix();
+      st.renderer.render(st.scene, st.camera);
+    });
 
     const initData = node._poseData || pdW?.value || node.properties?.pose_data || "";
     if (initData && initData !== "{}") loadData(st, initData);
