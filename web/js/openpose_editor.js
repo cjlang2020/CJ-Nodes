@@ -368,31 +368,28 @@ function analyzePerson(joints) {
   joints.forEach(j => { p[j.idx] = j.mesh.position; });
   const parts = [];
 
-  // Helper: calculate vector length
   const vecLen = (v) => Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-  
-  // Helper: normalize vector
   const vecNorm = (v) => {
     const len = vecLen(v);
     return len > 0 ? { x: v.x / len, y: v.y / len, z: v.z / len } : { x: 0, y: 1, z: 0 };
   };
-
-  // Helper: get center of two points
   const getCenter = (p1, p2) => p1 && p2 ? {
-    x: (p1.x + p2.x) / 2,
-    y: (p1.y + p2.y) / 2,
-    z: (p1.z + p2.z) / 2
+    x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2, z: (p1.z + p2.z) / 2
   } : null;
+  const calcAngle = (v1, v2) => {
+    const dot = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+    const l1 = vecLen(v1), l2 = vecLen(v2);
+    if (l1 === 0 || l2 === 0) return 0;
+    return Math.acos(Math.min(1, Math.max(-1, dot / (l1 * l2)))) * 180 / Math.PI;
+  };
 
-  // ========== 1. Analyze base posture (standing/sitting/squatting/lying) ==========
+  // ========== 1. 基本姿势（站立/坐姿/蹲姿/躺姿）==========
   const shoulderCenter = getCenter(p[2], p[5]);
   const hipCenter = getCenter(p[8], p[11]);
   
   if (shoulderCenter && hipCenter && p[1]) {
     const spineVector = {
-      x: p[1].x - hipCenter.x,
-      y: p[1].y - hipCenter.y,
-      z: p[1].z - hipCenter.z
+      x: p[1].x - hipCenter.x, y: p[1].y - hipCenter.y, z: p[1].z - hipCenter.z
     };
     const spineLen = vecLen(spineVector);
     
@@ -400,35 +397,27 @@ function analyzePerson(joints) {
       const spineDir = vecNorm(spineVector);
       const verticalAngle = Math.acos(Math.abs(spineDir.y)) * 180 / Math.PI;
       
-      // Calculate hip height relative to ankles
       const avgAnkleY = ((p[10] ? p[10].y : 0) + (p[13] ? p[13].y : 0)) / 2;
       const hipHeight = hipCenter.y - avgAnkleY;
       const bodyHeight = spineLen;
       
       if (verticalAngle < 45) {
-        // Nearly vertical - standing poses
         if (spineDir.z < -0.6) {
-          parts.push("后仰");
+          parts.push("身体大幅后仰");
         } else if (spineDir.z > 0.6) {
-          if (hipHeight < bodyHeight * 0.3) {
-            parts.push("坐姿俯身");
-          } else {
-            parts.push("站立俯身");
-          }
+          parts.push(hipHeight < bodyHeight * 0.3 ? "坐姿身体前倾" : "站立身体前倾");
         } else if (spineDir.z < -0.3) {
-          parts.push("微微后仰");
+          parts.push("身体微微后仰");
         } else if (spineDir.z > 0.3) {
-          parts.push("微微前倾");
+          parts.push("身体微微前倾");
         } else {
           if (hipHeight < bodyHeight * 0.3) {
-            // Might be sitting
             const avgKneeY = ((p[9] ? p[9].y : 0) + (p[12] ? p[12].y : 0)) / 2;
             if (avgKneeY > hipCenter.y + 0.05) {
-              // Check if cross-legged
               if (p[10] && p[13] && p[9] && p[12]) {
                 const legsCrossed = (p[10].x > p[12].x && p[13].x < p[9].x) ||
                                    (p[13].x > p[9].x && p[10].x < p[12].x);
-                parts.push(legsCrossed ? "盘腿坐" : "跪坐");
+                parts.push(legsCrossed ? "盘腿坐姿" : "跪坐姿势");
               } else {
                 parts.push("坐姿");
               }
@@ -438,58 +427,62 @@ function analyzePerson(joints) {
           } else if (hipHeight < bodyHeight * 0.6) {
             parts.push("蹲姿");
           } else {
-            parts.push("站立");
+            parts.push("标准站立");
           }
         }
       } else if (verticalAngle > 75) {
-        // Nearly horizontal - lying poses
         const shoulderHipDiff = shoulderCenter.y - hipCenter.y;
-        if (shoulderHipDiff > 0.2) {
-          parts.push("仰卧");
-        } else if (shoulderHipDiff < -0.2) {
-          parts.push("俯卧");
-        } else {
-          parts.push("侧卧");
-        }
+        if (shoulderHipDiff > 0.2) parts.push("仰卧姿势");
+        else if (shoulderHipDiff < -0.2) parts.push("俯卧姿势");
+        else parts.push("侧卧姿势");
       } else {
-        // Tilted
-        if (spineDir.z < -0.5) parts.push("大幅度后仰");
-        else if (spineDir.z > 0.5) parts.push("大幅度前倾");
-        else if (spineDir.z < -0.2) parts.push("后仰");
-        else if (spineDir.z > 0.2) parts.push("前倾");
-        else parts.push("倾斜姿态");
+        if (spineDir.z < -0.5) parts.push("身体大幅度后仰倾斜");
+        else if (spineDir.z > 0.5) parts.push("身体大幅度前倾倾斜");
+        else if (spineDir.z < -0.2) parts.push("身体后仰倾斜");
+        else if (spineDir.z > 0.2) parts.push("身体前倾倾斜");
+        else parts.push("身体倾斜姿态");
       }
     }
   }
 
-  // ========== 2. Analyze arm movements (detailed) ==========
+  // ========== 2. 手臂动作（详细分析）==========
   const analyzeArm = (shoulder, elbow, wrist, side) => {
     if (!shoulder || !elbow || !wrist) return;
     
-    const wristRel = {
-      x: wrist.x - shoulder.x,
-      y: wrist.y - shoulder.y,
-      z: wrist.z - shoulder.z
-    };
+    const upperArmRel = { x: elbow.x - shoulder.x, y: elbow.y - shoulder.y, z: elbow.z - shoulder.z };
+    const forearmRel = { x: wrist.x - elbow.x, y: wrist.y - elbow.y, z: wrist.z - elbow.z };
+    const wristRel = { x: wrist.x - shoulder.x, y: wrist.y - shoulder.y, z: wrist.z - shoulder.z };
     const wristLen = vecLen(wristRel);
     
     if (wristLen > 0) {
       const wristDir = vecNorm(wristRel);
       
-      // Up/down direction
-      if (wristDir.y > 0.3) parts.push(`${side}手举起`);
+      if (wristDir.y > 0.6) parts.push(`${side}手高举过头顶`);
+      else if (wristDir.y > 0.3) parts.push(`${side}手举起`);
+      else if (wristDir.y < -0.6) parts.push(`${side}手自然下垂`);
       else if (wristDir.y < -0.3) parts.push(`${side}手放下`);
       
-      // Front/back direction
-      if (wristDir.z > 0.2) parts.push(`${side}手在身体前面`);
+      if (wristDir.z > 0.3) parts.push(`${side}手向前伸展`);
+      else if (wristDir.z > 0.1) parts.push(`${side}手在身体前面`);
+      else if (wristDir.z < -0.3) parts.push(`${side}手向后伸展`);
       else if (wristDir.z < -0.1) parts.push(`${side}手在身体后面`);
+      
+      if (Math.abs(wristDir.x) > 0.3) parts.push(`${side}手向外侧伸展`);
+    }
+    
+    const upperArmLen = vecLen(upperArmRel);
+    const forearmLen = vecLen(forearmRel);
+    if (upperArmLen > 0 && forearmLen > 0) {
+      const elbowAngle = calcAngle(vecNorm(upperArmRel), vecNorm(forearmRel));
+      if (elbowAngle < 45) parts.push(`${side}手臂弯曲`);
+      else if (elbowAngle > 135) parts.push(`${side}手臂伸直`);
     }
   };
   
   analyzeArm(p[2], p[3], p[4], "右");
   analyzeArm(p[5], p[6], p[7], "左");
 
-  // ========== 3. Analyze leg movements (detailed) ==========
+  // ========== 3. 腿部动作（详细分析）==========
   const analyzeLeg = (hip, knee, ankle, side) => {
     if (!hip || !knee || !ankle) return;
     
@@ -499,41 +492,58 @@ function analyzePerson(joints) {
     const kneeLen = vecLen(kneeLocal);
     if (kneeLen > 0) {
       const kneeDir = vecNorm(kneeLocal);
-      
-      // Knee lift degree
       if (kneeDir.z > 0.7) parts.push(`${side}腿膝盖大幅抬起`);
       else if (kneeDir.z > 0.4) parts.push(`${side}腿膝盖抬起`);
       else if (kneeDir.z > 0.2) parts.push(`${side}腿膝盖微微抬起`);
+      
+      if (kneeDir.y < -0.3) parts.push(`${side}腿弯曲`);
+      else if (kneeDir.y > 0.3) parts.push(`${side}腿伸直`);
     }
     
-    // Foot lift degree
     const footLen = Math.sqrt(ankleLocal.y * ankleLocal.y + ankleLocal.z * ankleLocal.z);
     if (footLen > 0) {
       const footDirY = ankleLocal.y / footLen;
+      const footDirZ = ankleLocal.z / footLen;
       if (footDirY > 0.7) parts.push(`${side}脚大幅抬起`);
       else if (footDirY > 0.4) parts.push(`${side}脚抬起`);
+      if (footDirZ > 0.3) parts.push(`${side}脚向前伸`);
+      else if (footDirZ < -0.3) parts.push(`${side}脚向后伸`);
     }
   };
   
   analyzeLeg(p[8], p[9], p[10], "右");
   analyzeLeg(p[11], p[12], p[13], "左");
 
-  // ========== 4. Analyze leg spread ==========
+  // ========== 4. 双腿分开程度 ==========
   if (p[9] && p[12] && p[8] && p[11]) {
     const leftKneeRel = { x: p[9].x - p[8].x, y: p[9].y - p[8].y, z: p[9].z - p[8].z };
     const rightKneeRel = { x: p[12].x - p[11].x, y: p[12].y - p[11].y, z: p[12].z - p[11].z };
-    
     const kneeDistanceX = Math.abs(leftKneeRel.x - rightKneeRel.x);
     
-    if (kneeDistanceX > 0.25) parts.push("双腿大幅分开");
-    else if (kneeDistanceX > 0.17) parts.push("双腿分开");
+    if (kneeDistanceX > 0.25) parts.push("双腿大幅分开站立");
+    else if (kneeDistanceX > 0.17) parts.push("双腿分开站立");
     else if (kneeDistanceX > 0.08) parts.push("双腿微微分开");
-    else if (kneeDistanceX < 0.03) parts.push("双腿并拢");
+    else if (kneeDistanceX < 0.03) parts.push("双腿并拢站立");
   }
 
-  // ========== 5. Head tilt ==========
-  if (p[0] && p[1] && Math.abs(p[0].x - p[1].x) > 0.04) {
-    parts.push(p[0].x > p[1].x ? "头部右偏" : "头部左偏");
+  // ========== 5. 头部方向和倾斜 ==========
+  if (p[0] && p[1]) {
+    const headTilt = Math.abs(p[0].x - p[1].x);
+    if (headTilt > 0.06) parts.push(p[0].x > p[1].x ? "头部向右倾斜" : "头部向左倾斜");
+    else if (headTilt > 0.03) parts.push(p[0].x > p[1].x ? "头部微微右偏" : "头部微微左偏");
+    
+    const headZ = p[0].z - p[1].z;
+    if (headZ > 0.03) parts.push("头部向前伸");
+    else if (headZ < -0.03) parts.push("头部向后仰");
+  }
+
+  // ========== 6. 重心分布 ==========
+  if (p[10] && p[13] && p[8] && p[11]) {
+    const leftWeight = p[10].x - p[8].x;
+    const rightWeight = p[13].x - p[11].x;
+    if (Math.abs(leftWeight - rightWeight) > 0.1) {
+      parts.push(leftWeight > rightWeight ? "重心偏向左侧" : "重心偏向右侧");
+    }
   }
 
   return parts.length ? parts.join("，") : "标准站立姿势";
@@ -544,18 +554,17 @@ function updatePreview(st) {
   if (!el && st.node) el = st.node.querySelector('.cj-pose-preview');
   if (!el) return;
   if (!st.people.length) { el.textContent = "未检测到人物"; return; }
-  // Only show posture description without "人物1:" prefix
   const txt = analyzePerson(st.people[0].joints);
   if (el.textContent !== txt) el.textContent = txt;
   
-  // Update camera angle display
+  // Update camera prompt display (show description instead of angles)
   const angles = calcCameraAngles(st);
-  const hEl = document.getElementById('cj-h-angle');
-  const vEl = document.getElementById('cj-v-angle');
-  const zEl = document.getElementById('cj-zoom');
-  if (hEl) hEl.textContent = angles.horizontal + '°';
-  if (vEl) vEl.textContent = angles.vertical + '°';
-  if (zEl) zEl.textContent = angles.zoom;
+  const cameraPrompt = generateCameraPrompt(angles.horizontal, angles.vertical, angles.zoom);
+  const camEl = document.getElementById('cj-camera-prompt');
+  if (camEl) camEl.textContent = cameraPrompt;
+  
+  // Sync data to backend so output matches frontend display
+  if (st.onUpdate) st.onUpdate(serializeState(st));
 }
 
 /* ---------- serialization ---------- */
@@ -613,16 +622,17 @@ function calcCameraAngles(st) {
   const dy = cam.position.y - target.y;
   const dz = cam.position.z - target.z;
   
-  // 计算水平角度 (0-360, 正面为0)
-  let h_angle = Math.atan2(dx, dz) * (180 / Math.PI);
-  h_angle = ((h_angle % 360) + 360) % 360;
-  
-  // 计算垂直角度 (-90到90)
-  const distXZ = Math.sqrt(dx * dx + dz * dz);
-  let v_angle = Math.atan2(dy, distXZ) * (180 / Math.PI);
-  
   // 计算相机距离（zoom）
   const zoom = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  
+  // 计算水平角度 (0-360, 正面dz方向为0°, 顺时针增加)
+  // atan2(x, z) 给出从z轴正方向逆时针到向量的角度
+  let h_angle = Math.atan2(dx, dz) * (180 / Math.PI);
+  h_angle = ((h_angle % 360) + 360) % 360; // 转换为0-360
+  
+  // 计算垂直角度 (-90到90, 0为水平, 正值为仰视)
+  const distXZ = Math.sqrt(dx * dx + dz * dz);
+  let v_angle = Math.atan2(dy, distXZ) * (180 / Math.PI);
   
   return {
     horizontal: Math.round(h_angle),
@@ -632,33 +642,43 @@ function calcCameraAngles(st) {
 }
 
 function generateCameraPrompt(h_angle, v_angle, zoom) {
-  // 水平方向
-  const h = h_angle % 360;
+  // 水平方向 - 使用更精细的分类
+  const h = ((h_angle % 360) + 360) % 360;
   let h_direction;
-  if (h < 22.5 || h >= 337.5) h_direction = "front view";
-  else if (h < 67.5) h_direction = "front-right view";
-  else if (h < 112.5) h_direction = "right side view";
-  else if (h < 157.5) h_direction = "back-right view";
-  else if (h < 202.5) h_direction = "back view";
-  else if (h < 247.5) h_direction = "back-left view";
-  else if (h < 292.5) h_direction = "left side view";
-  else h_direction = "front-left view";
+  if (h < 15 || h >= 345) h_direction = "front view";
+  else if (h < 45) h_direction = "front-right quarter view";
+  else if (h < 75) h_direction = "right-front view";
+  else if (h < 105) h_direction = "right side view";
+  else if (h < 135) h_direction = "right-back view";
+  else if (h < 165) h_direction = "back-right quarter view";
+  else if (h < 195) h_direction = "back view";
+  else if (h < 225) h_direction = "back-left quarter view";
+  else if (h < 255) h_direction = "left-back view";
+  else if (h < 285) h_direction = "left side view";
+  else if (h < 315) h_direction = "left-front view";
+  else h_direction = "front-left quarter view";
   
-  // 垂直方向
+  // 垂直方向 - 使用更精细的分类
   let v_direction;
-  if (v_angle < -15) v_direction = "low angle";
-  else if (v_angle < 15) v_direction = "eye level";
-  else if (v_angle < 45) v_direction = "high angle";
-  else if (v_angle < 75) v_direction = "bird's eye view";
+  if (v_angle < -30) v_direction = "extreme low angle";
+  else if (v_angle < -15) v_direction = "low angle";
+  else if (v_angle < -5) v_direction = "slightly low angle";
+  else if (v_angle < 5) v_direction = "eye level";
+  else if (v_angle < 15) v_direction = "slightly high angle";
+  else if (v_angle < 30) v_direction = "high angle";
+  else if (v_angle < 60) v_direction = "elevated angle";
+  else if (v_angle < 80) v_direction = "bird's eye view";
   else v_direction = "top-down view";
   
-  // 远近
+  // 远近 - 使用更精细的分类
   let distance;
-  if (zoom < 1.5) distance = "close-up";
+  if (zoom < 1) distance = "extreme close-up";
+  else if (zoom < 2) distance = "close-up";
   else if (zoom < 3) distance = "medium close-up";
   else if (zoom < 5) distance = "medium shot";
   else if (zoom < 7) distance = "medium-wide shot";
-  else distance = "wide shot";
+  else if (zoom < 9) distance = "wide shot";
+  else distance = "extreme wide shot";
   
   return `${h_direction}, ${v_direction}, ${distance}`;
 }
@@ -835,11 +855,11 @@ function buildUI(node) {
   preview.style.cssText = "background:#0d0d0d;color:#fff;border:1px solid #555;border-radius:3px;padding:3px 6px;font-size:10px;font-family:monospace;line-height:1.6;min-height:20px;overflow:hidden;";
   preview.innerText = "加载中...";
 
-  // Camera angle display
+  // Camera prompt display (show description instead of angles)
   const cameraInfo = document.createElement("div");
   cameraInfo.className = "cj-camera-info";
-  cameraInfo.style.cssText = "background:#0a0a0f;color:#E93D82;border:1px solid rgba(233,61,130,0.3);border-radius:3px;padding:3px 6px;font-size:10px;font-family:monospace;line-height:1.4;display:flex;gap:8px;justify-content:space-between;";
-  cameraInfo.innerHTML = '<span>水平: <span id="cj-h-angle">0°</span></span><span>垂直: <span id="cj-v-angle">0°</span></span><span>远近: <span id="cj-zoom">1.8</span></span>';
+  cameraInfo.style.cssText = "background:#0a0a0f;color:#E93D82;border:1px solid rgba(233,61,130,0.3);border-radius:3px;padding:3px 6px;font-size:10px;font-family:monospace;line-height:1.4;";
+  cameraInfo.innerHTML = '<span id="cj-camera-prompt">front view, eye level, medium shot</span>';
 
   const btnRow = document.createElement("div");
   btnRow.style.cssText = "display:flex;gap:3px;flex-wrap:wrap;";
@@ -853,10 +873,10 @@ function buildUI(node) {
     return b;
   }
 
-  const resetBtn = btn("重置", () => { if (node._st) { resetPoseState(node._st); syncState(node); } }, "重置姿态到默认状态");
-  const rotP = btn("+30°", () => { if (node._st) { rotatePoseState(node._st, 30); syncState(node); } }, "顺时针旋转30度");
-  const rotN = btn("-30°", () => { if (node._st) { rotatePoseState(node._st, -30); syncState(node); } }, "逆时针旋转30度");
-  const flipBtn = btn("镜像", () => { if (node._st) { flipPoseState(node._st); syncState(node); } }, "水平镜像翻转");
+  const resetBtn = btn("重置", () => { if (node._st) { resetPoseState(node._st); syncState(node); updatePreview(node._st); } }, "重置姿态到默认状态");
+  const rotP = btn("+30°", () => { if (node._st) { rotatePoseState(node._st, 30); syncState(node); updatePreview(node._st); } }, "顺时针旋转30度");
+  const rotN = btn("-30°", () => { if (node._st) { rotatePoseState(node._st, -30); syncState(node); updatePreview(node._st); } }, "逆时针旋转30度");
+  const flipBtn = btn("镜像", () => { if (node._st) { flipPoseState(node._st); syncState(node); updatePreview(node._st); } }, "水平镜像翻转");
   
   // Camera view buttons - rotate around model center
   const frontViewBtn = btn("正视", () => {
@@ -864,6 +884,8 @@ function buildUI(node) {
       const target = node._st.controls.target.clone();
       node._st.camera.position.set(target.x, target.y, target.z + 1.8);
       node._st.controls.update();
+      updatePreview(node._st);
+      if (node._st.onUpdate) node._st.onUpdate(serializeState(node._st));
     }
   }, "切换到正视图");
   
@@ -872,6 +894,8 @@ function buildUI(node) {
       const target = node._st.controls.target.clone();
       node._st.camera.position.set(target.x + 1.8, target.y, target.z);
       node._st.controls.update();
+      updatePreview(node._st);
+      if (node._st.onUpdate) node._st.onUpdate(serializeState(node._st));
     }
   }, "切换到侧视图");
   
@@ -880,6 +904,8 @@ function buildUI(node) {
       const target = node._st.controls.target.clone();
       node._st.camera.position.set(target.x, target.y + 1.8, target.z + 0.001);
       node._st.controls.update();
+      updatePreview(node._st);
+      if (node._st.onUpdate) node._st.onUpdate(serializeState(node._st));
     }
   }, "切换到顶视图");
 

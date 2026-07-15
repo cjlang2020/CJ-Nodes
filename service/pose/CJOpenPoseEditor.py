@@ -42,12 +42,25 @@ class CJOpenPoseEditor:
         
         parts = []
         
-        # 获取各关键点（支持3D和2D）
         def get_point(idx):
             if idx < len(kps) and kps[idx] is not None:
                 p = kps[idx]
                 return {"x": p[0], "y": p[1], "z": p[2] if len(p) > 2 else 0}
             return None
+        
+        def vec_len(v):
+            return (v["x"]**2 + v["y"]**2 + v["z"]**2) ** 0.5
+        
+        def vec_norm(v):
+            l = vec_len(v)
+            return {"x": v["x"]/l, "y": v["y"]/l, "z": v["z"]/l} if l > 0 else {"x": 0, "y": 1, "z": 0}
+        
+        def calc_angle(v1, v2):
+            dot = v1["x"]*v2["x"] + v1["y"]*v2["y"] + v1["z"]*v2["z"]
+            l1, l2 = vec_len(v1), vec_len(v2)
+            if l1 == 0 or l2 == 0:
+                return 0
+            return math.acos(max(-1, min(1, dot / (l1 * l2)))) * 180 / math.pi
         
         nose = get_point(0)
         neck = get_point(1)
@@ -64,87 +77,54 @@ class CJOpenPoseEditor:
         l_knee = get_point(12)
         l_ankle = get_point(13)
         
-        # 计算中心点
         def get_center(p1, p2):
             if p1 and p2:
-                return {
-                    "x": (p1["x"] + p2["x"]) / 2,
-                    "y": (p1["y"] + p2["y"]) / 2,
-                    "z": (p1["z"] + p2["z"]) / 2
-                }
+                return {"x": (p1["x"]+p2["x"])/2, "y": (p1["y"]+p2["y"])/2, "z": (p1["z"]+p2["z"])/2}
             return None
         
         shoulder_center = get_center(l_shoulder, r_shoulder)
         hip_center = get_center(l_hip, r_hip)
         
-        # ========== 1. 分析基本姿势（站立/坐姿/蹲姿/躺姿）==========
+        # ========== 1. 基本姿势 ==========
         if shoulder_center and hip_center and neck:
-            # 计算脊柱向量
-            spine_vector = {
-                "x": neck["x"] - hip_center["x"],
-                "y": neck["y"] - hip_center["y"],
-                "z": neck["z"] - hip_center["z"]
-            }
-            spine_len = (spine_vector["x"]**2 + spine_vector["y"]**2 + spine_vector["z"]**2) ** 0.5
+            spine_vector = {"x": neck["x"]-hip_center["x"], "y": neck["y"]-hip_center["y"], "z": neck["z"]-hip_center["z"]}
+            spine_len = vec_len(spine_vector)
             
             if spine_len > 0:
-                spine_dir = {
-                    "x": spine_vector["x"] / spine_len,
-                    "y": spine_vector["y"] / spine_len,
-                    "z": spine_vector["z"] / spine_len
-                }
-                
-                import math
+                spine_dir = vec_norm(spine_vector)
                 vertical_angle = math.acos(abs(spine_dir["y"])) * 180 / math.pi
                 
-                # 计算臀部高度
                 avg_ankle_y = 0
                 ankle_count = 0
-                if l_ankle:
-                    avg_ankle_y += l_ankle["y"]
-                    ankle_count += 1
-                if r_ankle:
-                    avg_ankle_y += r_ankle["y"]
-                    ankle_count += 1
-                if ankle_count > 0:
-                    avg_ankle_y /= ankle_count
+                if l_ankle: avg_ankle_y += l_ankle["y"]; ankle_count += 1
+                if r_ankle: avg_ankle_y += r_ankle["y"]; ankle_count += 1
+                if ankle_count > 0: avg_ankle_y /= ankle_count
                 
                 hip_height = hip_center["y"] - avg_ankle_y
                 body_height = spine_len
                 
                 if vertical_angle < 45:
-                    # 接近垂直 - 站立类姿势
                     if spine_dir["z"] < -0.6:
-                        base_posture = "后仰"
+                        base_posture = "身体大幅后仰"
                     elif spine_dir["z"] > 0.6:
-                        if hip_height < body_height * 0.3:
-                            base_posture = "坐姿俯身"
-                        else:
-                            base_posture = "站立俯身"
+                        base_posture = "坐姿身体前倾" if hip_height < body_height * 0.3 else "站立身体前倾"
                     elif spine_dir["z"] < -0.3:
-                        base_posture = "微微后仰"
+                        base_posture = "身体微微后仰"
                     elif spine_dir["z"] > 0.3:
-                        base_posture = "微微前倾"
+                        base_posture = "身体微微前倾"
                     else:
                         if hip_height < body_height * 0.3:
-                            # 可能是坐姿
                             avg_knee_y = 0
                             knee_count = 0
-                            if l_knee:
-                                avg_knee_y += l_knee["y"]
-                                knee_count += 1
-                            if r_knee:
-                                avg_knee_y += r_knee["y"]
-                                knee_count += 1
-                            if knee_count > 0:
-                                avg_knee_y /= knee_count
+                            if l_knee: avg_knee_y += l_knee["y"]; knee_count += 1
+                            if r_knee: avg_knee_y += r_knee["y"]; knee_count += 1
+                            if knee_count > 0: avg_knee_y /= knee_count
                             
                             if avg_knee_y > hip_center["y"] + 20:
-                                # 检查是否盘腿
                                 if l_ankle and r_ankle and l_knee and r_knee:
                                     legs_crossed = (l_ankle["x"] > r_knee["x"] and r_ankle["x"] < l_knee["x"]) or \
                                                    (r_ankle["x"] > l_knee["x"] and l_ankle["x"] < r_knee["x"])
-                                    base_posture = "盘腿坐" if legs_crossed else "跪坐"
+                                    base_posture = "盘腿坐姿" if legs_crossed else "跪坐姿势"
                                 else:
                                     base_posture = "坐姿"
                             else:
@@ -152,140 +132,113 @@ class CJOpenPoseEditor:
                         elif hip_height < body_height * 0.6:
                             base_posture = "蹲姿"
                         else:
-                            base_posture = "站立"
+                            base_posture = "标准站立"
                 elif vertical_angle > 75:
-                    # 接近水平 - 躺姿
                     shoulder_hip_diff = shoulder_center["y"] - hip_center["y"]
-                    if shoulder_hip_diff > 20:
-                        base_posture = "仰卧"
-                    elif shoulder_hip_diff < -20:
-                        base_posture = "俯卧"
-                    else:
-                        base_posture = "侧卧"
+                    if shoulder_hip_diff > 20: base_posture = "仰卧姿势"
+                    elif shoulder_hip_diff < -20: base_posture = "俯卧姿势"
+                    else: base_posture = "侧卧姿势"
                 else:
-                    # 倾斜
-                    if spine_dir["z"] < -0.5:
-                        base_posture = "大幅度后仰"
-                    elif spine_dir["z"] > 0.5:
-                        base_posture = "大幅度前倾"
-                    elif spine_dir["z"] < -0.2:
-                        base_posture = "后仰"
-                    elif spine_dir["z"] > 0.2:
-                        base_posture = "前倾"
-                    else:
-                        base_posture = "倾斜姿态"
+                    if spine_dir["z"] < -0.5: base_posture = "身体大幅度后仰倾斜"
+                    elif spine_dir["z"] > 0.5: base_posture = "身体大幅度前倾倾斜"
+                    elif spine_dir["z"] < -0.2: base_posture = "身体后仰倾斜"
+                    elif spine_dir["z"] > 0.2: base_posture = "身体前倾倾斜"
+                    else: base_posture = "身体倾斜姿态"
                 
                 parts.append(base_posture)
         
-        # ========== 2. 分析手臂动作（详细）==========
+        # ========== 2. 手臂动作（详细分析）==========
         def analyze_arm(shoulder, elbow, wrist, side):
             if not shoulder or not elbow or not wrist:
                 return
             
-            # 计算手腕相对肩膀的方向
-            wrist_rel = {
-                "x": wrist["x"] - shoulder["x"],
-                "y": wrist["y"] - shoulder["y"],
-                "z": wrist["z"] - shoulder["z"]
-            }
-            wrist_len = (wrist_rel["x"]**2 + wrist_rel["y"]**2 + wrist_rel["z"]**2) ** 0.5
+            upper_arm_rel = {"x": elbow["x"]-shoulder["x"], "y": elbow["y"]-shoulder["y"], "z": elbow["z"]-shoulder["z"]}
+            forearm_rel = {"x": wrist["x"]-elbow["x"], "y": wrist["y"]-elbow["y"], "z": wrist["z"]-elbow["z"]}
+            wrist_rel = {"x": wrist["x"]-shoulder["x"], "y": wrist["y"]-shoulder["y"], "z": wrist["z"]-shoulder["z"]}
+            wrist_len = vec_len(wrist_rel)
             
             if wrist_len > 0:
-                wrist_dir = {
-                    "x": wrist_rel["x"] / wrist_len,
-                    "y": wrist_rel["y"] / wrist_len,
-                    "z": wrist_rel["z"] / wrist_len
-                }
+                wrist_dir = vec_norm(wrist_rel)
                 
-                # 上下方向
-                if wrist_dir["y"] > 0.3:
-                    parts.append(f"{side}手举起")
-                elif wrist_dir["y"] < -0.3:
-                    parts.append(f"{side}手放下")
+                if wrist_dir["y"] > 0.6: parts.append(f"{side}手高举过头顶")
+                elif wrist_dir["y"] > 0.3: parts.append(f"{side}手举起")
+                elif wrist_dir["y"] < -0.6: parts.append(f"{side}手自然下垂")
+                elif wrist_dir["y"] < -0.3: parts.append(f"{side}手放下")
                 
-                # 前后方向
-                if wrist_dir["z"] > 0.2:
-                    parts.append(f"{side}手在身体前面")
-                elif wrist_dir["z"] < -0.1:
-                    parts.append(f"{side}手在身体后面")
+                if wrist_dir["z"] > 0.3: parts.append(f"{side}手向前伸展")
+                elif wrist_dir["z"] > 0.1: parts.append(f"{side}手在身体前面")
+                elif wrist_dir["z"] < -0.3: parts.append(f"{side}手向后伸展")
+                elif wrist_dir["z"] < -0.1: parts.append(f"{side}手在身体后面")
+                
+                if abs(wrist_dir["x"]) > 0.3: parts.append(f"{side}手向外侧伸展")
+            
+            upper_arm_len = vec_len(upper_arm_rel)
+            forearm_len = vec_len(forearm_rel)
+            if upper_arm_len > 0 and forearm_len > 0:
+                elbow_angle = calc_angle(vec_norm(upper_arm_rel), vec_norm(forearm_rel))
+                if elbow_angle < 45: parts.append(f"{side}手臂弯曲")
+                elif elbow_angle > 135: parts.append(f"{side}手臂伸直")
         
         analyze_arm(l_shoulder, l_elbow, l_wrist, "左")
         analyze_arm(r_shoulder, r_elbow, r_wrist, "右")
         
-        # ========== 3. 分析腿部动作（详细）==========
+        # ========== 3. 腿部动作（详细分析）==========
         def analyze_leg(hip, knee, ankle, side):
             if not hip or not knee or not ankle:
                 return
             
-            knee_local = {
-                "x": knee["x"] - hip["x"],
-                "y": knee["y"] - hip["y"],
-                "z": knee["z"] - hip["z"]
-            }
-            ankle_local = {
-                "x": ankle["x"] - knee["x"],
-                "y": ankle["y"] - knee["y"],
-                "z": ankle["z"] - knee["z"]
-            }
+            knee_local = {"x": knee["x"]-hip["x"], "y": knee["y"]-hip["y"], "z": knee["z"]-hip["z"]}
+            ankle_local = {"x": ankle["x"]-knee["x"], "y": ankle["y"]-knee["y"], "z": ankle["z"]-knee["z"]}
             
-            knee_len = (knee_local["x"]**2 + knee_local["y"]**2 + knee_local["z"]**2) ** 0.5
-            
+            knee_len = vec_len(knee_local)
             if knee_len > 0:
-                knee_dir = {
-                    "x": knee_local["x"] / knee_len,
-                    "y": knee_local["y"] / knee_len,
-                    "z": knee_local["z"] / knee_len
-                }
+                knee_dir = vec_norm(knee_local)
+                if knee_dir["z"] > 0.7: parts.append(f"{side}腿膝盖大幅抬起")
+                elif knee_dir["z"] > 0.4: parts.append(f"{side}腿膝盖抬起")
+                elif knee_dir["z"] > 0.2: parts.append(f"{side}腿膝盖微微抬起")
                 
-                # 膝盖抬起程度
-                if knee_dir["z"] > 0.7:
-                    parts.append(f"{side}腿膝盖大幅抬起")
-                elif knee_dir["z"] > 0.4:
-                    parts.append(f"{side}腿膝盖抬起")
-                elif knee_dir["z"] > 0.2:
-                    parts.append(f"{side}腿膝盖微微抬起")
+                if knee_dir["y"] < -0.3: parts.append(f"{side}腿弯曲")
+                elif knee_dir["y"] > 0.3: parts.append(f"{side}腿伸直")
             
-            # 脚抬起程度
             foot_len = (ankle_local["y"]**2 + ankle_local["z"]**2) ** 0.5
             if foot_len > 0:
                 foot_dir_y = ankle_local["y"] / foot_len
-                if foot_dir_y > 0.7:
-                    parts.append(f"{side}脚大幅抬起")
-                elif foot_dir_y > 0.4:
-                    parts.append(f"{side}脚抬起")
+                foot_dir_z = ankle_local["z"] / foot_len
+                if foot_dir_y > 0.7: parts.append(f"{side}脚大幅抬起")
+                elif foot_dir_y > 0.4: parts.append(f"{side}脚抬起")
+                if foot_dir_z > 0.3: parts.append(f"{side}脚向前伸")
+                elif foot_dir_z < -0.3: parts.append(f"{side}脚向后伸")
         
         analyze_leg(l_hip, l_knee, l_ankle, "左")
         analyze_leg(r_hip, r_knee, r_ankle, "右")
         
-        # ========== 4. 分析双腿分开程度 ==========
+        # ========== 4. 双腿分开程度 ==========
         if l_knee and r_knee and l_hip and r_hip:
-            left_knee_rel = {
-                "x": l_knee["x"] - l_hip["x"],
-                "y": l_knee["y"] - l_hip["y"],
-                "z": l_knee["z"] - l_hip["z"]
-            }
-            right_knee_rel = {
-                "x": r_knee["x"] - r_hip["x"],
-                "y": r_knee["y"] - r_hip["y"],
-                "z": r_knee["z"] - r_hip["z"]
-            }
-            
+            left_knee_rel = {"x": l_knee["x"]-l_hip["x"], "y": l_knee["y"]-l_hip["y"], "z": l_knee["z"]-l_hip["z"]}
+            right_knee_rel = {"x": r_knee["x"]-r_hip["x"], "y": r_knee["y"]-r_hip["y"], "z": r_knee["z"]-r_hip["z"]}
             knee_distance_x = abs(left_knee_rel["x"] - right_knee_rel["x"])
             
-            if knee_distance_x > 120:
-                parts.append("双腿大幅分开")
-            elif knee_distance_x > 80:
-                parts.append("双腿分开")
-            elif knee_distance_x > 40:
-                parts.append("双腿微微分开")
-            elif knee_distance_x < 15:
-                parts.append("双腿并拢")
+            if knee_distance_x > 120: parts.append("双腿大幅分开站立")
+            elif knee_distance_x > 80: parts.append("双腿分开站立")
+            elif knee_distance_x > 40: parts.append("双腿微微分开")
+            elif knee_distance_x < 15: parts.append("双腿并拢站立")
         
-        # ========== 5. 分析头部方向 ==========
+        # ========== 5. 头部方向和倾斜 ==========
         if nose and neck:
             head_tilt = abs(nose["x"] - neck["x"])
-            if head_tilt > 30:
-                parts.append("头部右偏" if nose["x"] > neck["x"] else "头部左偏")
+            if head_tilt > 30: parts.append("头部向右倾斜" if nose["x"] > neck["x"] else "头部向左倾斜")
+            elif head_tilt > 15: parts.append("头部微微右偏" if nose["x"] > neck["x"] else "头部微微左偏")
+            
+            head_z = nose["z"] - neck["z"]
+            if head_z > 15: parts.append("头部向前伸")
+            elif head_z < -15: parts.append("头部向后仰")
+        
+        # ========== 6. 重心分布 ==========
+        if r_ankle and l_ankle and r_hip and l_hip:
+            left_weight = l_ankle["x"] - l_hip["x"]
+            right_weight = r_ankle["x"] - r_hip["x"]
+            if abs(left_weight - right_weight) > 50:
+                parts.append("重心偏向左侧" if left_weight > right_weight else "重心偏向右侧")
         
         result = "，".join(parts) if parts else "标准站立姿势"
         return result
