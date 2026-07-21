@@ -6,3 +6,5 @@ services/__pycache__
 **/__pycache__/**
 __pycache__
 __pycache__/**
+.codegraph
+.codegraph/**

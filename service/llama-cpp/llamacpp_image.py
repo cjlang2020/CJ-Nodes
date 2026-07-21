@@ -97,6 +97,10 @@ class llama_run_simple:
                     "default": False,
                     "tooltip": "Use cached result from last run. Skips model inference and returns previous output."
                 }),
+                "use_inference": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Use LLM inference. If False, outputs the custom_prompt directly without calling the model."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -117,7 +121,7 @@ class llama_run_simple:
             preset_prompt, ChineseReply, custom_prompt, system_role_prompt, unload_model, seed,
             inference_mode, max_frames, max_size,
             draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp, print_prompt,
-            use_cache,
+            use_cache, use_inference,
             unique_id, images=None, queue_handler=None):
         uid = unique_id.rpartition('.')[-1]
 
@@ -212,6 +216,10 @@ class llama_run_simple:
             p = p.replace("@", "image")
             user_text = p
             user_content.append({"type": "text", "text": p})
+
+        if not use_inference:
+            print(f"[llama-cpp_vlm] Inference disabled, returning custom_prompt directly.")
+            return (custom_prompt.strip(), [custom_prompt.strip()], uid, "", user_text)
 
         if images is not None:
             if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:

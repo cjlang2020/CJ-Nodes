@@ -47,6 +47,10 @@ class llama_run_lite:
                     "default": False,
                     "tooltip": "Use cached result from last run. Skips model inference and returns previous output."
                 }),
+                "use_inference": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": "Use LLM inference. If False, outputs the custom_prompt directly without calling the model."
+                }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
@@ -61,7 +65,7 @@ class llama_run_lite:
     FUNCTION = "run"
     CATEGORY = "luy/llama-cpp"
 
-    def run(self, model, preset_prompt, custom_prompt, seed, use_cache, unique_id, images=None):
+    def run(self, model, preset_prompt, custom_prompt, seed, use_cache, use_inference, unique_id, images=None):
         lite_models = _load_lite_config()
         cfg = lite_models.get(model)
         if cfg is None:
@@ -137,6 +141,10 @@ class llama_run_lite:
         if use_cache and uid in _CACHE:
             print(f"[llama-cpp_lite] Cache hit for node {uid}, skipping inference.")
             return _CACHE[uid]
+
+        if not use_inference:
+            print(f"[llama-cpp_lite] Inference disabled, returning custom_prompt directly.")
+            return (custom_prompt.strip(), user_text)
 
         out1 = ""
 
