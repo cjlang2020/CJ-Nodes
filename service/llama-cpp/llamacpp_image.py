@@ -125,6 +125,17 @@ class llama_run_simple:
             unique_id, images=None, queue_handler=None):
         uid = unique_id.rpartition('.')[-1]
 
+        if preset_prompt == "None":
+            user_text = custom_prompt.strip()
+        else:
+            p = preset_prompts[preset_prompt]
+            p = p.replace("{}", custom_prompt.strip())
+            p = p.replace("@", "image")
+            user_text = p
+
+        if not use_inference:
+            return (custom_prompt.strip(), [custom_prompt.strip()], uid, "", user_text)
+
         if use_cache and uid in _CACHE:
             print(f"[llama-cpp_vlm] Cache hit for node {uid}, skipping inference.")
             return _CACHE[uid]
@@ -216,10 +227,6 @@ class llama_run_simple:
             p = p.replace("@", "image")
             user_text = p
             user_content.append({"type": "text", "text": p})
-
-        if not use_inference:
-            print(f"[llama-cpp_vlm] Inference disabled, returning custom_prompt directly.")
-            return (custom_prompt.strip(), [custom_prompt.strip()], uid, "", user_text)
 
         if images is not None:
             if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:

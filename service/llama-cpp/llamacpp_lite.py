@@ -66,6 +66,17 @@ class llama_run_lite:
     CATEGORY = "luy/llama-cpp"
 
     def run(self, model, preset_prompt, custom_prompt, seed, use_cache, use_inference, unique_id, images=None):
+        if preset_prompt == "None":
+            user_text = custom_prompt.strip()
+        else:
+            p = preset_prompts.get(preset_prompt, custom_prompt.strip())
+            p = p.replace("{}", custom_prompt.strip())
+            p = p.replace("@", "image")
+            user_text = p
+
+        if not use_inference:
+            return (custom_prompt.strip(), user_text)
+
         lite_models = _load_lite_config()
         cfg = lite_models.get(model)
         if cfg is None:
@@ -141,10 +152,6 @@ class llama_run_lite:
         if use_cache and uid in _CACHE:
             print(f"[llama-cpp_lite] Cache hit for node {uid}, skipping inference.")
             return _CACHE[uid]
-
-        if not use_inference:
-            print(f"[llama-cpp_lite] Inference disabled, returning custom_prompt directly.")
-            return (custom_prompt.strip(), user_text)
 
         out1 = ""
 
