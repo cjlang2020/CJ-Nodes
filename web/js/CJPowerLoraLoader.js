@@ -239,9 +239,7 @@ class CjPowerLoraWidget {
 
         if (localX >= 24) {
           const loras = this._getLoraList(node);
-          if (loras.length > 0) {
-            this._showLoraPicker(event, idx, node, loras);
-          }
+          this._showLoraPicker(event, idx, node, loras);
           return true;
         }
       }
@@ -263,9 +261,18 @@ class CjPowerLoraWidget {
     return [];
   }
 
-  _showLoraPicker(event, idx, node, loras) {
-    const orig = [...loras].sort();
+  async _showLoraPicker(event, idx, node, fallbackLoras) {
+    let loras = fallbackLoras;
+    try {
+      const resp = await fetch("/cj-nodes/loras-list");
+      if (resp.ok) loras = await resp.json();
+    } catch (e) {}
+    if (!loras || loras.length === 0) return;
     const currentLora = this.value[idx]?.lora || "";
+    const used = new Set(
+      this.value.filter((_, i) => i !== idx).map((v) => v.lora).filter(Boolean)
+    );
+    const orig = [...loras].filter((l) => !used.has(l)).sort();
 
     const items = orig.map((l) => ({
       title: l,

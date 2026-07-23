@@ -13,16 +13,14 @@ def read_metadata(file_path):
         return json.loads(header_data).get("__metadata__", {})
 
 
-all_loras = folder_paths.get_filename_list("loras")
-LORAS_JSON = json.dumps(all_loras, ensure_ascii=False)
-
-
 class CJPowerLoraLoader:
     def __init__(self):
         self.loaded_loras = {}
 
     @classmethod
     def INPUT_TYPES(cls):
+        all_loras = folder_paths.get_filename_list("loras")
+        loras_json = json.dumps(all_loras, ensure_ascii=False)
         return {
             "required": {
                 "model": ("MODEL",),
@@ -34,7 +32,7 @@ class CJPowerLoraLoader:
                 }),
                 "loras_list": ("STRING", {
                     "multiline": True,
-                    "default": LORAS_JSON,
+                    "default": loras_json,
                 }),
             },
         }
@@ -104,3 +102,15 @@ class CJPowerLoraLoader:
     @classmethod
     def IS_CHANGED(cls, model, loras_data="[]", loras_list=""):
         return loras_data
+
+
+try:
+    from aiohttp import web
+    import server
+    if server.PromptServer.instance is not None:
+        @server.PromptServer.instance.routes.get("/cj-nodes/loras-list")
+        async def get_loras_list(request):
+            loras = folder_paths.get_filename_list("loras")
+            return web.json_response(loras)
+except Exception:
+    pass
