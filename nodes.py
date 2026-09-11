@@ -40,6 +40,8 @@ CUSTOM_DISPLAY_NAMES = {
     "Qwen3Deal":"Luy-Qwen3语言大模型",
     "MultiFunAINode":"Luy-AI多功能语言大模型",
     "StringJoinDeal":"Luy-字符串处理",
+    "StringSplitDeal":"Luy-字符串拆分",
+    "StringMergeDeal":"Luy-字符串拼接",
     "ForItemByIndex":"Luy-循环取行文本",
     "FileReadDeal":"Luy-读取txt文件",
     "FileSaveDeal":"Luy-写入txt到文件夹",

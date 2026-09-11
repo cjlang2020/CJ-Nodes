@@ -1,0 +1,17 @@
+去除模糊与噪点（Deblurring and Noise Reduction）
+校正曝光与色彩配置文件（Exposure Correction and Color Profile Calibration）
+优化数字文件画质（Digital File Quality Optimization）
+还原源文件质感（Original File Texture Restoration）
+直方图均衡化（Histogram Equalization）
+反锐化蒙版（Unsharp Mask, USM）
+微对比度增强（Micro-Contrast Enhancement）
+阴影细节还原（Shadow Detail Recovery）
+伽马校正（Gamma Correction）
+白平衡校正（White Balance Correction）
+色彩分级优化（Color Grading Optimization）
+消除色差（Chromatic Aberration Removal）
+匹配 sRGB 色彩标准（sRGB Color Space Matching）
+参照专业显示器校准参数（Referencing Professional Monitor Calibration Parameters）
+校正镜头畸变（Lens Distortion Correction）
+抗锯齿处理（Anti-Aliasing Processing）
+减少 JPEG 压缩失真（JPEG Compression Artifact Reduction）
