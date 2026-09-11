@@ -27,12 +27,12 @@ import comfy.model_management as mm
 import comfy.utils
 
 from llama_cpp import Llama
-from llama_cpp.llama_speculative import LlamaNGramMapDecoding, LlamaPromptLookupDecoding
+from llama_cpp.llama_speculative import LlamaNGramMapDecoding
 from llama_cpp.llama_chat_format import (
     Llava15ChatHandler, Llava16ChatHandler, MoondreamChatHandler,
     NanoLlavaChatHandler, Llama3VisionAlphaChatHandler, MiniCPMv26ChatHandler
 )
-draft_model_types = ["None", "ngram-map", "prompt-lookup"]
+draft_model_types = ["None", "ngram-map"]
 
 try:
     from llama_cpp.llama_chat_format import MTMDChatHandler
@@ -320,15 +320,24 @@ class LLAMA_CPP_STORAGE:
                 ngram_size=draft_ngram_size,
                 num_pred_tokens=draft_num_pred_tokens
             )
-        elif draft_model_type == "prompt-lookup":
-            draft_model = LlamaPromptLookupDecoding(
-                max_ngram_size=draft_ngram_size,
-                num_pred_tokens=draft_num_pred_tokens
-            )
 
         #print(f"[llama-cpp_vlm] Loading model: {model}")
         #print(f"[llama-cpp_vlm] n_gpu_layers = {n_gpu_layers}")
-        cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, draft_model=draft_model, ctx_type=ctx_type, verbose=False)
+        try:
+            cls.llm = Llama(model_path, chat_handler=cls.chat_handler, n_gpu_layers=n_gpu_layers, n_ctx=n_ctx, draft_model=draft_model, ctx_type=ctx_type, verbose=False)
+        except Exception as e:
+            model_size_gb = os.path.getsize(model_path) / (1024 ** 3)
+            free_vram_gb = 0.0
+            if torch.cuda.is_available():
+                free_vram_gb = torch.cuda.mem_get_info()[0] / (1024 ** 3)
+            raise RuntimeError(
+                f"Failed to load model: {model}\n"
+                f"Reason: {e}\n"
+                f"Free VRAM: {free_vram_gb:.1f} GB, model file: {model_size_gb:.1f} GB"
+                + (" (plus mmproj, KV cache and CUDA buffers, full offload needs ~1.2x file size)" if n_gpu_layers == -1 else "") + "\n"
+                "Fix: set 'vram_limit' on the node (e.g. 5) to split layers between GPU/CPU, "
+                "unload other loaded SD/LLM models first, reduce 'n_ctx', or use a smaller model."
+            ) from e
 
 
 # Model cleanup hook

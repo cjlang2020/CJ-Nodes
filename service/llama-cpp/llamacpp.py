@@ -96,7 +96,7 @@ class llama_run:
                 }),
                 "draft_model_type": (draft_model_types, {
                     "default": "None",
-                    "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nprompt-lookup: Legacy sliding window search\nNone: No speculative decoding"
+                    "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nNone: No speculative decoding"
                 }),
                 "draft_ngram_size": ("INT", {
                     "default": 3, "min": 1, "max": 10, "step": 1,
