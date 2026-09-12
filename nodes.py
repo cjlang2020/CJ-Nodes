@@ -2,6 +2,7 @@ import os
 import sys
 import importlib.util
 import traceback
+import nodes as comfy_nodes
 
 # 初始化映射字典
 NODE_CLASS_MAPPINGS = {}
@@ -85,6 +86,11 @@ CUSTOM_DISPLAY_NAMES = {
     "Krea2StyleSemanticConditioningImproved": "Luy-Krea2风格语义条件（改进版）",
     "LocateAnythingNode": "Luy-LocateAnything 目标检测",
     "LocateAnythingCropNode": "Luy-LocateAnything 裁剪提取",
+    "CJYuE2ModelLoader": "Luy-YuE2音乐模型加载",
+    "CJYuE2Generate": "Luy-YuE2音乐生成",
+    "CJYuE2Unload": "Luy-YuE2卸载模型",
+    "CJSheetSage2Transcribe": "Luy-SheetSage2扒谱",
+    "CJSheetSage2Unload": "Luy-SheetSage2卸载模型",
     "ImageGridCrop": "Luy-图片网格裁切",
 }
 
@@ -163,6 +169,39 @@ if os.path.exists(SERVICE_DIR):
                 load_nodes_from_file(file_path)
 else:
     print(f"⚠️ 警告：service目录不存在: {SERVICE_DIR}")
+
+
+def reload_all_nodes():
+    """热重载：重新加载 service/ 下所有节点文件，并同步到 ComfyUI 全局节点映射。
+    用于"重载插件"按钮，改完节点代码后点击即可，无需重启 ComfyUI（刷新浏览器页面加载新定义）。"""
+    # 清理本插件在 sys.modules 中的模块缓存（如 llama-cpp 域的 base），
+    # 确保 from base import 这类顶层导入拿到的是新代码而不是启动时的旧缓存
+    service_prefix = os.path.abspath(SERVICE_DIR) + os.sep
+    for mod_name, mod in list(sys.modules.items()):
+        mod_file = getattr(mod, "__file__", None)
+        if mod_file and os.path.abspath(mod_file).startswith(service_prefix):
+            del sys.modules[mod_name]
+
+    old_keys = set(NODE_CLASS_MAPPINGS.keys())
+
+    # 清空私有映射后重建，保证被删除文件对应的节点类不会残留
+    NODE_CLASS_MAPPINGS.clear()
+    NODE_DISPLAY_NAME_MAPPINGS.clear()
+
+    for root, dirs, files in os.walk(SERVICE_DIR):
+        for filename in files:
+            if filename.endswith(".py") and not filename.startswith("__"):
+                load_nodes_from_file(os.path.join(root, filename))
+
+    # ComfyUI 启动时是把插件映射逐项复制进全局字典，热重载必须直接更新全局字典：
+    # 删除已移除的节点，其余覆盖/新增
+    removed = old_keys - set(NODE_CLASS_MAPPINGS.keys())
+    for name in removed:
+        comfy_nodes.NODE_CLASS_MAPPINGS.pop(name, None)
+        comfy_nodes.NODE_DISPLAY_NAME_MAPPINGS.pop(name, None)
+    comfy_nodes.NODE_CLASS_MAPPINGS.update(NODE_CLASS_MAPPINGS)
+    comfy_nodes.NODE_DISPLAY_NAME_MAPPINGS.update(NODE_DISPLAY_NAME_MAPPINGS)
+    return len(NODE_CLASS_MAPPINGS)
 
 # 兼容ComfyUI的节点加载规范
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

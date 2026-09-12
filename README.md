@@ -712,6 +712,118 @@ PIL 和 Tensor 两种实现方式的视频 90° 旋转节点。
 
 ---
 
+### 音乐类
+
+#### Luy-SheetSage2扒谱
+**类别:** `luy/音乐`
+
+音频 → 乐谱(ABC) / MIDI / 调性 / 和弦 / 曲式结构 / 节拍标注。基于 SheetSage2（MERT-v2-FullSong 编码器 + 适配器），贪心解码、结果确定性（无 seed 参数）。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| sheetsage2_model | 下拉 | 取自 `models/YuE2/models/SheetSage2`；新增模型后需重启或点"重载插件" |
+| audio | AUDIO | 任意采样率/声道，内部自动转单声道并重采样到 24kHz（核心 LoadAudio 即可） |
+| melody_only（可选） | BOOLEAN | 落盘产物（score.abc / 伴奏 MIDI）是否去和弦；**两版 ABC 字符串始终都会输出** |
+| dtype（可选） | bf16 / fp32 | bf16 更快更省显存（默认）；数值异常时改 fp32 |
+| max_seconds（可选） | FLOAT | 只处理前 N 秒，0=整首；长音频自动分 300s 窗滚动推理 |
+| preset（可选） | default / paper | default=通用（推荐）；paper=论文/评测口径 |
+| overlap_seconds（可选） | FLOAT | 高级：窗口重叠秒数，-1=模型默认 200s，不建议改 |
+| lookahead_seconds（可选） | FLOAT | 高级：窗口前瞻秒数，-1=模型默认 100s，不建议改 |
+| release_after（可选） | BOOLEAN | 转写后释放显存（约 2.7GB）给生成节点让路，默认开 |
+
+**输出（9 路）:**
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| abc_melody | STRING | 无和弦旋律谱 → 接 YuE2 的 `abc_text` 且 **cot=melody**（推荐，旋律复刻） |
+| abc_full | STRING | 带和弦完整谱 → 接 `abc_text` 且 **cot=full** |
+| style_hint | STRING | 事实型风格底稿（调性/速度/拍号/和声骨架/曲式）→ 可接 YuE2 的 `style`，再补流派与人声标签 |
+| key | STRING | 如 `D major` |
+| tempo | FLOAT | BPM（取自 ABC 的 Q: 字段，回退用强拍间隔推算） |
+| chords | STRING | 和弦频次汇总，如 `Asus2×24、Bsus2×20、Gmaj7×16…` |
+| structure | STRING | 曲式，如 `intro → verse×2 → chorus×2 → outro` |
+| midi_dir | STRING | 落盘目录（含 score.abc / score_melody.abc / transcription.mid / melody_vocal.mid / melody_instrumental.mid / chords.mid / events.json / *.lab / summary.txt） |
+| info | STRING | 汇总：时长/调性/BPM/音符数/小节数/耗时/峰值显存/ABC 字符数/警告 |
+
+实测（RTX 4060 Laptop 8GB）：加载 6-9s；305s 全曲转写 26s，峰值显存 3.24GB。
+
+---
+
+#### Luy-SheetSage2卸载模型
+**类别:** `luy/音乐`
+
+释放扒谱模型显存（约 2.7GB）。扒谱节点默认 `release_after=True`，一般无需手动卸载。
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| status | STRING | 卸载结果 |
+
+---
+
+#### Luy-YuE2音乐模型加载
+**类别:** `luy/音乐`
+
+加载 YuE2 音乐生成模型（NF4）。首次约 3 分钟，之后进程内缓存复用。VAE 自动从 `models/YuE2/vae/` 加载。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| model_variant | 下拉 | `models/YuE2/models/<变体>/`，当前为 `nf4` |
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| yue2_model | YUE2_MODEL | 接生成节点 |
+
+---
+
+#### Luy-YuE2音乐生成
+**类别:** `luy/音乐`
+
+风格+歌词 → ABC 乐谱 → 语义 token → 流匹配 → VAE → 48kHz 立体声。单次约 3-6 分钟（8GB 卡）。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| model | YUE2_MODEL | 来自模型加载节点 |
+| style | STRING | 风格标签（乐器/人声/节奏/BPM） |
+| lyrics | STRING | 歌词，支持 `[Verse]`/`[Chorus]` 等结构标签 |
+| cot（可选） | full / melody / off | 生成模式；用外部 ABC 时需 melody 或 full（与 ABC 版本配对） |
+| cfg_scale（可选） | FLOAT | -1=自动；>1 启用符号 CFG 且耗时翻倍 |
+| abc_text（可选） | STRING | 外部 ABC 乐谱（可接扒谱节点的 abc_melody / abc_full） |
+| abc_max_tokens（可选） | INT | ABC 规划长度上限（对**外部** ABC 不截断） |
+| semantic_max_tokens（可选） | INT | 语义 token 上限（≈歌曲时长保险丝）；时长主要由歌词行数决定 |
+| advanced_sampling_json（可选） | STRING | 覆盖采样参数（temperature/top_p/top_k 等） |
+| seed（可选） | INT | 换种子出不同版本 |
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| audio | AUDIO | 48kHz 立体声，接 SaveAudio |
+| info | STRING | 时长/截断状态/耗时 |
+
+---
+
+#### Luy-YuE2卸载模型
+**类别:** `luy/音乐`
+
+卸载 YuE2 并释放显存。请在独立工作流中单独运行（勿与生成节点同流）。
+
+| 输出 | 类型 | 说明 |
+|------|------|------|
+| status | STRING | 卸载结果 |
+
+---
+
+### 扒谱 → 生成 推荐工作流
+
+```
+LoadAudio ──► Luy-SheetSage2扒谱 ──┬─ abc_melody ──► Luy-YuE2音乐生成.abc_text （cot 设 melody）
+                                   ├─ style_hint ──► Luy-YuE2音乐生成.style    （再补流派/人声标签）
+                                   └─ info（看调性/结构/和弦，自己写 lyrics）
+Luy-YuE2音乐模型加载 ──► Luy-YuE2音乐生成 ──► SaveAudio
+```
+
+歌词需自行提供（扒谱不产出歌词）；`cot` 与所选 ABC 版本要配对。
+
+---
+
 ## 安装
 
 1. 将 `CJ-Nodes` 文件夹放入 ComfyUI 的 `custom_nodes/` 目录

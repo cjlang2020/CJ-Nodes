@@ -1,5 +1,6 @@
 import os
 import mimetypes
+import traceback
 from pathlib import Path
 from aiohttp import web
 from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
@@ -45,6 +46,17 @@ async def open_directory(request):
         return web.json_response({'ok': True})
     except Exception as e:
         return web.json_response({'error': str(e)}, status=500)
+
+@routes.post('/CJ-Nodes/api/reload-nodes')
+async def reload_nodes(request):
+    """热重载 CJ-Nodes 的节点代码（配合前端"重载插件"按钮），改完代码无需重启 ComfyUI"""
+    try:
+        from . import nodes as cj_nodes
+        count = cj_nodes.reload_all_nodes()
+        return web.json_response({'ok': True, 'count': count})
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'ok': False, 'error': str(e)}, status=500)
 
 @routes.get('/CJ-Nodes')
 async def serve_cj_nodes_index(request):
