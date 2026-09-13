@@ -13,7 +13,7 @@ import gc
 
 from base import (
     LLAMA_CPP_STORAGE, any_type, preset_prompts, preset_tags,
-    load_text_presets, draft_model_types, _MTMD,
+    load_text_presets, draft_model_types, _MTMD, output_text, thinking_modes,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -28,66 +28,70 @@ class llama_text_simple:
         load_text_presets("T")
         return {
             "required": {
-                "model": (model_list,{"default": "Qwen3-VL-4B-Instruct-abliterated-Q5_K_M.gguf"}),
-                "n_ctx": ("INT", {
+                "模型": (model_list,{"default": "Qwen3-VL-4B-Instruct-abliterated-Q5_K_M.gguf"}),
+                "上下文长度": ("INT", {
                     "default": 8192,
                     "min": 2000, "max": 327680, "step": 128,
                     "tooltip": "Context length limit."
                 }),
-                "vram_limit": ("INT", {
+                "显存限制": ("INT", {
                     "default": -1,
                     "min": -1, "max": 1024, "step": 1,
                     "tooltip": "VRAM usage limit in GB (-1 = no limit)"
                 }),
-                "preset_prompt": (preset_tags, {"default": preset_tags[0]}),
-                "ChineseReply": ("BOOLEAN", {"default": False}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
-                "draft_model_type": (draft_model_types, {
+                "预设提示词": (preset_tags, {"default": preset_tags[0]}),
+                "中文回复": ("BOOLEAN", {"default": False}),
+                "自定义提示词": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
+                "投机解码": (draft_model_types, {
                     "default": "None",
                     "tooltip": "Speculative decoding draft model.\nngram-map: Fast hash-based ngram matching (recommended)\nNone: No speculative decoding"
                 }),
-                "draft_ngram_size": ("INT", {
+                "N元组大小": ("INT", {
                     "default": 3, "min": 1, "max": 10, "step": 1,
                     "tooltip": "N-gram size for draft model matching."
                 }),
-                "draft_num_pred_tokens": ("INT", {
+                "单步预测token数": ("INT", {
                     "default": 10, "min": 1, "max": 32, "step": 1,
                     "tooltip": "Max number of tokens to predict per draft step."
                 }),
-                "enable_mtp": ("BOOLEAN", {
+                "启用MTP": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "Multi-Token Prediction (MTP) acceleration.\nRequires a model with MTP support (e.g., Qwen3 variants)."
+                }),
+                "思考模式": (thinking_modes, {
+                    "default": "auto",
+                    "tooltip": "off: Disable thinking for ANY model (sampler-level <think> budget, works even without handler support)\nauto: Model default behavior"
                 }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
             },
             "optional": {
-                "queue_handler": (any_type, {"tooltip": "Used to control the execution order of instruct nodes."}),
+                "队列控制": (any_type, {"tooltip": "Used to control the execution order of instruct nodes."}),
             },
         }
 
     RETURN_TYPES = ("STRING", "STRING", "INT")
-    RETURN_NAMES = ("output", "output_list", "state_uid")
+    RETURN_NAMES = ("输出", "输出列表", "状态ID")
     OUTPUT_IS_LIST = (False, True, False)
     FUNCTION = "run"
     CATEGORY = "luy/llama-cpp"
 
-    def run(self, model, n_ctx, vram_limit, preset_prompt, ChineseReply, custom_prompt,
-            draft_model_type, draft_ngram_size, draft_num_pred_tokens, enable_mtp,
-            unique_id, queue_handler=None):
+    def run(self, 模型, 上下文长度, 显存限制, 预设提示词, 中文回复, 自定义提示词,
+            投机解码, N元组大小, 单步预测token数, 启用MTP, 思考模式,
+            unique_id, 队列控制=None):
         custom_config = {
-            "model": model,
+            "model": 模型,
             "mmproj": "None",
             "chat_handler": "None",
-            "n_ctx": n_ctx,
-            "vram_limit": vram_limit,
+            "n_ctx": 上下文长度,
+            "vram_limit": 显存限制,
             "image_min_tokens": 0,
             "image_max_tokens": 0,
-            "draft_model_type": draft_model_type,
-            "draft_ngram_size": draft_ngram_size,
-            "draft_num_pred_tokens": draft_num_pred_tokens,
-            "enable_mtp": enable_mtp
+            "draft_model_type": 投机解码,
+            "draft_ngram_size": N元组大小,
+            "draft_num_pred_tokens": 单步预测token数,
+            "enable_mtp": 启用MTP
         }
 
         if not LLAMA_CPP_STORAGE.llm or LLAMA_CPP_STORAGE.current_config != custom_config:
@@ -116,25 +120,27 @@ class llama_text_simple:
 
         if _MTMD:
             parameters.pop("presence_penalty", None)
+        if 思考模式 == "off":
+            parameters["reasoning_budget"] = 0
 
         uid = unique_id.rpartition('.')[-1]
         messages = []
         user_content = []
 
-        if ChineseReply:
+        if 中文回复:
             messages.append({"role": "system", "content": "请使用中文回答。"})
         else:
             messages.append({"role": "system", "content": "Please answer in English."})
 
-        if custom_prompt.strip():
-            user_content.append({"type": "text", "text": custom_prompt.strip()})
+        if 自定义提示词.strip():
+            user_content.append({"type": "text", "text": 自定义提示词.strip()})
         else:
-            p = preset_prompts.get(preset_prompt, "")
+            p = preset_prompts.get(预设提示词, "")
             user_content.append({"type": "text", "text": p})
 
         messages.append({"role": "user", "content": user_content})
         output = llama_model.llm.create_chat_completion(messages=messages, seed=0, **parameters)
-        out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+        out1 = output_text(output, 思考模式)
         out2 = [out1]
 
         del messages

@@ -1,9 +1,11 @@
 # CJ-Nodes 音乐服务（service/music）
 
-两个节点文件、5 个节点：YuE2 音乐生成（3 个）+ SheetSage2 音频扒谱（2 个）。
+两个节点文件、5 个节点：YuE2 音乐生成（3 个）+ SheetSage2 音频扒谱（2 个）+ 音乐风格标签（1 个）。
 
 ## 文件职责
 
+- `music_style_nodes.py` —— 风格标签选择器（1 个节点类 + `style_tags/` 词表目录）。
+  纯 os/re 实现，**不依赖 torch/folder_paths**，可脱离 ComfyUI 单测（`python -c` 直接调 `build()`）。
 - `yue2_music_nodes.py` —— YuE2 生成（引擎封装 + 3 个节点类）。
   - 引擎位置：`CJ-Nodes/libs/yue2/` —— **内置引擎快照**（从 `D:\AI\Yue3B\src\yue2` 复制的 yue2 包，v0.1.6，14 个 .py）。
   - 节点默认 `_YUE2_SRC = <CJ-Nodes>/libs`，可用环境变量 `YUE2_SRC` 覆盖。
@@ -32,27 +34,48 @@
   `scan_model_variants()` 要求同时满足「有 YuE2 专属文件」且「无扒谱专属文件」，否则
   SheetSage2 / MERT 会出现在 YuE2 生成节点的模型下拉里（旧逻辑实测会返回
   `['MERT-v2-FullSong', 'SheetSage2', 'nf4']`，修复后为 `['nf4']`）。
-- **新增模型/VAE 后必须重启 ComfyUI（或点“重载插件”）**（folder_paths 列表启动时构建）。
+- **新增模型/VAE 后不需要重启**：实测 `folder_paths.get_filename_list` 带 **mtime 失效检查**
+  （见 `folder_paths.py: cached_filename_list_`）：同目录新增文件、新增/删除子目录都会立刻反映，
+  只需按 F5 刷新页面（重新拉 `/object_info`）。以前写的“必须重启”过于保守（重启当然也行）。
 - VAE 不向用户暴露，`default_vae()` 自动取第一个合法项（优先根目录）。
 
 ## 节点
 
 | 类名 | 显示名 | 说明 |
 |---|---|---|
-| `CJYuE2ModelLoader` | Luy-YuE2音乐模型加载 | 输出 `YUE2_MODEL`；首次约 160-200s，之后进程级缓存 |
+| `CJYuE2ModelLoader` | Luy-YuE2音乐模型加载 | 输出 `YUE2_MODEL`；首次约 160-200s，之后进程级缓存。**新增可选输入「前置依赖」(*)：把扒谱节点的输出接进来可强制“先扒谱、后加载”**（见下文“执行顺序”一节） |
 | `CJYuE2Generate` | Luy-YuE2音乐生成 | 输出 `AUDIO`（48kHz 立体声）+ `STRING` 状态；接 SaveAudio |
 | `CJYuE2Unload` | Luy-YuE2卸载模型 | 释放显存；**必须在独立工作流单独运行**（与生成节点同流会先卸载再生成的顺序不确定） |
 | `CJSheetSage2Transcribe` | Luy-SheetSage2扒谱 | 音频 → 两版 ABC + style_hint + 调性/和弦/结构/MIDI；8GB 卡约 2.7GB 显存、5 分钟歌约 26s |
-| `CJSheetSage2Unload` | Luy-SheetSage2卸载模型 | 释放扒谱模型显存（扒谱节点默认 `release_after=True`，一般用不到） |
+| `CJSheetSage2Unload` | Luy-SheetSage2卸载模型 | 释放扒谱模型显存（扒谱节点默认 【转写完释放显存】=开，一般用不到） |
+| `CJMusicStyleTags` | Luy-音乐风格标签 | 15 个分类下拉共 356 选项，中英对照、输出纯英文；接生成节点的 style |
 
 生成节点参数（控件顺序 = 必调在前，seed 固定在最后）:
 
 - required: `model` → `style` → `lyrics`
 - optional: `cot` → `cfg_scale` → `abc_text` → `abc_max_tokens` → `semantic_max_tokens` → `advanced_sampling_json` → `seed`
 - ComfyUI 界面控件顺序 = required 全部在前 + optional 按声明顺序，所以“seed 排最后”必须把 seed 放进 optional 末尾（实测可行：前端仅按控件名 `seed`/`noise_seed` 决定是否加“随机/固定/递增”按钮，与 required/optional 无关）。
+- 生成节点的 `风格` / `歌词` / `乐谱ABC` 全部 **`multiline: False`**（单行）：多行 textarea 在界面上**不显示字段名**，两个大文本框分不清哪个是风格哪个是歌词；单行才能看到标签。歌词默认值也由多行改成单行 `[Verse] ... [Chorus] ...`。不要再改回多行；若日后既要长歌词又要标签，只能走前端 JS 覆盖 label，不要动 `multiline`。
 - `song_id` 已从节点移除（内部固定 `id="song"`）：它只影响 `result.json` 的 identity 指纹，**不影响音频**（RNG 只由 `seed` 决定），属永不需要用户调整的参数。
 - `advanced_sampling_json` 可覆盖 temperature/top_p/top_k/repetition_penalty/penalty_window/min_tokens。
 - **时长控制**：节点没有时长参数；时长 ≈ 歌词行数 × (330 ÷ BPM) 秒（1 语义 token = 40ms，25 帧/秒）。`semantic_max_tokens` 只是 360 秒上限的保险丝（调大不会让歌变长），`seed` 会带来 ±6% 长度波动。
+
+## 桩（stub）与真类缓存（2026-09 修复 `_Stub` has no attribute `_from_config`）
+
+- 背景：`_install_stub()` 把 `yue2.modeling_yue2.YuE2ForCausalLM` 换成 `_Stub`，目的是让
+  `YuE2Pipeline._load_model()`（内部 `from .modeling_yue2 import YuE2ForCausalLM`，运行时解析模块属性）
+  复用已建好的 NF4 权重，而不是重读一遍。
+- **坑**：旧的 `_yue2_modules()` 写的是 `from yue2.modeling_yue2 import YuE2ForCausalLM`，
+  读的也是模块属性 → 首次加载成功后拿到的是 `_Stub` → **第二次**建模型（换 `模型变体`、
+  被同级节点请让显存后自动重建、或插件热重载后 `_STATE` 清空）直接报
+  `type object '_Stub' has no attribute '_from_config'`。
+- **修法**：`_install_stub()` 把真类存到 `modeling._REAL_YuE2ForCausalLM`，`_yue2_modules()` 优先取它。
+  存在**引擎模块**上（不是 `_STATE`）是故意的：插件热重载会重建本节点模块与 `_STATE`，
+  而引擎模块留在 `sys.modules` 里，这样重建路径仍然拿得到真类。
+- 因此：**桩只接管 `from_pretrained`，必须保持它是桩**（pipeline 那条路径靠它）；
+  任何新建模型/`_from_config` 的地方都要用 `_yue2_modules()` 返回的类，不要直接 `from yue2.modeling_yue2 import`。
+- 升级运行中修好这段代码后**必须重启 ComfyUI**（热重载不够）：老进程里引擎模块已被旧版 `_install_stub`
+  打过补丁且没有 `_REAL_` 属性，只能重启才能拿回真类。
 
 ## 加载耗时剖析（2025-09 实测，已优化）
 
@@ -175,12 +198,41 @@ YuE2 的 `protocol.py` 里 cot 语义是：`melody` = 无和弦旋律谱，`full
 - YuE2 对外部 ABC **不做语法校验**，只 `tokenizer.encode(abc)` 当作前缀（`pipeline.plan` 里 `request.abc` 分支），
   并要求 `cot != "off"`。约 2547 字符全曲 ABC ≈ 2000+ token 前缀，`abc_max_tokens` 对**外部 ABC 不截断**。
 
+## 界面参数名（已全部中文化，2026-09）
+
+三个节点文件的**界面参数名/输出名都是中文**（`INPUT_TYPES` 的键就是中文），函数签名同步用中文参数，
+函数体开头用一行别名映回英文局部名（保持原有逻辑不动）。**内部 API / 模型层仍用英文**：
+`transcribe()` 的 `melody_only`/`dtype`、`SongRequest` 的 `cot`/`abc`/`seed`、`extra_tags` 等。
+
+| 界面名（中文） | 内部名 | 说明 |
+|---|---|---|
+| 扒谱模型 / 音频 | `sheetsage2_model` / `audio` | 扒谱节点必填 |
+| 去和弦存档 | `melody_only` | 只影响落盘产物 |
+| 计算精度 / 处理时长上限 / 提示词预设 | `dtype` / `max_seconds` / `preset` | |
+| 窗口重叠秒数 / 窗口前瞻秒数 | `overlap_seconds` / `lookahead_seconds` | -1=模型默认 |
+| 转写完释放显存 | `release_after` | 默认开 |
+| 旋律谱ABC / 完整谱ABC / 风格底稿 | `abc_melody` / `abc_full` / `style_hint` | 扒谱节点输出 |
+| 调性 / 速度BPM / 和弦 / 曲式结构 | `key` / `tempo` / `chords` / `structure` | |
+| 产物目录 / 扒谱信息 | `midi_dir` / `info` | |
+| 音乐模型 / 模型变体 | `model` / `model_variant` | YuE2 加载与生成 |
+| 风格 / 歌词 | `style` / `lyrics` | |
+| 生成模式 / CFG强度 / 乐谱ABC | `cot` / `cfg_scale` / `abc_text` | cot 与 ABC 版本要配对 |
+| ABC最大长度 / 语义最大长度 / 高级采样JSON / 随机种子 | `abc_max_tokens` / `semantic_max_tokens` / `advanced_sampling_json` / `seed` | |
+| 音频 / 生成信息 / 状态 | `audio` / `info` / `status` | |
+| 语种…年代制作 / BPM / 补充标签 / 分隔符 | 词表文件名中文部分 / `BPM` / `extra_tags` / `delimiter` | 风格标签节点 |
+
+> 改界面名时会同时影响**已有工作流**：ComfyUI 按名字对位参数，改了名旧工作流的控件值可能回退默认。
+
+> 反向症状：插件若已改成中文名（如 `abc_text` → `乐谱ABC`）但用户“看不到字段”，几乎总是**进程未重启 / 浏览器未硬刷新**（画布上还是旧定义，显示英文旧键名或旧字段数）。先重启 + Ctrl+F5，再怀疑代码。
+> 已同步重建 `D:/AI/Yue3B/Yue2音乐生成-翻唱-4.json`（可用 `verify_workflow_names.py` 校验一致性）。
+
 ## 参数与输出
 
-- required：`sheetsage2_model`（下拉，取自 `models/YuE2/models/SheetSage2`）→ `audio`（ComfyUI AUDIO，核心 LoadAudio 即可）。
-- optional：`melody_only`(F) → `dtype`(bf16/fp32) → `max_seconds`(0=整首) → `preset`(default/paper) →
-  `overlap_seconds`(-1=自动,200s) → `lookahead_seconds`(-1=自动,100s) → `release_after`(默认 True)。
+- required：`扒谱模型`（下拉，取自 `models/YuE2/models/SheetSage2`）→ `音频`（ComfyUI AUDIO，核心 LoadAudio 即可）。
+- optional：`去和弦存档`(F) → `计算精度`(bf16/fp32) → `处理时长上限`(0=整首) → `提示词预设`(default/paper) →
+  `窗口重叠秒数`(-1=自动,200s) → `窗口前瞻秒数`(-1=自动,100s) → `转写完释放显存`(默认 True)。
 - 输出：`abc_melody` `abc_full` `style_hint` `key` `tempo`(FLOAT) `chords` `structure` `midi_dir` `info`。
+- **翻唱到底用哪个输出**（用户反复问过）：主线是 `abc_melody` + `cot=melody`（官方推荐，伴奏自由）；`abc_full` + `cot=full` 是“保留原曲和声”的备选；`cot=off` 而传了 ABC 会 **抛 ValueError**（`protocol.py:99`，不是静默忽略）。辅助输出里真正影响成曲的是 `style_hint`（接 style）+ `tempo`（算歌词行数）；`chords` 只给人看 —— YuE2 **没有独立和弦输入口**，和弦只能随 `abc_full` 进去；`midi_dir`/`info` 供人工查阅。
 - **无 seed**：SheetSage2 是贪心解码，实测同输入逐位一致（两个独立的 venv/embeded 环境 token 级一致率 99.95%，
   唯一差异是尾奏 2 小节的等音和弦 `D:maj6` vs `B:min7/b7`，音高集合完全相同）。
 - `style_hint` 是**事实型**底稿（调性/速度/拍号/和声骨架/曲式），不含流派与人声性别（模型无法推断），
@@ -208,3 +260,161 @@ Luy-YuE2音乐模型加载 ──► Luy-YuE2音乐生成 ──► SaveAudio
 
 - 歌词必须自己写（扒谱不给歌词）；`cot` 与选用的 ABC 版本要配对（melody/full）。
 - 长歌提示：ABC 前缀约 2000+ token，语义阶段长度由歌词行数决定（≈ 歌词行数 × 330 ÷ BPM 秒），与扒谱时长无关。
+
+---
+
+# 音乐风格标签节点（service/music/music_style_nodes.py）
+
+给 YuE2 拼 `style` 的点选式多选器：**显示中英对照、输出纯英文**。
+
+## 为什么是"分类 + 槽位下拉"而不是真正的多选控件
+
+ComfyUI 原生 COMBO 是单选，多点选只有三条路：① N 个槽位下拉；② 自定义前端标签云面板；
+③ 纯文本框手打。选 ① 的理由：真实 style 写法里每个类别的标签数是有规律的（乐器 3、情绪 3、
+流派 2、音色质地 2、其余 1），槽位化正好贴合；而且**零前端依赖**（前端 JS 挂了节点仍可用）。
+② 的接口已预留：前端面板将来把结果写进 `extra_tags` 即可，后端不用改。
+
+## 词表（词表驱动，加文件即加类别）
+
+- 目录：`service/music/style_tags/`，文件名 `NN-key-中文名.txt`（可加 ` x3` 指定槽位数）。
+- 一行一条，`#` 开头为注释；格式 `中文 | English`（分隔符也支持 `##`、`｜`）。
+- 当前 9 类共 355 条：语种21 / 流派68 / 人声类型31 / 音色质地38 / 唱法30 / 乐器66 / 情绪45 / 节奏31 / 年代25。
+- 槽位：`instruments` 3、`mood` 3、`genre` 2、`timbre` 2，其余 1（改 `_SLOTS` 或文件名尾 ` xN`）。
+- **界面控件名 = 文件名的中文部分**（`_slot_labels()` 统一生成，`INPUT_TYPES` 与 `build()` 共用）：
+  `3-vocal_type-人声类型.txt` → 控件名「人声类型」；多槽位自动加序号 →「乐器1/乐器2/乐器3」。
+  所以**改文件名就能改界面标签**，加文件就多一个中文下拉，不用改代码。重名时自动补 key 以区分。
+- **输出只取英文**：先按"中文占比最低"取段，再 `_CJK` 正则兜底剥离 —— 即使词表写错、
+  或用户往「补充标签」里粘中文，输出也不会残留中文（有单测覆盖）。
+
+## 关键设计
+
+- **顺序由类别决定，不受点击/槽位顺序影响** → 同一组选择永远得到同一串文本，A/B 可复现。
+- 跨类别去重（保留首次出现）；空项/"（不选）"忽略。
+- 界面全中文：15 个分类下拉（语种 / 流派1-2 / 人声类型 / 音色质地1-2 / 唱法技巧 / 乐器1-3 /
+  情绪氛围1-3 / 节奏编曲 / 年代制作）+ 「BPM」「补充标签」「分隔符」。
+- 7 路输出（名为中文，括号内为内部标识）：`风格 (style)`（完整，含 BPM）+ `人声 (voice)`
+  （人声三要素）+ `乐器 (instruments)` + `情绪 (mood)` + `其他 (backing)`（语种/流派/节奏/年代
+  + 用户新增类别）+ `补充 (extra)`（手写补充，**不混进任何类别分组**）+ `速度 (bpm_text)`。
+  分组输出用于"只换人声"这类对照实验。
+- **BPM 冲突警告**（与扒谱节点合用必读）：`style_hint` 已含准确 BPM，若本节点「BPM」也填了值，
+  合并后会出现两个 BPM。所以「BPM」默认 **0**（不输出）；要自己定速才填，或断掉 style_hint。
+- 预置在 `翻唱-4.json` 里的接法：`style_hint → 合并.text1`、`本节点.风格(style) → 合并.text2`
+  （BPM 保持 0），合并 → 生成.style。进阶：把「人声/乐器/情绪/其他/补充」分别接 StringMergeDeal
+  的 5 个槽（共 8 槽），就能单独替换任一组。
+
+---
+
+# 生成进度显示（百分比 / 预计剩余时间）
+
+yue2 引擎自带的 `Progress`（`yue2/progress.py`）在「总量未知」时**刻意不给百分比**——`Planning score`
+与 `Generating song` 两阶段都是如此（其设计文档说"a generation limit is not a progress target"），
+所以控制台只能看到 token 数与 tokens/s。节点补了一层估算：
+
+- 位置：`yue2_music_nodes.py` 的 `_JobProgress` 类 + `_ACTIVE_JOB` 全局槽
+- **估算依据**（项目内实测标度；改了要同步这张表）：
+
+  | 阶段 | 总量估算 | 预估耗时 |
+  |---|---|---|
+  | 规划乐谱(ABC) | 音频秒数 × BPM × 0.13（经验值） | 总量 ÷ 8 token/s |
+  | 语义生成 | 音频秒数 × 25（1 token = 40ms） | 总量 ÷ 10 token/s |
+  | 流匹配(NAR) | `ode_steps`（**精确**，默认 32） | 幂律 `0.00475 × 帧数^1.417`（实测点 1500/3000/6000/9000 帧 → 150/336/992/1900 s） |
+  | VAE 解码 | `ceil(帧数 ÷ vae_core_frames)`（**精确**） | 每块 1 s |
+
+  - 音频秒数 ≈ 歌词有效行数 × 330 ÷ BPM；BPM 从风格文本里解析（缺省 88）
+  - `ode_steps` / `vae_core_frames` 由节点从 pipe 上读取后传入
+- **整体百分比 = 按预估耗时加权的各阶段进度之和**。刻意**不用** `已用 ÷ (已用 + 估算剩余)`：后者会因
+  实测速率重估而**倒退**（实测出现 70% → 66% → 64%）。加权求和由构造上保证单调不降。
+- ETA（预计剩余）：某阶段一开始就改用**该阶段的实测速率**外推；起步 3 秒内或进度 <2% 时仍用预估，
+  避免"322638 token/s"这种瞬间速率失真。
+- 输出渠道：
+  - 控制台每 **5 秒**一行：`整体 42% | 语义生成 640/3300 token (19%) 7.6 token/s | 已用 3分12秒 | 预计剩余 14分45秒`
+  - ComfyUI 进度条：`ProgressBar.update_absolute(整体百分比, 100)`（内部自带节流，百分比变化才发）
+  - 阶段切换打印 `▶ 阶段 n/4 …` / `✓ 阶段 … 完成：… | 用时 …（预估值 …）`
+  - 结束打印：`全部完成：音频 …s | 实际总耗时 …（事前预估 …，实际比预估快/慢 …%）`
+  - 产物对比行：`NAR/VAE` 的速率显示为「秒/步、秒/块」，token 阶段显示「token/s」
+- **钩子（改引擎时注意）**：
+  - ABC / 语义：直接用节点已有的 `on_token(phase, token)`（phase = `"abc"` / `"semantic"`）
+  - NAR：`_install_nar_guard()` 包装 `yue2.nar.synthesize` 时**链式**挂 `on_progress`
+    （引擎自己的回调照旧先调用，互不干扰）
+  - VAE：`_install_vae_progress()` 包装 `YuE2VAE.decode_tiled`
+  - 两者都是**进程级一次性打桩**（`_luy_guarded` / `_luy_vae_hooked` 标记），
+    当前任务通过 `_ACTIVE_JOB["job"]` 传递，生成结束（finally）即清空
+- **校准**：若实测速率与经验值（8 / 10 token/s）偏离大，改 `_RATE_ABC` / `_RATE_SEMANTIC`；
+  ABC 总量系数改 `_ABC_TOKENS_PER_BPM_SECOND`；NAR 曲线改 `_nar_seconds_estimate()`
+
+---
+
+# 显存互斥：8GB 卡上 YuE2 与扒谱不能同时常驻（2026-09 OOM 修复）
+
+**症状**（用户实测）：加载器先跑（YuE2 NF4 常驻 2.1GB），再跑扒谱节点 → 转写中途炸：
+
+```
+[ERROR] CUDA out of memory. Tried to allocate 236.00 MiB.
+        GPU has 8.00 GiB of which 507.75 MiB is free. 6.00 GiB allowed
+挂栈: generation_sheetsage2.py:188 model.encode(audio)
+      → modeling_mert2.py:66  spectrum = self.spectrogram(waveform.float())
+```
+
+**根因**：ComfyUI 给本进程的额度是 **6GB**（日志里的「6.00 GiB allowed」= 8GB 卡留约 2GB 给显示）；
+而 YuE2(2.1GB) + 扒谱(峰值 ~3.4GB) ≈ 5.5GB，再要 236MB 的 STFT 缓冲就撞顶。
+扒谱节点的 `release_after` 只在转写**之后**释放，救不了转写过程本身。
+（另外：`_STATE` 里的旧 `unload_model()` 只清缓存，**pipeline 自己还持有 `_model`/`_vae` 引用**，
+模型其实没被释放 —— 这个坑也一并修了。）
+
+**修法：两侧无条件互斥**
+
+- `sheetsage2_music_nodes.get_model()` 加载前调 `_free_sibling_models(keep, log)` → 卸掉 YuE2 的模型
+- `yue2_music_nodes.get_pipeline()` 加载前同理 → 卸掉扒谱的模型
+- 对方模块通过 `sys.modules["cj_nodes_yue2_music_nodes" / "cj_nodes_sheetsage2_music_nodes"]` 查找
+  （模块名由 CJ-Nodes 的 loader 规则 `cj_nodes_<文件名>` 决定），再调其 `unload_model()`
+- ⚠️ **2026-09 复查发现上面这条一直是死代码**：CJ-Nodes 的 `load_nodes_from_file` 用
+  `module_from_spec + exec_module` 加载节点文件，而这条路径**不会**把模块写进 `sys.modules`
+  （只有 `import` 语句才会），所以 `sys.modules.get(...)` 永远拿到 `None` → 互斥静默失效 →
+  加载器先跑时 OOM 依旧。`test_vram_guard.py` 之所以通过，是因为它自己手动
+  `sys.modules[spec.name] = module` 并造了假模块，绕过了真实运行时。
+- **修法（已在 `CJ-Nodes/nodes.py` 落地）**：`load_nodes_from_file` 在 `exec_module` 前
+  `sys.modules[module_name] = module`（失败则 pop），与标准 import 行为一致。
+  回归测试：`D:/AI/Yue3B/test_node_module_registry.py`（未注册→失效 / 注册→双向真卸载 / 静态守护注册先于 exec）。
+- **为什么不做“显存够不够”的判断**：`torch.cuda.mem_get_info()` 返回的是**设备**空闲量，看不出
+  **进程额度**快满（本次 OOM 就是额度问题，设备当时还有 507MB 但额度已用完）。与其猜，不如直接互换：
+  重载 25-30s ≪ 一次 OOM 白跑 20 分钟。对方本来没加载模型时 `unload_model()` 是空操作，
+  所以单独跑任一节点完全不受影响。
+
+**配套：可自动重建**
+
+- `yue2_music_nodes.unload_model()` 现在会先断开 `pipe._model` / `pipe._vae` 再清缓存（真正释放显存）
+- `_STATE["last"]` 保留 `(variant, vae)`；生成节点发现 `_pipeline_alive(model)` 为假时按它自动重建，
+  日志会打印 `模型已被显存回收，正在重新加载（约 25-30s）…`
+- 因此「一条工作流跑完 扒谱 → 生成」仍然可行，代价是切换到生成时多 25-30s 重载
+
+**回归测试**：`D:/AI/Yue3B/test_vram_guard.py`
+（互斥方向、未加载时的空操作、真释放、`_pipeline_alive` 判定、重建参数保留）
+
+**给用户的备选做法**：把「Luy-YuE2音乐模型加载」+「生成」分支临时 Mute（Ctrl+M）单独跑一次扒谱，
+再取消 Mute 跑生成 —— ComfyUI 会复用已缓存的 ABC/style，不重跑扒谱，也完全不占双份显存。
+
+---
+
+# 执行顺序：为什么加载器总是抢在扒谱前面（2026-09 追加）
+
+**症状**：同一条流里，YuE2 加载（2.1GB）先跑，扒谱随后加载 → 撞 6GB 额度 OOM；用户观感是“顺序随机”。
+
+**其实不是随机，是调度器的启发式（`comfy_execution/graph.py: ux_friendly_pick_node`）**：
+
+1. 两个分支之间没有任何数据依赖（加载器的唯一输入是 widget），都可执行；
+2. 选先后的规则是“优先跑 2 跳内能到 `OUTPUT_NODE` 的节点”：
+   加载 → 生成 → SaveAudio = **2 跳（被优先）**；扒谱 → 拼接 → 生成 → SaveAudio = **3 跳（不被优先）**；
+3. 于是只要两者同时就绪，**加载器必赢**（`test`/实测模拟：`D:/AI/Yue3B/sim_order.py`）。
+   初始 pendingNodes 顺序受 `execute_outputs` 这个 **set** 的迭代顺序影响（随 `PYTHONHASHSEED` 变化），
+   但两跳优先级足以覆盖该差异 → 结论稳定。
+
+**修法：给加载器加一条真实依赖边（顺序闸门）**
+
+- `CJYuE2ModelLoader` 新增可选输入 **`前置依赖` (`"*"` + `forceInput`)**，接线后
+  `blockCount[加载器] ≥ 1`，拓扑排序**保证**扒谱（含 `release_after` 释放显存）跑完才加载 YuE2。
+- 不接线时行为与原来一致（老工作流不受影响，`load(..., 前置依赖=None)` 有默认值）。
+- 实测（`sim_order.py`）：接线后 4 种组合（两种 `execute_outputs` 顺序 × 两种输入键序）全部
+  `扒谱 → 拼接 → 加载 → 生成`。
+- Mute 扒谱不会报错：前端 `graphToPrompt` 末尾会主动删掉指向不在 prompt 里的节点的连线
+  （`!a[n[0]] && delete e[t]`，已在前端 1.52.7 打包产物中确认）。
+- 接线后控制台会打印 `[Luy-YuE2] 前置依赖已就绪（扒谱完成），开始加载模型`，可作为顺序验证点。

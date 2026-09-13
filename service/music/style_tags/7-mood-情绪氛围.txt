@@ -1,0 +1,47 @@
+# 格式：中文 | English
+# 情绪氛围 Mood
+忧郁 | melancholic
+怀旧 | nostalgic
+感伤 | sentimental
+苦甜交织 | bittersweet
+悲伤 | sad
+哀伤 | sorrowful
+孤独 | lonely
+思念 | longing
+怅然 | wistful
+希望 | hopeful
+治愈 | uplifting
+喜悦 | joyful
+俏皮 | playful
+欢快 | cheerful
+温暖 | warm
+浪漫 | romantic
+柔情 | tender
+亲密 | intimate
+梦幻 | dreamy
+空灵 | ethereal
+神秘 | mysterious
+玄幻 | mystical
+史诗 | epic
+电影感 | cinematic
+戏剧张力 | dramatic
+强烈 | intense
+黑暗 | dark
+萦绕 | haunting
+诡异 | eerie
+不祥 | ominous
+侵略性 | aggressive
+能量充沛 | energetic
+有力量 | powerful
+凯旋 | triumphant
+激昂 | anthemic
+平静 | peaceful
+宁静 | calm
+安详 | serene
+冥想 | meditative
+沉思 | reflective
+渴望 | yearning
+都市夜色霓虹 | city night neon
+雨天 | rainy day
+日出 | sunrise
+离别 | farewell

@@ -5,6 +5,7 @@ import gc
 import json
 import base64
 import random
+import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 import torch
 
@@ -33,6 +34,7 @@ from llama_cpp.llama_chat_format import (
     NanoLlavaChatHandler, Llama3VisionAlphaChatHandler, MiniCPMv26ChatHandler
 )
 draft_model_types = ["None", "ngram-map"]
+thinking_modes = ["auto", "off"]
 
 try:
     from llama_cpp.llama_chat_format import MTMDChatHandler
@@ -423,6 +425,17 @@ def parse_json(json_str: str) -> Any:
     return parsed
 
 
+def output_text(output: dict, thinking: str = "auto") -> str:
+    """Extract assistant text from a chat completion; 'off' strips residual reasoning blocks"""
+    text = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+    if thinking == "off":
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+        text = re.sub(r"<think>.*$", "", text, flags=re.DOTALL)
+        text = re.sub(r"^.*?</think>", "", text, flags=re.DOTALL)
+        text = text.lstrip()
+    return text
+
+
 def scale_image(image: torch.Tensor, max_size: int = 128) -> NDArray[np.uint8]:
     """Scale image tensor to max pixel size while preserving aspect ratio, returns numpy uint8"""
     return scale_image_tensor(image, max_size)
@@ -499,8 +512,8 @@ class llama_cpp_clean_states:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "any": (any_type,),
-                "state_uid": ("INT", {
+                "任意": (any_type,),
+                "状态ID": ("INT", {
                     "default": -1, "min": -1, "max": 999999, "step": 1,
                     "tooltip": "Clear the saved state for a specific ID (-1 = clear all)"
                 }),
@@ -508,30 +521,30 @@ class llama_cpp_clean_states:
         }
 
     RETURN_TYPES = (any_type,)
-    RETURN_NAMES = ("any",)
+    RETURN_NAMES = ("任意",)
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, any, state_uid):
-        #print(f"[llama-cpp_vlm] Cleaning up saved states {state_uid}...")
-        LLAMA_CPP_STORAGE.clean_state(state_uid)
-        return (any,)
+    def process(self, 任意, 状态ID):
+        #print(f"[llama-cpp_vlm] Cleaning up saved states {状态ID}...")
+        LLAMA_CPP_STORAGE.clean_state(状态ID)
+        return (任意,)
 
 
 class llama_cpp_unload_model:
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {"any": (any_type,)}}
+        return {"required": {"任意": (any_type,)}}
 
     RETURN_TYPES = (any_type,)
-    RETURN_NAMES = ("any",)
+    RETURN_NAMES = ("任意",)
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, any):
+    def process(self, 任意):
         #print("[llama-cpp_vlm] Unloading llama model...")
         LLAMA_CPP_STORAGE.clean()
-        return (any,)
+        return (任意,)
 
 
 class json_to_bbox:
@@ -539,35 +552,35 @@ class json_to_bbox:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "json": ("STRING", {"forceInput": True}),
-                "mode": (["simple","Qwen3-VL", "Qwen2.5-VL"], {"default": "simple"}),
-                "label": ("STRING", {
+                "JSON文本": ("STRING", {"forceInput": True}),
+                "坐标模式": (["simple","Qwen3-VL", "Qwen2.5-VL"], {"default": "simple"}),
+                "标签": ("STRING", {
                     "default":"",
                     "multiline": False,
                     "tooltip": "Select only the BBoxes with specific labels."
                 }),
             },
             "optional": {
-                "image": ("IMAGE",),
+                "图片": ("IMAGE",),
             }
         }
 
     RETURN_TYPES = ("BBOX", "IMAGE")
-    RETURN_NAMES = ("bboxes", "image_list")
+    RETURN_NAMES = ("检测框列表", "图片列表")
     OUTPUT_IS_LIST = (True, True)
     INPUT_IS_LIST = True
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, json, mode, label, image=None):
-        mode = mode[0]
-        label = label[0]
+    def process(self, JSON文本, 坐标模式, 标签, 图片=None):
+        坐标模式 = 坐标模式[0]
+        标签 = 标签[0]
 
         flat_images_list = []
         original_structure = []
 
-        if image is not None:
-            for img_batch in image:
+        if 图片 is not None:
+            for img_batch in 图片:
                 if img_batch.ndim == 3:
                     flat_images_list.append(img_batch.unsqueeze(0))
                     original_structure.append(1)
@@ -581,21 +594,21 @@ class json_to_bbox:
         output_bboxes = []
         processed_flat_results = []
 
-        for i, j in enumerate(json):
+        for i, j in enumerate(JSON文本):
             bboxes = parse_json(j)
 
-            if label != "":
+            if 标签 != "":
                 try:
-                    bboxes = [item for item in bboxes if item["label"] == label]
+                    bboxes = [item for item in bboxes if item["label"] == 标签]
                 except Exception:
-                    bboxes = [item for item in bboxes if item.get("text_content") == label]
+                    bboxes = [item for item in bboxes if item.get("text_content") == 标签]
 
             if total_images > 0:
                 curr_idx = i if i < total_images else (total_images - 1)
                 curr_img = flat_images_list[curr_idx]
 
                 try:
-                    res_img = draw_bbox(curr_img[0], bboxes, mode)
+                    res_img = draw_bbox(curr_img[0], bboxes, 坐标模式)
                     if res_img.ndim == 3:
                         res_img = res_img.unsqueeze(0)
                     elif res_img.ndim == 4 and res_img.shape[0] > 1:
@@ -606,7 +619,7 @@ class json_to_bbox:
                     print(f"Error drawing on image {curr_idx}: {e}")
                     processed_flat_results.append(curr_img)
 
-            if mode in ["Qwen3-VL", "Qwen2.5-VL"]:
+            if 坐标模式 in ["Qwen3-VL", "Qwen2.5-VL"]:
                 if total_images == 0:
                     raise ValueError("Image required for Qwen mode")
                 curr_idx = i if i < total_images else (total_images - 1)
@@ -646,10 +659,10 @@ class bbox_to_segs:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "bboxes": ("BBOX",),
-                "image": ("IMAGE",),
-                "dilation": ("INT", {"default": 10, "min": 0, "max": 200, "step": 1}),
-                "feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
+                "检测框": ("BBOX",),
+                "图片": ("IMAGE",),
+                "膨胀像素": ("INT", {"default": 10, "min": 0, "max": 200, "step": 1}),
+                "羽化": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
             }
         }
 
@@ -657,23 +670,23 @@ class bbox_to_segs:
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, bboxes, image, dilation, feather):
-        _batch_size, height, width, _channels = image.shape
+    def process(self, 检测框, 图片, 膨胀像素, 羽化):
+        _batch_size, height, width, _channels = 图片.shape
         mask_shape = (height, width)
 
         seg_list = []
-        image_for_cropping = image[0]
+        image_for_cropping = 图片[0]
 
-        for bbox in bboxes:
+        for bbox in 检测框:
             if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
                 print(f"Warning: Skipping invalid bbox item: {bbox}")
                 continue
 
             x1, y1, x2, y2 = map(int, bbox)
-            x1_exp = x1 - dilation
-            y1_exp = y1 - dilation
-            x2_exp = x2 + dilation
-            y2_exp = y2 + dilation
+            x1_exp = x1 - 膨胀像素
+            y1_exp = y1 - 膨胀像素
+            x2_exp = x2 + 膨胀像素
+            y2_exp = y2 + 膨胀像素
 
             crop_region = [x1_exp, y1_exp, x2_exp, y2_exp]
             crop_w = x2_exp - x1_exp
@@ -684,17 +697,17 @@ class bbox_to_segs:
                 continue
 
             local_mask_np = np.zeros((crop_h, crop_w), dtype=np.float32)
-            local_x1 = dilation
-            local_y1 = dilation
+            local_x1 = 膨胀像素
+            local_y1 = 膨胀像素
             local_x2 = local_x1 + (x2 - x1)
             local_y2 = local_y1 + (y2 - y1)
             local_mask_np[local_y1:local_y2, local_x1:local_x2] = 1.0
 
-            if feather > 0:
-                local_mask_np = gaussian_filter(local_mask_np, sigma=feather)
+            if 羽化 > 0:
+                local_mask_np = gaussian_filter(local_mask_np, sigma=羽化)
 
             cropped_mask_np = local_mask_np
-            cropped_img_padded = torch.zeros((crop_h, crop_w, 3), dtype=image.dtype, device=image.device)
+            cropped_img_padded = torch.zeros((crop_h, crop_w, 3), dtype=图片.dtype, device=图片.device)
 
             src_x_start = max(0, x1_exp)
             src_y_start = max(0, y1_exp)
@@ -732,34 +745,34 @@ class bbox_to_mask:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "bboxes": ("BBOX",),
-                "image": ("IMAGE",),
-                "dilation": ("INT", {"default": 10, "min": 0, "max": 200, "step": 1}),
-                "feather": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
+                "检测框": ("BBOX",),
+                "图片": ("IMAGE",),
+                "膨胀像素": ("INT", {"default": 10, "min": 0, "max": 200, "step": 1}),
+                "羽化": ("INT", {"default": 0, "min": 0, "max": 100, "step": 1}),
             }
         }
 
     RETURN_TYPES = ("MASK",)
-    RETURN_NAMES = ("mask",)
+    RETURN_NAMES = ("遮罩",)
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, bboxes, image, dilation, feather):
+    def process(self, 检测框, 图片, 膨胀像素, 羽化):
         masks = []
-        _batch_size, height, width, _channels = image.shape
+        _batch_size, height, width, _channels = 图片.shape
         mask_shape = (height, width)
-        combined_full_mask = torch.zeros(mask_shape, dtype=torch.float32, device=image.device)
+        combined_full_mask = torch.zeros(mask_shape, dtype=torch.float32, device=图片.device)
 
-        for i, bbox in enumerate(bboxes):
+        for i, bbox in enumerate(检测框):
             if not isinstance(bbox, (list, tuple)) or len(bbox) < 4:
                 print(f"Warning: Skipping invalid bbox item: {bbox}")
                 continue
 
             x1, y1, x2, y2 = map(int, bbox)
-            x1_exp = x1 - dilation
-            y1_exp = y1 - dilation
-            x2_exp = x2 + dilation
-            y2_exp = y2 + dilation
+            x1_exp = x1 - 膨胀像素
+            y1_exp = y1 - 膨胀像素
+            x2_exp = x2 + 膨胀像素
+            y2_exp = y2 + 膨胀像素
             crop_w = x2_exp - x1_exp
             crop_h = y2_exp - y1_exp
 
@@ -767,14 +780,14 @@ class bbox_to_mask:
                 continue
 
             local_mask_np = np.zeros((crop_h, crop_w), dtype=np.float32)
-            local_x1 = dilation
-            local_y1 = dilation
+            local_x1 = 膨胀像素
+            local_y1 = 膨胀像素
             local_x2 = local_x1 + (x2 - x1)
             local_y2 = local_y1 + (y2 - y1)
             local_mask_np[local_y1:local_y2, local_x1:local_x2] = 1.0
 
-            if feather > 0:
-                local_mask_np = gaussian_filter(local_mask_np, sigma=feather)
+            if 羽化 > 0:
+                local_mask_np = gaussian_filter(local_mask_np, sigma=羽化)
 
             current_full_mask_np = np.zeros(mask_shape, dtype=np.float32)
             x1_c, y1_c = max(0, x1_exp), max(0, y1_exp)
@@ -783,10 +796,10 @@ class bbox_to_mask:
             if x2_c > x1_c and y2_c > y1_c:
                 current_full_mask_np[y1_c:y2_c, x1_c:x2_c] = 1.0
 
-            if feather > 0:
-                current_full_mask_np = gaussian_filter(current_full_mask_np, sigma=feather)
+            if 羽化 > 0:
+                current_full_mask_np = gaussian_filter(current_full_mask_np, sigma=羽化)
 
-            current_full_mask_tensor = torch.from_numpy(current_full_mask_np).to(image.device)
+            current_full_mask_tensor = torch.from_numpy(current_full_mask_np).to(图片.device)
             combined_full_mask = torch.maximum(combined_full_mask, current_full_mask_tensor)
 
         masks.append(combined_full_mask.unsqueeze(0))
@@ -798,9 +811,9 @@ class bboxes_to_bbox:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "bboxes": ("BBOX",),
-                "image_index": ("INT", {"default": 0, "min": 0, "max": 1000000, "step": 1}),
-                "bbox_index": ("INT", {
+                "检测框": ("BBOX",),
+                "图片序号": ("INT", {"default": 0, "min": 0, "max": 1000000, "step": 1}),
+                "检测框序号": ("INT", {
                     "default": 0,
                     "min": -998,
                     "max": 999,
@@ -811,14 +824,14 @@ class bboxes_to_bbox:
         }
 
     RETURN_TYPES = ("BBOX",)
-    RETURN_NAMES = ("bbox",)
+    RETURN_NAMES = ("检测框",)
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, bboxes, image_index, bbox_index):
-        if bbox_index != 999:
-            return ([bboxes[image_index][bbox_index]],)
-        return (bboxes[image_index],)
+    def process(self, 检测框, 图片序号, 检测框序号):
+        if 检测框序号 != 999:
+            return ([检测框[图片序号][检测框序号]],)
+        return (检测框[图片序号],)
 
 
 class parse_json_node:
@@ -826,22 +839,22 @@ class parse_json_node:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "input": ("STRING", {"forceInput": True}),
+                "输入文本": ("STRING", {"forceInput": True}),
             },
             "optional": {
-                "key": ("STRING",),
-                "default": ("STRING",),
+                "键名": ("STRING",),
+                "默认值": ("STRING",),
             },
         }
 
     RETURN_TYPES = (any_type, "STRING", "INT", "FLOAT", "BOOLEAN")
-    RETURN_NAMES = ("any", "string", "int", "float", "boolean")
+    RETURN_NAMES = ("任意", "字符串", "整数", "浮点数", "布尔")
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, input: Union[str, List[str]], key: Optional[str] = None, default: Optional[str] = None):
-        if isinstance(input, str):
-            input = [input]
+    def process(self, 输入文本: Union[str, List[str]], 键名: Optional[str] = None, 默认值: Optional[str] = None):
+        if isinstance(输入文本, str):
+            输入文本 = [输入文本]
 
         result: Dict[str, List] = {
             "any": [],
@@ -851,13 +864,13 @@ class parse_json_node:
             "boolean": [],
         }
 
-        if key is None or key == "":
+        if 键名 is None or 键名 == "":
             raise ValueError("Key cannot be empty!")
 
-        for item in input:
+        for item in 输入文本:
             val = get_nested_value(
                 item.strip().removeprefix("```json").removesuffix("```"),
-                key, default
+                键名, 默认值
             )
             result["any"].append(val)
             result["string"].append(str(val))
@@ -891,25 +904,25 @@ class remove_code_block:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "input": ("STRING", {"forceInput": True}),
+                "输入文本": ("STRING", {"forceInput": True}),
             },
             "optional": {
-                "label": ("STRING",),
+                "语言标签": ("STRING",),
             },
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("output",)
+    RETURN_NAMES = ("输出",)
     FUNCTION = "process"
     CATEGORY = "llama-cpp-vlm"
 
-    def process(self, input: Union[str, List[str]], label: str):
-        if isinstance(input, str):
-            input = [input]
+    def process(self, 输入文本: Union[str, List[str]], 语言标签: str):
+        if isinstance(输入文本, str):
+            输入文本 = [输入文本]
 
         output: List[str] = [
-            value.strip().removeprefix(f"```{label}").removesuffix("```")
-            for value in input
+            value.strip().removeprefix(f"```{语言标签}").removesuffix("```")
+            for value in 输入文本
         ]
         if len(output) == 1:
             return (output[0],)
@@ -921,17 +934,17 @@ class PromptEnhancerPreset:
     def INPUT_TYPES(s):
         return {
             "required": {
-                "preset": (["Qwen-Image [EN]", "Qwen-Image [ZH]", "Qwen-Image 2512 [EN]", "Qwen-Image 2512 [ZH]", "Qwen-Image-Edit", "Qwen-Image-Edit 2509", "Qwen-Image-Edit 2511", "Z-Image Turbo", "Flux.2 T2I", "Flux.2 I2I", "Wan T2V [EN]", "Wan T2V [ZH]", "Wan I2V [EN]", "Wan I2V [ZH]", "Wan I2V Full-Auto [EN]", "Wan I2V Full-Auto [ZH]", "Wan FLF2V [EN]", "Wan FLF2V [ZH]"], )
+                "预设": (["Qwen-Image [EN]", "Qwen-Image [ZH]", "Qwen-Image 2512 [EN]", "Qwen-Image 2512 [ZH]", "Qwen-Image-Edit", "Qwen-Image-Edit 2509", "Qwen-Image-Edit 2511", "Z-Image Turbo", "Flux.2 T2I", "Flux.2 I2I", "Wan T2V [EN]", "Wan T2V [ZH]", "Wan I2V [EN]", "Wan I2V [ZH]", "Wan I2V Full-Auto [EN]", "Wan I2V Full-Auto [ZH]", "Wan FLF2V [EN]", "Wan FLF2V [ZH]"], )
             }
         }
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("system_prompt",)
+    RETURN_NAMES = ("系统提示词",)
     FUNCTION = "main"
     CATEGORY = "llama-cpp-vlm"
 
-    def main(self, preset: str):
-        match preset:
+    def main(self, 预设: str):
+        match 预设:
             case "Qwen-Image [EN]":
                 return (QWEN_IMAGE_EN,)
             case "Qwen-Image [ZH]":
@@ -969,7 +982,7 @@ class PromptEnhancerPreset:
             case "Wan FLF2V [ZH]":
                 return (WAN_FLF2V_ZH,)
             case _:
-                raise ValueError(f'Unknow preset: "{preset}"')
+                raise ValueError(f'Unknow preset: "{预设}"')
 
 
 # ============== Base Node Mappings ==============

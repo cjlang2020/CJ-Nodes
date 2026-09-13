@@ -1,0 +1,23 @@
+# 格式：中文 | English   （| 左侧仅用于显示，节点输出只取 English；无 | 的行整行作为输出）
+# 语言 / 语种 Language
+中文 | Chinese
+普通话 | Mandarin Chinese
+粤语 | Cantonese
+台语 | Taiwanese Hokkien
+英语 | English
+日语 | Japanese
+韩语 | Korean
+西班牙语 | Spanish
+法语 | French
+德语 | German
+意大利语 | Italian
+葡萄牙语 | Portuguese
+俄语 | Russian
+阿拉伯语 | Arabic
+印地语 | Hindi
+泰语 | Thai
+越南语 | Vietnamese
+无演唱纯器乐 | instrumental (no vocals)
+无词哼唱 | wordless humming
+中英混唱 | bilingual Chinese and English
+古风文言唱腔 | classical Chinese poetic diction

@@ -1,0 +1,40 @@
+# 格式：中文 | English
+# 音色质地 Timbre
+温暖 | warm
+明亮 | bright
+甜美 | sweet
+清澈 | clear
+清脆 | crisp
+沙哑 | husky
+颗粒感 | raspy
+烟嗓 | smoky
+气声 | breathy
+空灵 | airy
+飘逸 | ethereal
+丝绒感 | velvety
+丝滑 | silky
+顺滑 | smooth
+丰满 | rich
+低沉 | deep
+浑厚 | resonant
+醇厚 | mellow
+柔和 | soft
+温柔 | gentle
+有力量 | powerful
+粗粝 | gritty
+原始生猛 | raw
+金属感 | metallic
+鼻音 | nasal
+单薄 | thin
+厚实 | thick
+磁性嗓音 | magnetic voice
+蜜糖嗓音 | honey-like
+水晶般通透 | crystalline
+玻璃质感 | glassy
+亲密贴耳 | warm and intimate
+幽暗低沉 | dark and moody
+空灵飘渺 | ethereal and floating
+清冷 | cold and clear
+仙气 | celestial
+少年感 | boyish
+少女感 | girlish

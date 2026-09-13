@@ -29,6 +29,7 @@ import importlib
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 
@@ -57,6 +58,37 @@ _ensure_folder(_SS2_FOLDER, _SS2_BASE)
 
 # 进程级缓存: 模型按 (variant, dtype) 复用
 _STATE = {"model": None, "key": None, "device": None, "dtype": None}
+
+# 同一插件里其它音乐节点（YuE2）的模块名：8GB 卡上两者同时常驻必 OOM（见 get_model）
+_MUSIC_MODULES = ("cj_nodes_yue2_music_nodes", "cj_nodes_sheetsage2_music_nodes")
+
+
+def _free_sibling_models(keep_module, log):
+    """加载大模型前无条件请同级音乐节点（YuE2）让出显存。
+
+    实测 OOM：YuE2 NF4 常驻 2.1GB + 扇谱峰值 ~3.4GB > ComfyUI 的 **6GB/进程额度**
+    （日志：“6.00 GiB allowed, 507.75 MiB free”）。注意 torch.cuda.mem_get_info() 报的是
+    **设备**空闲量，看不出进程额度快满，所以不做“够不够”的猜测，直接互换；
+    YuE2 生成时会自己重建（它会记下加载参数），代价是 25-30s 重载，远小于一次 OOM 的损失。
+    同级模块没加载模型时，unload_model() 是空操作，单独跑扇谱不受影响。
+    """
+    try:
+        if torch.cuda.is_available():
+            free = torch.cuda.mem_get_info()[0] / 1024 ** 3
+        else:
+            free = 0.0
+        for name in _MUSIC_MODULES:
+            if keep_module in name:
+                continue
+            module = sys.modules.get(name)
+            unload = getattr(module, "unload_model", None) if module is not None else None
+            if callable(unload):
+                unload()
+                log("已请 YuE2 模型让出显存（当时设备空闲 %.1fGB），生成时会自动重载" % free)
+        gc.collect()
+        torch.cuda.empty_cache()
+    except Exception as exc:                      # 清理失败不能阻断扇谱
+        log("清理同级模型时出错（已忽略）: %s" % exc)
 
 _PLACEHOLDER = "(未找到模型: 请放到 models/YuE2/models/SheetSage2)"
 
@@ -160,8 +192,10 @@ def _ensure_rotary_buffers(model):
 
 
 def unload_model():
-    """释放 SheetSage2 显存（模型仅 ~2.7GB，重载约 15-20s）。"""
+    """释放 SheetSage2 显存（模型仅 ~2.7GB，重载约 6-9s）。"""
+    model = _STATE.get("model")
     _STATE.update({"model": None, "key": None, "device": None, "dtype": None})
+    del model                                     # 先断开本模块的引用，再回收
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -173,6 +207,9 @@ def get_model(variant, dtype_str, log):
     if _STATE["model"] is not None and _STATE["key"] == key:
         return _STATE["model"]
     unload_model()
+
+    # 加载前请 YuE2 让开（否则双模型常驻必然 OOM：实测连 236MB 都拿不出来）
+    _free_sibling_models("cj_nodes_sheetsage2_music_nodes", log)
 
     ss2_dir = _resolve_ss2_dir(variant)
     mert_dir = _resolve_mert_dir(ss2_dir)
@@ -389,41 +426,41 @@ class CJSheetSage2Transcribe:
         models = scan_sheetsage2_models() or [_PLACEHOLDER]
         return {
             "required": {
-                "sheetsage2_model": (models, {
-                    "tooltip": "models/YuE2/models 下的 SheetSage2 适配器目录；新增模型后需重启 ComfyUI 或点“重载插件”",
+                "扒谱模型": (models, {
+                    "tooltip": "models/YuE2/models 下的 SheetSage2 适配器目录；新增模型后刷新页面(F5)即可，无需重启",
                 }),
-                "audio": ("AUDIO", {
+                "音频": ("AUDIO", {
                     "tooltip": "任意采样率/声道，节点内部自动转单声道并重采样到 24kHz（依赖 torchaudio）",
                 }),
             },
             "optional": {
-                "melody_only": ("BOOLEAN", {
+                "去和弦存档": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "存档产物是否去掉和弦（对应 YuE2 的 cot=melody）。无论开关如何，"
                                "两版 ABC 字符串都会同时输出",
                 }),
-                "dtype": (["bf16", "fp32"], {
+                "计算精度": (["bf16", "fp32"], {
                     "default": "bf16",
                     "tooltip": "bf16 又快又省显存；若出现数值异常可改 fp32（显存约翻倍）",
                 }),
-                "max_seconds": ("FLOAT", {
+                "处理时长上限": ("FLOAT", {
                     "default": 0.0, "min": 0.0, "max": 3600.0, "step": 1.0,
                     "tooltip": "只处理前 N 秒（0=整首）。长音频自动分 300s 窗滚动推理；"
                                "调参试跑时设 60 之类可省时间",
                 }),
-                "preset": (["default", "paper"], {
+                "提示词预设": (["default", "paper"], {
                     "default": "default",
                     "tooltip": "default=通用（推荐）；paper=论文/评测口径（多任务提示词不同，且改用 torchaudio+ffmpeg 读音频）",
                 }),
-                "overlap_seconds": ("FLOAT", {
+                "窗口重叠秒数": ("FLOAT", {
                     "default": -1.0, "min": -1.0, "max": 300.0, "step": 1.0,
                     "tooltip": "高级：相邻窗口重叠秒数；-1=用模型默认（200s，实测最稳），不要随意改",
                 }),
-                "lookahead_seconds": ("FLOAT", {
+                "窗口前瞻秒数": ("FLOAT", {
                     "default": -1.0, "min": -1.0, "max": 300.0, "step": 1.0,
                     "tooltip": "高级：窗口前瞻秒数；-1=用模型默认（100s），不要随意改",
                 }),
-                "release_after": ("BOOLEAN", {
+                "转写完释放显存": ("BOOLEAN", {
                     "default": True,
                     "tooltip": "转写后释放显存（约 2.7GB），给后面的音乐生成节点让路；"
                                "关掉可保留模型以便连续扒多段（重载约 15-20s）",
@@ -433,22 +470,29 @@ class CJSheetSage2Transcribe:
 
     RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING", "FLOAT",
                     "STRING", "STRING", "STRING", "STRING")
-    RETURN_NAMES = ("abc_melody", "abc_full", "style_hint", "key", "tempo",
-                    "chords", "structure", "midi_dir", "info")
+    RETURN_NAMES = ("旋律谱ABC", "完整谱ABC", "风格底稿", "调性", "速度BPM",
+                    "和弦", "曲式结构", "产物目录", "扒谱信息")
     FUNCTION = "transcribe"
     CATEGORY = "luy/音乐"
     OUTPUT_NODE = False
     DESCRIPTION = (
         "SheetSage2 音频扒谱：音频 → 乐谱(ABC)/MIDI/调性/和弦/曲式/节拍。\n"
-        "接生成节点的用法：abc_melody → abc_text 且 cot=melody（推荐，旋律复刻）；"
-        "abc_full → abc_text 且 cot=full（保留和弦色彩）。\n"
-        "style_hint 可直接接生成节点的 style 再补人声/流派标签；歌词需自行提供。\n"
-        "8GB 卡约 2.7GB 显存，5 分钟歌约 20-30s；贪心解码、结果确定性，无需 seed。"
+        "接生成节点的用法：【旋律谱ABC】→【乐谱ABC】且生成模式=melody（推荐，旋律复刻）；"
+        "【完整谱ABC】→【乐谱ABC】且生成模式=full（保留和弦色彩）。\n"
+        "【风格底稿】可直接接生成节点的【风格】再补人声/流派标签；歌词需自行提供。\n"
+        "8GB 卡约 2.7GB 显存，5 分钟歌约 20-30s；贪心解码、结果确定性，无需随机种子。"
     )
 
-    def transcribe(self, sheetsage2_model, audio, melody_only=False, dtype="bf16",
-                   max_seconds=0.0, preset="default", overlap_seconds=-1.0,
-                   lookahead_seconds=-1.0, release_after=True):
+    def transcribe(self, 扒谱模型, 音频, 去和弦存档=False, 计算精度="bf16",
+                   处理时长上限=0.0, 提示词预设="default", 窗口重叠秒数=-1.0,
+                   窗口前瞻秒数=-1.0, 转写完释放显存=True):
+        # 界面参数名用中文；内部沿用原有英文局部名，保持逻辑不变
+        sheetsage2_model, audio = 扒谱模型, 音频
+        melody_only, dtype = 去和弦存档, 计算精度
+        max_seconds, preset = 处理时长上限, 提示词预设
+        overlap_seconds, lookahead_seconds = 窗口重叠秒数, 窗口前瞻秒数
+        release_after = 转写完释放显存
+
         from comfy.utils import ProgressBar
         import comfy.model_management as comfy_mm
 
@@ -622,7 +666,7 @@ class CJSheetSage2Unload:
         return {"required": {}}
 
     RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("status",)
+    RETURN_NAMES = ("状态",)
     FUNCTION = "unload"
     CATEGORY = "luy/音乐"
     OUTPUT_NODE = True

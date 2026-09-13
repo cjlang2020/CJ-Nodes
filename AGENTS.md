@@ -21,7 +21,7 @@ CJ-Nodes/
 │   ├── filetools/         # txt 读写
 │   ├── princepainter/     # Painter 系列视频生成（首尾帧/长视频/多帧/音频裁剪/Flux2 图编辑）
 │   ├── locateanything/    # 目标检测 + 裁剪
-│   ├── music/             # 音乐：YuE2 生成（yue2_music_nodes.py，3 节点）+ SheetSage2 扒谱（sheetsage2_music_nodes.py，2 节点）；yue2 引擎在 libs/yue2，详见本目录 AGENTS.md
+│   ├── music/             # 音乐：YuE2 生成（yue2_music_nodes.py，3 节点）+ SheetSage2 扒谱（sheetsage2_music_nodes.py，2 节点）+ 风格标签（music_style_nodes.py + style_tags/ 词表，1 节点）；yue2 引擎在 libs/yue2，详见本目录 AGENTS.md
 │   ├── pose/              # 姿态编辑
 │   └── *.py               # 根目录散落节点：DualCLIPLoader、QwenMultiangleCameraNode、VisClipCopy、VramClean、QwenEditAddLlamaTemplate 等
 ├── web/                   # 独立功能页面（*.html，经 /CJ-Nodes/{path} 路由访问）
@@ -38,6 +38,7 @@ CJ-Nodes/
 4. **导入方式**：文件所在目录及其父目录（service/）会插入 `sys.path`，所以跨文件用 `from aitools_base import ...` 这类顶层导入，**不要用相对导入**。
 5. 加载异常只 print 不中断，排查节点没注册时看 ComfyUI 启动日志的 "❌ 加载文件" 输出。
 6. **包目录不能放进 service/**：递归遍历不区分包与普通目录，包内的 `.py` 会被逐个当节点模块执行（`__package__=None`），带相对导入的包必定报 `attempted relative import with no known parent package`。内置库/引擎请放 `CJ-Nodes/libs/`。（已存在例外：`service/llama-cpp/__init__.py`，其内部模块均用顶层导入所以无害。）
+7. **调试/临时脚本绝不能放在 service/ 下**：加载器只排除 `__` 开头的文件，`_check_xxx.py` 这种单下划线开头的**也会被 import**（模块级代码会真的执行，例如加载模型）。临时脚本写到 ComfyUI 根目录，用完即删。
 
 ## 节点清单（按功能域）
 
@@ -92,6 +93,7 @@ CJ-Nodes/
 | **音乐** service/music/ | | |
 | CJYuE2ModelLoader / CJYuE2Generate / CJYuE2Unload | YuE2 音乐生成：加载 / 生成（风格+歌词→48kHz 音频）/ 卸载 | yue2_music_nodes.py |
 | CJSheetSage2Transcribe / CJSheetSage2Unload | SheetSage2 音频扒谱：音频→两版 ABC/MIDI/调性/和弦/曲式+风格底稿；卸载 | sheetsage2_music_nodes.py |
+| CJMusicStyleTags | 音乐风格标签：分类多选（356 选项，中英对照、输出英文）→ 接生成的 style | music_style_nodes.py（词表 style_tags/） |
 
 ## 设计约定（新增/修改节点必读）
 
@@ -103,6 +105,11 @@ CJ-Nodes/
 6. **分隔符约定**：字符串节点的分隔符参数统一支持字面量 `\n`/`\t` 转真实换行/制表符（`delimiter.replace("\\n", "\n")`）。
 7. **词表驱动**：提示词类节点从 service/*/ 下的 txt 目录（如 prompttools/prompt_options/）动态读文件生成下拉，改词表只需加 txt，不用改代码；模板键名映射在 `aitools/model_config.json`。
 8. **共享逻辑**：同域公共函数放该域的 base 文件（如 `aitools/aitools_base.py`、`llama-cpp/base.py`），通过 sys.path 顶层导入；注意 base 文件不要定义带节点三件套的类，否则会被误注册。
+9. **界面字段名用中文（llama-cpp 域已全量完成，可作参考）**；但**内部 API 键必须保持英文**：`create_chat_completion(...)` 的关键字（`max_tokens`/`seed`/`presence_penalty`…）、`custom_config` 的配置键（`model`/`mmproj`/`n_ctx`…）、`hidden` 里的 `unique_id` —— 混用会直接报 `TypeError: unexpected keyword argument`。
+10. **改字段名/顺序会破坏旧工作流**：ComfyUI 的 `widgets_values` **按位置**存，连线按输入名匹配 → 重命名会让旧流程的值回落默认、连线断开；重排序会让值错位（如 `上下文长度` 的值跑到 `最大生成长度`）。要改就先提醒用户或备份工作流。
+11. **批量改名的正确做法**：用 `tokenize` 词法级替换（只改 NAME，自动跳过 STRING/COMMENT），并额外跳过“函数调用处的关键字参数名”（`seed=seed` 的左值不能改）与属性访问；**不要用正则** —— 会把 `"model": model`、`"max_tokens": 最大生成长度` 这类字符串键一起改坏。详见 `service/llama-cpp/AGENTS.md`。
+12. **节点自检配方（不用启 UI/浏览器）**：把 ComfyUI 根目录加进 `sys.path` 后 import 节点模块，对每个类比对 `INPUT_TYPES()` 的 required+optional 键集与 `inspect.signature(getattr(cls, cls.FUNCTION))` 的参数名（允许只多出 hidden 的 `unique_id`），并校验 `len(RETURN_TYPES)==len(RETURN_NAMES)==len(OUTPUT_IS_LIST)`。
+13. **参数顺序惯例**：按**使用频次**排（模型/提示词最上 → 常用行为 → 抽样微调 → 调试/加速项最下）；新字段要插进对应档，不要一律追加在末尾。
 
 ## Web 前端
 
@@ -122,6 +129,7 @@ CJ-Nodes/
 ## 热重载（"重载插件"按钮）
 
 - **用法**：修改 `service/` 下任意 .py 后，点 ComfyUI 菜单栏"重载插件"按钮（web/js/hot_reload.js）→ POST `/CJ-Nodes/api/reload-nodes` → `nodes.py` 的 `reload_all_nodes()` 重建全部节点并同步进 ComfyUI 全局 `nodes.NODE_CLASS_MAPPINGS` → 刷新浏览器（F5）加载新 /object_info。**新增/修改/删除节点文件均支持**。
+- **F5 是必须的**：重载只更新后端映射，画布上的节点定义还是旧的 —— 表现为“新增的中文字段看不到 / 还是英文旧键名 / 改了默认值没变”。排查字段类问题先怀疑这里。
 - **原理**：ComfyUI 启动时把插件映射逐项复制进全局字典且 /object_info 实时生成，所以热重载只需更新全局字典；重载前会清理 sys.modules 中本插件 service/ 下的缓存模块，保证 `from base import` 拿到新代码。
 - **局限**：`__init__.py`（路由）、`nodes.py` 本身、web/ 前端 JS 的改动不在热重载范围（JS 改动刷新页面即生效；路由改动需重启）。正在执行的工作流用旧类对象跑完，不受影响。
 - 调试 API：`curl -X POST http://<host>:<port>/CJ-Nodes/api/reload-nodes`

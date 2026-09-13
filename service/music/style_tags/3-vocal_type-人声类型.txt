@@ -1,0 +1,33 @@
+# 格式：中文 | English
+# 人声类型 / 声部 Vocal Type
+女声 | female vocal
+男声 | male vocal
+男中音 | male baritone
+男高音 | male tenor
+男低音 | male bass
+女中音 | female alto
+女高音 | female soprano
+温柔女声 | gentle female vocal
+清亮女声 | clear female vocal
+甜美女声 | sweet female vocal
+磁性女声 | magnetic female vocal
+沙哑男声 | husky male vocal
+厚重男声 | deep male vocal
+少年感男声 | youthful male vocal
+成熟女声 | mature female vocal
+沧桑男声 | weathered male vocal
+童声 | child vocal
+男童声 | boy soprano
+男女对唱 | male and female duet
+男男对唱 | male duet
+女女对唱 | female duet
+群唱 | group vocals
+合唱团 | choir
+伴唱和声 | backing vocals
+和声堆叠 | layered harmonies
+主唱突出 | lead vocal forward
+假声主唱 | falsetto lead
+说唱人声 | rap vocal
+念白 | spoken word
+人声切片 | vocal chops
+无演唱 | instrumental only

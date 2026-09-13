@@ -1,0 +1,68 @@
+# 格式：中文 | English
+# 乐器 / 配器 Instruments
+钢琴 | acoustic piano
+三角钢琴 | grand piano
+电钢琴 | electric piano
+电钢 | Rhodes
+风琴 | organ
+手风琴 | accordion
+口琴 | harmonica
+木吉他 | acoustic guitar
+电吉他 | electric guitar
+清音吉他 | clean guitar
+失真吉他 | distorted guitar
+指弹吉他 | fingerstyle guitar
+强力和弦 | power chords
+吉他独奏 | guitar solo
+贝斯 | bass guitar
+合成器贝斯 | synth bass
+立式贝斯 | upright bass
+击弦贝斯 | slap bass
+低频低音 | sub bass
+弦乐 | strings
+弦乐四重奏 | string quartet
+小提琴 | violin
+大提琴 | cello
+二胡 | erhu
+古筝 | guzheng
+琵琶 | pipa
+笛子 | dizi
+箫 | xiao
+唢呐 | suona
+扬琴 | yangqin
+中国民乐合奏 | chinese traditional ensemble
+鼓组 | drums
+真鼓 | live drums
+电子鼓机 | drum machine
+808 鼓 | 808 drums
+手鼓 | hand percussion
+康加鼓 | congas
+铃鼓 | tambourine
+镲片 | cymbals
+刷子鼓 | brushed drums
+合成器铺底 | synth pad
+模拟合成器 | analog synth
+温暖铺底 | warm pads
+琶音合成器 | arpeggiated synth
+合成器主音 | synth lead
+复古合成器 | retro synth
+拨弦合成器 | plucked synth
+钟琴 | bells
+铝板琴 | glockenspiel
+马林巴 | marimba
+木琴 | xylophone
+竖琴 | harp
+萨克斯 | saxophone
+小号 | trumpet
+长号 | trombone
+长笛 | flute
+单簧管 | clarinet
+双簧管 | oboe
+圆号 | french horn
+定音鼓 | timpani
+风铃 | chimes
+音乐盒 | music box
+黑胶噪声 | vinyl crackle
+上升音效 | risers
+磁带饱和 | tape saturation
+人声铺底 | choir pad

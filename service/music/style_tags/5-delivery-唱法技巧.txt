@@ -1,0 +1,32 @@
+# 格式：中文 | English
+# 唱法技巧 / 演唱方式 Delivery
+弱颤音 | soft vibrato
+宽颤音 | wide vibrato
+无颤音 | no vibrato
+强声 | belting
+胸声 | chest voice
+头声 | head voice
+混声 | mixed voice
+假声 | falsetto
+气声耳语 | whispery
+贴耳近场 | intimate close-mic
+戏剧化 | dramatic
+克制内敛 | restrained
+情绪饱满 | emotional
+激情 | passionate
+深情 | soulful
+转音花腔 | melismatic
+装饰音 | ornamented
+连奏 | legato
+顿音 | staccato
+气声唱法 | breathy delivery
+口语化 | spoken delivery
+呐喊 | shouty
+嘶吼 | screaming
+低吟 | crooning
+吟唱 | chanting
+一唱一和 | call and response
+自由节奏 | rubato phrasing
+抢拍 | behind the beat
+稳拍 | on-beat phrasing
+强弱起伏大 | wide dynamic range

@@ -9,7 +9,7 @@ if CURRENT_DIR not in sys.path:
 
 from base import (
     LLAMA_CPP_STORAGE, preset_prompts, preset_tags,
-    load_text_presets, image_to_base64_jpeg, cqdm, _MTMD
+    load_text_presets, image_to_base64_jpeg, cqdm, _MTMD, output_text, thinking_modes
 )
 
 _CACHE = {}
@@ -39,48 +39,52 @@ class llama_run_lite:
 
         return {
             "required": {
-                "model": (model_list, {"default": model_list[0]}),
-                "preset_prompt": (preset_tags, {"default": preset_tags[1] if len(preset_tags) > 1 else preset_tags[0]}),
-                "custom_prompt": ("STRING", {"default": "", "multiline": True, "placeholder": "user_prompt"}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1}),
-                "use_cache": ("BOOLEAN", {
+                "模型": (model_list, {"default": model_list[0]}),
+                "预设提示词": (preset_tags, {"default": preset_tags[1] if len(preset_tags) > 1 else preset_tags[0]}),
+                "自定义提示词": ("STRING", {"default": "", "multiline": True, "placeholder": "user_prompt"}),
+                "随机种子": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff, "step": 1}),
+                "使用缓存": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "Use cached result from last run. Skips model inference and returns previous output."
                 }),
-                "use_inference": ("BOOLEAN", {
+                "启用推理": ("BOOLEAN", {
                     "default": False,
                     "tooltip": "Use LLM inference. If False, outputs the custom_prompt directly without calling the model."
+                }),
+                "思考模式": (thinking_modes, {
+                    "default": "auto",
+                    "tooltip": "off: Disable thinking for ANY model (sampler-level <think> budget, works even without handler support)\nauto: Model default behavior"
                 }),
             },
             "hidden": {
                 "unique_id": "UNIQUE_ID",
             },
             "optional": {
-                "images": ("IMAGE",),
+                "图片": ("IMAGE",),
             },
         }
 
     RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("output", "user_prompt")
+    RETURN_NAMES = ("输出", "用户提示词")
     FUNCTION = "run"
     CATEGORY = "luy/llama-cpp"
 
-    def run(self, model, preset_prompt, custom_prompt, seed, use_cache, use_inference, unique_id, images=None):
-        if preset_prompt == "None":
-            user_text = custom_prompt.strip()
+    def run(self, 模型, 预设提示词, 自定义提示词, 随机种子, 使用缓存, 启用推理, 思考模式, unique_id, 图片=None):
+        if 预设提示词 == "None":
+            user_text = 自定义提示词.strip()
         else:
-            p = preset_prompts.get(preset_prompt, custom_prompt.strip())
-            p = p.replace("{}", custom_prompt.strip())
+            p = preset_prompts.get(预设提示词, 自定义提示词.strip())
+            p = p.replace("{}", 自定义提示词.strip())
             p = p.replace("@", "image")
             user_text = p
 
-        if not use_inference:
-            return (custom_prompt.strip(), user_text)
+        if not 启用推理:
+            return (自定义提示词.strip(), user_text)
 
         lite_models = _load_lite_config()
-        cfg = lite_models.get(model)
+        cfg = lite_models.get(模型)
         if cfg is None:
-            raise ValueError(f"Model '{model}' not found in lite_models config")
+            raise ValueError(f"Model '{模型}' not found in lite_models config")
 
         custom_config = {
             "model": cfg["model"],
@@ -119,12 +123,14 @@ class llama_run_lite:
         }
         if _MTMD:
             parameters.pop("presence_penalty", None)
+        if 思考模式 == "off":
+            parameters["reasoning_budget"] = 0
 
-        if images is not None:
-            if hasattr(images, 'shape'):
-                image_count = images.shape[0]
+        if 图片 is not None:
+            if hasattr(图片, 'shape'):
+                image_count = 图片.shape[0]
             else:
-                image_count = len(images)
+                image_count = len(图片)
         else:
             image_count = 0
 
@@ -138,24 +144,24 @@ class llama_run_lite:
         messages = [{"role": "system", "content": system_prompt}]
 
         user_content = []
-        if preset_prompt == "None":
-            user_text = custom_prompt.strip()
+        if 预设提示词 == "None":
+            user_text = 自定义提示词.strip()
         else:
-            p = preset_prompts.get(preset_prompt, custom_prompt.strip())
-            p = p.replace("{}", custom_prompt.strip())
+            p = preset_prompts.get(预设提示词, 自定义提示词.strip())
+            p = p.replace("{}", 自定义提示词.strip())
             p = p.replace("@", "image")
             user_text = p
         user_content.append({"type": "text", "text": user_text})
 
         uid = unique_id.rpartition('.')[-1]
 
-        if use_cache and uid in _CACHE:
+        if 使用缓存 and uid in _CACHE:
             print(f"[llama-cpp_lite] Cache hit for node {uid}, skipping inference.")
             return _CACHE[uid]
 
         out1 = ""
 
-        if images is not None and image_count > 0:
+        if 图片 is not None and image_count > 0:
             if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:
                 raise ValueError("Image input detected, but the loaded model is not configured with a mmproj module.")
 
@@ -163,7 +169,7 @@ class llama_run_lite:
                 user_content.append({"type": "image_url", "image_url": {"url": ""}})
                 messages.append({"role": "user", "content": user_content})
 
-                for image in cqdm(images):
+                for image in cqdm(图片):
                     if mm.processing_interrupted():
                         raise mm.InterruptProcessingException()
                     data = image_to_base64_jpeg(image)
@@ -171,20 +177,20 @@ class llama_run_lite:
                         if item.get("type") == "image_url":
                             item["image_url"]["url"] = f"data:image/jpeg;base64,{data}"
                             break
-                    output = llama_model.llm.create_chat_completion(messages=messages, seed=seed, **parameters)
-                    out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                    output = llama_model.llm.create_chat_completion(messages=messages, seed=随机种子, **parameters)
+                    out1 = output_text(output, 思考模式)
                     data = None
             else:
-                for image in images:
+                for image in 图片:
                     data = image_to_base64_jpeg(image)
                     user_content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{data}"}})
                 messages.append({"role": "user", "content": user_content})
-                output = llama_model.llm.create_chat_completion(messages=messages, seed=seed, **parameters)
-                out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+                output = llama_model.llm.create_chat_completion(messages=messages, seed=随机种子, **parameters)
+                out1 = output_text(output, 思考模式)
         else:
             messages.append({"role": "user", "content": user_content})
-            output = llama_model.llm.create_chat_completion(messages=messages, seed=seed, **parameters)
-            out1 = output['choices'][0]['message']['content'].removeprefix(": ").lstrip()
+            output = llama_model.llm.create_chat_completion(messages=messages, seed=随机种子, **parameters)
+            out1 = output_text(output, 思考模式)
 
         del messages
         gc.collect()

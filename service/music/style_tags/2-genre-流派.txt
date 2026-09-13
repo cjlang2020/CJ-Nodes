@@ -1,0 +1,70 @@
+# 格式：中文 | English
+# 流派 / 曲风 Genre
+流行 | pop
+抒情慢歌 | pop ballad
+力量情歌 | power ballad
+成人抒情 | adult contemporary
+城市流行 | city pop
+合成器流行 | synth pop
+梦幻流行 | dream pop
+独立流行 | indie pop
+民谣流行 | folk pop
+中文流行 | chinese pop
+国语流行 | mandopop
+粤语流行 | cantopop
+日系流行 | j-pop
+韩流 | k-pop
+摇滚 | rock
+轻摇滚 | soft rock
+独立摇滚 | indie rock
+另类摇滚 | alternative rock
+硬摇滚 | hard rock
+朋克 | punk rock
+金属 | metal
+交响金属 | symphonic metal
+爵士 | jazz
+爵士放克 | jazz-funk
+平滑爵士 | smooth jazz
+波萨诺瓦 | bossa nova
+摇摆乐 | swing
+蓝调 | blues
+节奏布鲁斯 | R&B
+灵魂乐 | soul
+新灵魂 | neo-soul
+放克 | funk
+迪斯科 | disco
+豪斯 | house
+科技舞曲 | techno
+电子舞曲 | EDM
+迷幻舞曲 | trance
+回响贝斯 | dubstep
+鼓打贝斯 | drum and bass
+氛围音乐 | ambient
+低保真 | lo-fi
+合成器浪潮 | synthwave
+蒸汽波 | vaporwave
+嘻哈 | hip-hop
+陷阱 | trap
+说唱 | rap
+雷鬼 | reggae
+乡村 | country
+民谣 | folk
+原声弹唱 | acoustic
+创作歌手 | singer-songwriter
+福音 | gospel
+合唱 | choral
+古典 | classical
+管弦乐 | orchestral
+电影配乐 | cinematic
+影视原声 | film score
+中国传统 | chinese traditional
+国风 | guofeng
+新世纪 | new age
+凯尔特 | celtic
+拉丁 | latin
+弗拉门戈 | flamenco
+探戈 | tango
+圆舞曲 | waltz
+进行曲 | marching band
+儿歌 | children's song
+摇篮曲 | lullaby

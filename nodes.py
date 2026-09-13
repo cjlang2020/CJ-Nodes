@@ -91,6 +91,7 @@ CUSTOM_DISPLAY_NAMES = {
     "CJYuE2Unload": "Luy-YuE2卸载模型",
     "CJSheetSage2Transcribe": "Luy-SheetSage2扒谱",
     "CJSheetSage2Unload": "Luy-SheetSage2卸载模型",
+    "CJMusicStyleTags": "Luy-音乐风格标签",
     "ImageGridCrop": "Luy-图片网格裁切",
 }
 
@@ -130,7 +131,17 @@ def load_nodes_from_file(file_path):
         # 不设置__package__，让相对导入基于sys.path解析
         module.__package__ = None
 
-        spec.loader.exec_module(module)
+        # 关键修复5：注册到 sys.modules。
+        # module_from_spec + exec_module **不会**自动注册（只有 import 语句才会），
+        # 而 service/ 下的节点文件之间需要按模块名互相调用（例：service/music 里
+        # YuE2 与 SheetSage2 靠 sys.modules["cj_nodes_xxx"] 互相卸模型来避免 8GB 卡 OOM），
+        # 不注册则那些查找永远得到 None，互斥逻辑静默失效。
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except BaseException:
+            sys.modules.pop(module_name, None)   # 加载失败不留半成品
+            raise
 
         # 遍历模块中的所有类并添加到映射
         for member_name in dir(module):

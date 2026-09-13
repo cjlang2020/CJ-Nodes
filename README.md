@@ -58,7 +58,7 @@
 | 各分类下拉菜单 | STRING | 自动读取提示词文件，可选"忽略"或"随机" |
 | 启用选择节点 | BOOLEAN | 是否启用分类选择 |
 | txt_str（可选） | STRING | 自定义追加提示词 |
-| seed（可选） | INT | 随机种子 |
+| 随机种子（可选） | INT | 随机种子 |
 
 **输出:** `中文标签` / `英文标签` / `中英混合标签` / `包含主题内容`
 
@@ -225,26 +225,35 @@ Token 级别的随机组合选择器。选择"随机"时从可选值中抽取 N 
 
 | 主要参数 | 类型 | 说明 |
 |---------|------|------|
-| model / mmproj | DROPDOWN | 模型文件和投影文件 |
-| chat_handler | DROPDOWN | 对话处理器 |
-| n_ctx | INT | 上下文长度（默认 8192） |
-| inference_mode | DROPDOWN | one by one / images / video |
-| preset_prompt | DROPDOWN | 预设提示词 |
-| max_tokens / temperature | INT/FLOAT | 生成参数 |
-| draft_model_type | DROPDOWN | 推测解码类型 |
-| enable_mtp | BOOLEAN | 多 Token 预测 |
-| images（可选） | IMAGE | 输入图像 |
+| 模型 / 视觉模块 | DROPDOWN | 模型文件和投影文件 |
+| 对话模板 | DROPDOWN | 对话处理器 |
+| 上下文长度 | INT | 上下文长度（默认 8192） |
+| 推理模式 | DROPDOWN | one by one / images / video |
+| 预设提示词 | DROPDOWN | 预设提示词 |
+| 最大生成长度 / 温度 | INT/FLOAT | 生成参数 |
+| 投机解码 | DROPDOWN | 推测解码类型 |
+| 启用MTP | BOOLEAN | 多 Token 预测 |
+| 思考模式 | DROPDOWN | auto / off；off 用采样器级推理预算对任意模型关闭思考 |
+| 图片（可选） | IMAGE | 输入图像 |
 
-**输出:** `output` / `output_list` / `state_uid`
+**输出:** `输出` / `输出列表` / `状态ID`
 
 ---
 
 #### Luy-LlamaCpp反推（简化版）
 **类别:** `llama-cpp-vlm`
 
-简化版 VLM 节点，参数更少，适合快速使用。
+简化版 VLM 节点，参数更少，适合快速使用。带 `思考模式`（默认 `off` 关闭思考；auto 交给模型）、`使用缓存`、`启用推理`（默认开启；关掉则跳过推理直传提示词）、`打印提示词`；采样参数（最大生成长度默认 4096/TopK/TopP/最小P/典型P/温度/重复惩罚/频率惩罚/存在惩罚/Mirostat）已全部暴露，`图片最小token` / `图片最大token` 为加载期参数（改动会触发模型重载）。
 
-**输出:** `output` / `output_list` / `state_uid`
+> `上下文长度` 默认 12800。KV cache 开销按模型差异较大（f16 下约 0.5GB ~ 2GB，见 `AGENTS.md`），显存吃紧时优先降这个值。
+
+`分隔符`：留空则不分割（数组输出为整段文本）；填写后把 `输出` 按它拆成字符串数组（支持字面量 `\n`、`\t` 写法，自动去首尾空白并丢弃空项，拆不出内容时回退为整段文本）。
+
+**输出:** `输出` / `输出列表` / `状态ID` / `系统提示词` / `用户提示词` / `分隔结果`（字符串数组）
+
+> llama-cpp 域的其余节点（Model Loader / Instruct / Parameters / Text Simple / Run Lite）输入输出字段同样已中文化，含义见各输入项 tooltip。
+>
+> 系统提示词（完整版）/ 系统角色提示词（简化版）：填写则优先使用，留空则用节点内置默认角色；语言要求**始终**按 `中文回复` 开关追加，填写系统提示词不会让该开关失效。
 
 ---
 
@@ -717,33 +726,33 @@ PIL 和 Tensor 两种实现方式的视频 90° 旋转节点。
 #### Luy-SheetSage2扒谱
 **类别:** `luy/音乐`
 
-音频 → 乐谱(ABC) / MIDI / 调性 / 和弦 / 曲式结构 / 节拍标注。基于 SheetSage2（MERT-v2-FullSong 编码器 + 适配器），贪心解码、结果确定性（无 seed 参数）。
+音频 → 乐谱(ABC) / MIDI / 调性 / 和弦 / 曲式结构 / 节拍标注。基于 SheetSage2（MERT-v2-FullSong 编码器 + 适配器），贪心解码、结果确定性（无需随机种子）。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| sheetsage2_model | 下拉 | 取自 `models/YuE2/models/SheetSage2`；新增模型后需重启或点"重载插件" |
+| 扒谱模型 | 下拉 | 取自 `models/YuE2/models/SheetSage2`；新增模型后刷新页面(F5)即可 |
 | audio | AUDIO | 任意采样率/声道，内部自动转单声道并重采样到 24kHz（核心 LoadAudio 即可） |
-| melody_only（可选） | BOOLEAN | 落盘产物（score.abc / 伴奏 MIDI）是否去和弦；**两版 ABC 字符串始终都会输出** |
-| dtype（可选） | bf16 / fp32 | bf16 更快更省显存（默认）；数值异常时改 fp32 |
-| max_seconds（可选） | FLOAT | 只处理前 N 秒，0=整首；长音频自动分 300s 窗滚动推理 |
-| preset（可选） | default / paper | default=通用（推荐）；paper=论文/评测口径 |
-| overlap_seconds（可选） | FLOAT | 高级：窗口重叠秒数，-1=模型默认 200s，不建议改 |
-| lookahead_seconds（可选） | FLOAT | 高级：窗口前瞻秒数，-1=模型默认 100s，不建议改 |
-| release_after（可选） | BOOLEAN | 转写后释放显存（约 2.7GB）给生成节点让路，默认开 |
+| 去和弦存档（可选） | BOOLEAN | 落盘产物（score.abc / 伴奏 MIDI）是否去和弦；**两版 ABC 字符串始终都会输出** |
+| 计算精度（可选） | bf16 / fp32 | bf16 更快更省显存（默认）；数值异常时改 fp32 |
+| 处理时长上限（可选） | FLOAT | 只处理前 N 秒，0=整首；长音频自动分 300s 窗滚动推理 |
+| 提示词预设（可选） | default / paper | default=通用（推荐）；paper=论文/评测口径 |
+| 窗口重叠秒数（可选） | FLOAT | 高级：窗口重叠秒数，-1=模型默认 200s，不建议改 |
+| 窗口前瞻秒数（可选） | FLOAT | 高级：窗口前瞻秒数，-1=模型默认 100s，不建议改 |
+| 转写完释放显存（可选） | BOOLEAN | 转写后释放显存（约 2.7GB）给生成节点让路，默认开 |
 
-**输出（9 路）:**
+**输出（9 路，均为中文名）:**
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| abc_melody | STRING | 无和弦旋律谱 → 接 YuE2 的 `abc_text` 且 **cot=melody**（推荐，旋律复刻） |
-| abc_full | STRING | 带和弦完整谱 → 接 `abc_text` 且 **cot=full** |
-| style_hint | STRING | 事实型风格底稿（调性/速度/拍号/和声骨架/曲式）→ 可接 YuE2 的 `style`，再补流派与人声标签 |
-| key | STRING | 如 `D major` |
-| tempo | FLOAT | BPM（取自 ABC 的 Q: 字段，回退用强拍间隔推算） |
-| chords | STRING | 和弦频次汇总，如 `Asus2×24、Bsus2×20、Gmaj7×16…` |
-| structure | STRING | 曲式，如 `intro → verse×2 → chorus×2 → outro` |
-| midi_dir | STRING | 落盘目录（含 score.abc / score_melody.abc / transcription.mid / melody_vocal.mid / melody_instrumental.mid / chords.mid / events.json / *.lab / summary.txt） |
-| info | STRING | 汇总：时长/调性/BPM/音符数/小节数/耗时/峰值显存/ABC 字符数/警告 |
+| 旋律谱ABC | STRING | 无和弦旋律谱 → 接 YuE2 的 `abc_text` 且 **cot=melody**（推荐，旋律复刻） |
+| 完整谱ABC | STRING | 带和弦完整谱 → 接 `abc_text` 且 **cot=full** |
+| 风格底稿 | STRING | 事实型风格底稿（调性/速度/拍号/和声骨架/曲式）→ 可接 YuE2 的 `style`，再补流派与人声标签 |
+| 调性 | STRING | 如 `D major` |
+| 速度BPM | FLOAT | BPM（取自 ABC 的 Q: 字段，回退用强拍间隔推算） |
+| 和弦 | STRING | 和弦频次汇总，如 `Asus2×24、Bsus2×20、Gmaj7×16…` |
+| 曲式结构 | STRING | 曲式，如 `intro → verse×2 → chorus×2 → outro` |
+| 产物目录 | STRING | 落盘目录（含 score.abc / score_melody.abc / transcription.mid / melody_vocal.mid / melody_instrumental.mid / chords.mid / events.json / *.lab / summary.txt） |
+| 扒谱信息 | STRING | 汇总：时长/调性/BPM/音符数/小节数/耗时/峰值显存/ABC 字符数/警告 |
 
 实测（RTX 4060 Laptop 8GB）：加载 6-9s；305s 全曲转写 26s，峰值显存 3.24GB。
 
@@ -752,11 +761,11 @@ PIL 和 Tensor 两种实现方式的视频 90° 旋转节点。
 #### Luy-SheetSage2卸载模型
 **类别:** `luy/音乐`
 
-释放扒谱模型显存（约 2.7GB）。扒谱节点默认 `release_after=True`，一般无需手动卸载。
+释放扒谱模型显存（约 2.7GB）。扒谱节点默认 【转写完释放显存】=开，一般无需手动卸载。
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| status | STRING | 卸载结果 |
+| 状态 | STRING | 卸载结果 |
 
 ---
 
@@ -767,11 +776,11 @@ PIL 和 Tensor 两种实现方式的视频 90° 旋转节点。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| model_variant | 下拉 | `models/YuE2/models/<变体>/`，当前为 `nf4` |
+| 模型变体 | 下拉 | `models/YuE2/models/<变体>/`，当前为 `nf4` |
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| yue2_model | YUE2_MODEL | 接生成节点 |
+| 音乐模型 | YUE2_MODEL | 接生成节点 |
 
 ---
 
@@ -782,21 +791,21 @@ PIL 和 Tensor 两种实现方式的视频 90° 旋转节点。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| model | YUE2_MODEL | 来自模型加载节点 |
-| style | STRING | 风格标签（乐器/人声/节奏/BPM） |
-| lyrics | STRING | 歌词，支持 `[Verse]`/`[Chorus]` 等结构标签 |
-| cot（可选） | full / melody / off | 生成模式；用外部 ABC 时需 melody 或 full（与 ABC 版本配对） |
-| cfg_scale（可选） | FLOAT | -1=自动；>1 启用符号 CFG 且耗时翻倍 |
-| abc_text（可选） | STRING | 外部 ABC 乐谱（可接扒谱节点的 abc_melody / abc_full） |
-| abc_max_tokens（可选） | INT | ABC 规划长度上限（对**外部** ABC 不截断） |
-| semantic_max_tokens（可选） | INT | 语义 token 上限（≈歌曲时长保险丝）；时长主要由歌词行数决定 |
-| advanced_sampling_json（可选） | STRING | 覆盖采样参数（temperature/top_p/top_k 等） |
+| 音乐模型 | YUE2_MODEL | 来自模型加载节点 |
+| 风格 | STRING | 风格标签（乐器/人声/节奏/BPM） |
+| 歌词 | STRING | 歌词，支持 `[Verse]`/`[Chorus]` 等结构标签 |
+| 生成模式（可选） | full / melody / off | 生成模式；用外部 ABC 时需 melody 或 full（与 ABC 版本配对） |
+| CFG强度（可选） | FLOAT | -1=自动；>1 启用符号 CFG 且耗时翻倍 |
+| 乐谱ABC（可选） | STRING | 外部 ABC 乐谱（可接扒谱节点的 abc_melody / abc_full） |
+| ABC最大长度（可选） | INT | ABC 规划长度上限（对**外部** ABC 不截断） |
+| 语义最大长度（可选） | INT | 语义 token 上限（≈歌曲时长保险丝）；时长主要由歌词行数决定 |
+| 高级采样JSON（可选） | STRING | 覆盖采样参数（temperature/top_p/top_k 等） |
 | seed（可选） | INT | 换种子出不同版本 |
 
 | 输出 | 类型 | 说明 |
 |------|------|------|
-| audio | AUDIO | 48kHz 立体声，接 SaveAudio |
-| info | STRING | 时长/截断状态/耗时 |
+| 音频 | AUDIO | 48kHz 立体声，接 SaveAudio |
+| 生成信息 | STRING | 时长/截断状态/耗时 |
 
 ---
 
@@ -808,6 +817,44 @@ PIL 和 Tensor 两种实现方式的视频 90° 旋转节点。
 | 输出 | 类型 | 说明 |
 |------|------|------|
 | status | STRING | 卸载结果 |
+
+---
+
+#### Luy-音乐风格标签
+**类别:** `luy/音乐`
+
+给 YuE2 生成节点拼 `style` 的点选式多选器。**界面全中文，选项显示「中文 | English」，输出只有英文**。15 个分类下拉共 355 个选项，输出顺序由类别固定（语种→流派→人声→乐器→情绪→节奏→年代），同一组选择结果可复现。
+
+| 参数（界面名） | 类型 | 说明 |
+|------|------|------|
+| 语种 / 流派1-2 / 人声类型 / 音色质地1-2 / 唱法技巧 / 乐器1-3 / 情绪氛围1-3 / 节奏编曲 / 年代制作 | COMBO | 共 15 个分类下拉；首项「（不选）」= 忽略。**控件名直接取自词表文件名的中文部分** |
+| BPM | FLOAT | 末尾输出的速度标签，**0=不输出**（默认 0；与扒谱 `style_hint` 同用时保持 0，否则出现两个 BPM） |
+| 补充标签 | STRING | 词表里没有的标签，逗号分隔（中英都可，中文会被自动剥离） |
+| 分隔符 | STRING | 标签分隔符，默认 `, `；支持字面量 `\n` |
+
+| 输出（括号内为内部标识） | 类型 | 说明 |
+|------|------|------|
+| 风格 | STRING | 全部选中项（英文，含 BPM）→ 接生成节点的 `style` |
+| 人声 | STRING | 人声三要素（类型+音色质地+唱法）→ 「只换人声」对照实验用 |
+| 乐器 / 情绪 / 其他 | STRING | 乐器 / 情绪 / 其余（语种+流派+节奏+年代） |
+| 补充 | STRING | 「补充标签」的内容（不混进任何类别分组） |
+| 速度 | STRING | 单独的 `80 BPM` 标签 |
+
+词表在 `service/music/style_tags/*.txt`，一行一条、格式 `中文 | English`，**加文件即加类别**，**文件名的中文部分就是界面控件名**（改完 F5 刷新页面即生效）。
+
+**与扒谱节点合用的三种接法：**
+
+```
+【默认·保留原曲调性与速度】
+扒谱.【风格底稿】─► 风格合并.text1 ；风格标签.【风格】（BPM=0） ─► 风格合并.text2 → 生成.【风格】
+
+【进阶·分组替换】（StringMergeDeal 有 8 槽）
+扒谱.【风格底稿】→ text1 ；风格标签.【人声】→ text2 ；【乐器】→ text3 ；
+【情绪】→ text4 ；【其他】→ text5 ；【补充】→ text6          → 生成.【风格】
+
+【完全自主·大改风格】
+断开 style_hint，在风格标签里填 bpm，只接 风格标签.style → 生成.style
+```
 
 ---
 
