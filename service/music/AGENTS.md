@@ -304,6 +304,65 @@ ComfyUI 原生 COMBO 是单选，多点选只有三条路：① N 个槽位下�
 
 ---
 
+# 风格标签替换（service/music/music_style_nodes.py · CJMusicStyleReplacer + web/js/music_style_editor.js）
+
+跟“音乐风格标签”共用词表目录，但方向相反：**先有风格串，再逐标签改**。把扒谱 `style_hint`
+这类逗号串拆成“一行一个标签”，前端面板每行给「类别下拉 + 取值下拉 + 常用点选 + 手输」，
+改完拼回逗号串。
+
+## 三条硬约束（改代码前必读）
+
+1. **行值原文照抄**：`row["value"]` 初始就是原标签文本，只有用户主动改才变 → 没改的标签
+   往返后与原文逐字相同（“分类/归一化绝不顺手改用户风格”）。有往返断言（三个样例均逐字相等）。
+2. **状态存隐藏 widget `替换状态`**（JSON `{source, rows}`），后端**只在 `source` 与本次输入
+   完全一致时**才采用；否则（空/坏 JSON/上游变了）**原样输出输入**。这样上游一变就不会用错位的旧行表。
+3. **前端只是渲染器**：解析/分类/候选值全在 Python（`parse_style`/`_classify_tag`/`style_categories`），
+   前端不重复实现。面板没加载时本节点就是一条透传线（从 INPUT_TYPES 到输出均不依赖 JS）。
+
+## 解析规则（针对扒谱真实产出）
+
+`C major, 96 BPM, slow, 4/4, harmony built on C, Am, F, G, verse-chorus form, sections: intro → verse×2 → …`
+
+- 先按 `,，;；、\n` 切，再回并复合短语：`harmony built on …` 后跟和弦名（正则）继续吸收；
+  `sections: …` 后跟段落名/未命中任何类别的短词继续吸收。
+- `96 BPM` 与 `slow` **故意不合并**（拆两行才好单独改），拼回后与原文相同。
+- 分类顺序：结构型正则（key/bpm/tempo_feel/meter/harmony/form/structure）→ `style_tags/` 词表
+  （中/英都匹配，归一化键 `_token_key`：小写 + `&`→and + 去标点）→ `other`。
+  `unknown key` / `unknown tempo` 分别归到 key / bpm（方便直接填）。
+- 词表缓存按 txt 的 `(mtime, size)` 失效 → 改词表仍只需 F5。
+
+## 两个本地路由（在 CJ-Nodes/__init__.py，**加/改后必须重启一次**）
+
+- `GET  /CJ-Nodes/api/music-style/vocab` → 17 个类别（7 结构型 + 9 词表 + other）+ 每类 chips
+- `POST /CJ-Nodes/api/music-style/parse` → `{style, delimiter}` → `{rows, result, source, delimiter}`
+
+两个 handler 都通过 `comfy_nodes.NODE_CLASS_MAPPINGS['CJMusicStyleReplacer']` 拿类调 classmethod
+（`vocabulary_payload` / `parse_payload`）——**不吃 service/ 的 import 路径坑，且吃得到热重载**。
+
+## 为什么必须先执行一次（实测结论，不要试图绕过）
+
+扒谱节点不返回 ui，而 ComfyUI 只在节点返回 ui 时下发 `executed`；前端 `widget.linkedUpstream`
+也只认“上游同名 widget / 唯一非空 widget”，对纯 STRING 输出无效。所以：
+
+- 第一次 Queue：输出 = 原样透传，同时 `ui.ms_rows` 把解析结果回传 → 面板自动填充 + 写状态；
+- 之后改行再 Queue：`used_state=True`，输出 = 面板行表拼接。上游有缓存，第二次很快。
+- 想让面板更早有值，只能给扒谱补 `ui`（**不建议**：本节点和扒谱在同一次 prompt 里，它执行完 Ui 也到了）。
+
+JS 侧同步入口：`onNodeCreated` / `onConfigure` / 源 widget callback / `onExecuted`，都是“懒同步”（可重复调用，按 source 去重）；连线上游时「风格」widget 永远是空的，
+靠 `hasUpstream(node) && rows.length` 区分“正常空”与“输入被清空”：连线上游时「风格」widget 自身永远是空的，
+**只要连线还在且有行表就不动行表**（点「重新解析」= 把各行恢复成原始标签），别把这条判断删了。
+
+## 面板高度（通用做法见 CJ-Nodes/AGENTS.md「内嵌 DOM 面板高度跟随节点」）
+
+本节点只记具体取值，规则与原理看通用那节：
+
+- **不能**给面板 widget 加 `computeSize`（会被当固定高度，节点拉高面板不跟着高）→ 只设
+  `--comfy-widget-min-height: 200px` + `.cj-ms{height:100%}` + 行列表 `flex:1 1 auto;overflow-y:auto`。
+- `fitNodeHeight()` 只做“内容装不下时按缺口补高”（`need - wrap.clientHeight`），`_msFitted` 防止
+  把用户手动缩小抢回去；拿不到 `clientHeight` 时下一帧重试（限 8 次）。
+
+---
+
 # 生成进度显示（百分比 / 预计剩余时间）
 
 yue2 引擎自带的 `Progress`（`yue2/progress.py`）在「总量未知」时**刻意不给百分比**——`Planning score`

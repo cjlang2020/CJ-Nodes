@@ -89,11 +89,9 @@ app.registerExtension({
                     }
                 );
 
-                // 设置面板尺寸
-                canvasWidget.computeSize = function(width) {
-                    const w = width || 400;
-                    return [w, 800];
-                };
+                // 高度跟随节点：不能给 DOM widget 写 computeSize（会退化成固定高度、拿不到弹性空间），
+                // 只给最小高度，剩余高度由前端弹性分配（通用做法见 CJ-Nodes/AGENTS.md）
+                iframe.style.setProperty("--comfy-widget-min-height", "420px");
                 if (canvasWidget.element) canvasWidget.element.style.pointerEvents = "auto";
                 this.drawIframe = iframe;
 

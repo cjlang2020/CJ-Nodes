@@ -69,6 +69,8 @@ warm, dreamy, melancholic, bittersweet, nostalgic, uplifting, hopeful, energetic
 | [Instrumental] | 间奏，无词（单独成段，慎用） | 不写词 |
 | [Outro] | 尾奏收束 | 1-4 行 |
 
+4分钟歌曲顺序：Intro → Verse → Pre-Chorus → Chorus×2 → Interlude → Verse → Pre-Chorus → Chorus×2 → Bridge → Chorus×2 → Outro；
+
 ## 3.2 ★ 时长控制原理与歌词量换算（用户指定时长时必须照做）
 
 YUe2 **没有时长参数**，时长完全由歌词量决定，链路是：

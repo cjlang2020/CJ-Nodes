@@ -92,6 +92,7 @@ CUSTOM_DISPLAY_NAMES = {
     "CJSheetSage2Transcribe": "Luy-SheetSage2扒谱",
     "CJSheetSage2Unload": "Luy-SheetSage2卸载模型",
     "CJMusicStyleTags": "Luy-音乐风格标签",
+    "CJMusicStyleReplacer": "Luy-风格标签替换",
     "ImageGridCrop": "Luy-图片网格裁切",
 }
 

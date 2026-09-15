@@ -60,11 +60,9 @@ app.registerExtension({
                     }
                 );
 
-                // 设置面板尺寸 - 固定高度600px
-                promptWidget.computeSize = function(width) {
-                    const w = width || 500;
-                    return [w, 620];
-                };
+                // 高度跟随节点：不能给 DOM widget 写 computeSize（会退化成固定高度、拿不到弹性空间），
+                // 只给最小高度，剩余高度由前端弹性分配（通用做法见 CJ-Nodes/AGENTS.md）
+                iframe.style.setProperty("--comfy-widget-min-height", "380px");
 
                 if (promptWidget.element) {
                     promptWidget.element.style.pointerEvents = "auto";

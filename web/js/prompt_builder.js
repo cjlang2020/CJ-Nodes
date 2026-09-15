@@ -422,7 +422,7 @@ function injectStyles() {
     const s = document.createElement("style");
     s.id = "cj-pb-style";
     s.textContent = `
-        .cj-pb{display:flex;flex-direction:column;gap:4px;padding:4px;font:12px sans-serif;color:#ccc;overflow-y:auto}
+        .cj-pb{display:flex;flex-direction:column;gap:4px;padding:4px;font:12px sans-serif;color:#ccc;height:100%;min-height:0;box-sizing:border-box;overflow-y:auto}
         .cj-pb-r{display:flex;align-items:center;gap:6px}
         .cj-pb-l{width:55px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .cj-pb-i{flex:1;min-width:0;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:3px 6px;outline:none}
@@ -1064,6 +1064,7 @@ function buildUI(node) {
     node._pbPhotoI=photoI;node._pbArtI=artI;node._pbUpdStyle=updStyle;
     node._pbBuildScpSwatches=buildScpSwatches;
 
+    wrap.style.setProperty("--comfy-widget-min-height", "300px");   // 高度跟随节点
     node.addDOMWidget("pb_panel","Prompt Builder",wrap,{
         getValue:()=>JSON.stringify(node._pb),
         setValue:v=>{try{Object.assign(node._pb,JSON.parse(v));rebuildAll(node);}catch(e){}}

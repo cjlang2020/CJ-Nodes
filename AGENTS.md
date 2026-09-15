@@ -21,7 +21,7 @@ CJ-Nodes/
 │   ├── filetools/         # txt 读写
 │   ├── princepainter/     # Painter 系列视频生成（首尾帧/长视频/多帧/音频裁剪/Flux2 图编辑）
 │   ├── locateanything/    # 目标检测 + 裁剪
-│   ├── music/             # 音乐：YuE2 生成（yue2_music_nodes.py，3 节点）+ SheetSage2 扒谱（sheetsage2_music_nodes.py，2 节点）+ 风格标签（music_style_nodes.py + style_tags/ 词表，1 节点）；yue2 引擎在 libs/yue2，详见本目录 AGENTS.md
+│   ├── music/             # 音乐：YuE2 生成（yue2_music_nodes.py，3 节点）+ SheetSage2 扒谱（sheetsage2_music_nodes.py，2 节点）+ 风格标签 / 风格标签替换（music_style_nodes.py + style_tags/ 词表，2 节点）；yue2 引擎在 libs/yue2，详见本目录 AGENTS.md
 │   ├── pose/              # 姿态编辑
 │   └── *.py               # 根目录散落节点：DualCLIPLoader、QwenMultiangleCameraNode、VisClipCopy、VramClean、QwenEditAddLlamaTemplate 等
 ├── web/                   # 独立功能页面（*.html，经 /CJ-Nodes/{path} 路由访问）
@@ -94,6 +94,7 @@ CJ-Nodes/
 | CJYuE2ModelLoader / CJYuE2Generate / CJYuE2Unload | YuE2 音乐生成：加载 / 生成（风格+歌词→48kHz 音频）/ 卸载 | yue2_music_nodes.py |
 | CJSheetSage2Transcribe / CJSheetSage2Unload | SheetSage2 音频扒谱：音频→两版 ABC/MIDI/调性/和弦/曲式+风格底稿；卸载 | sheetsage2_music_nodes.py |
 | CJMusicStyleTags | 音乐风格标签：分类多选（356 选项，中英对照、输出英文）→ 接生成的 style | music_style_nodes.py（词表 style_tags/） |
+| CJMusicStyleReplacer | 风格标签替换：扒谱 style 拆成一行一个标签，前端面板逐行换（下拉/点选/手输）后拼回；状态存隐藏 widget，过期则原样透传 | music_style_nodes.py + web/js/music_style_editor.js（路由 /CJ-Nodes/api/music-style/*） |
 
 ## 设计约定（新增/修改节点必读）
 
@@ -117,6 +118,64 @@ CJ-Nodes/
 - `web/*.html`：独立功能页（图片绘画/编辑、风格选择、镜头控制、姿态编辑等），节点通过 iframe/浏览器打开 `http://<host>:<port>/CJ-Nodes/<page>.html` 访问；`__init__.py` 的 `/CJ-Nodes/{path}` 路由做了路径穿越安全检查（`_is_safe_child`），新页面放 web/ 根目录即可被访问。
 - 后端 API 挂在 `__init__.py`（如 `POST /CJ-Nodes/api/open-directory`），新 API 同样加在该文件。
 
+## 内嵌 DOM 面板高度跟随节点（通用做法，前端 1.52 实测）
+
+给节点加内嵌面板（`node.addDOMWidget(...)`，如 `web/js/music_style_editor.js`）时，想让它**随节点高度伸缩、内部滚动**，必须按下面做，否则会出现“面板高度写死、节点拉高面板不动”。
+
+框架行为（1.52 的 `_arrangeWidgets` / `computeLayoutSize`）：widget 分两类——
+
+| widget | 高度来源 | 结果 |
+|---|---|---|
+| 有 `computeSize` 的 | `computeSize(width)[1]` | **固定高度**，直接从可用空间扣掉，不参与弹性分配 |
+| 有 `computeLayoutSize` 的（DOM/component widget 自带） | CSS 变量 `--comfy-widget-min-height`（min）、`--comfy-widget-max-height`（max，不设=∞）、`--comfy-widget-height`（可为 `%`=节点高度百分比） | **弹性**，`distributeSpace` 把节点剩余空间全分给它 |
+
+1. **绝对不要**给 DOM widget 写 `widget.computeSize = () => [w, h]` —— 那会把它降级成固定高度（本坑踩过一次）。
+2. 高度交给弹性布局：`wrap.style.setProperty("--comfy-widget-min-height", "200px")`（给下限，别让它塌掉）。
+3. CSS 三件事：容器填满、中间列表滚动、头/尾固定——
+   ```css
+   .my-panel{display:flex;flex-direction:column;height:100%;min-height:0;box-sizing:border-box}
+   .my-panel-head,.my-panel-foot{flex:0 0 auto}
+   .my-panel-list{flex:1 1 auto;min-height:36px;overflow-y:auto}
+   ```
+4. “行变多自动把节点补高”另用 JS 补一层（**只补缺口，不跟用户手动缩小抢**）：
+   ```js
+   function fitNodeHeight(node){                        // 每次渲染后调用
+     const wrap = node._panelWrap;
+     if (!wrap || !wrap.clientHeight) return;           // 还没布局完：下一帧重试（限次数）
+     const need = naturalContentHeight(node);           // 头/脚 offsetHeight + 列表 scrollHeight
+     const have = wrap.clientHeight;                    // 当前真正分到的高度
+     if (need <= have + 4) return;
+     if (need <= (node._panelFitted ?? 0) + 4) return;  // 之前按更大内容调过 → 用户自己缩的，不抢
+     node.setSize([node.size[0], Math.min(1200, node.size[1] + (need - have))]);
+     node._panelFitted = need;
+   }
+   ```
+   - 算缺口要用 `wrap.clientHeight`（弹性分配后的真实高度）；用 `wrap.scrollHeight` 量不出缺口（容器被压缩后它等于容器高度）。
+   - `scrollHeight` 只在**列表内部**用（溢出时它仍是内容高度）。
+
+参考实现：`web/js/music_style_editor.js`（`fitNodeHeight` / `naturalContentHeight` / `--comfy-widget-min-height`）。
+
+已按此改造的面板（2026-09 一次性清掉写死的 `computeSize`；改这些文件时别再加回去）：
+
+| 面板 | 元素 | 最小高度 |
+|---|---|---|
+| `anima_style_picker.js` / `character_picker.js` / `sdxl_role_prompt_choice.js` | iframe | 380px |
+| `image_draw.js` / `image_edit.js` / `image_design.js` | iframe | 420px |
+| `vr360_crop.js` / `qwen_multiangle_{lora,plus,light}.js` / `flux2_multiangle_lora.js` | iframe | 380 / 300px |
+| `edit_region.js` / `prompt_builder.js` | wrap div（本来就没写 computeSize，补了 `height:100%` + 最小高度） | 260 / 300px |
+| `openpose_editor.js` | wrap div（3D 视口从 `aspect-ratio:1/1 + max-height:400px` 改成 `flex:1 1 auto`，跟着节点长） | 380px |
+| `music_style_editor.js` | wrap div（带 `fitNodeHeight` 自动补高） | 200px |
+
+不需要改的：`lora_loader_ui.js`（两行选择框的内容型小面板）、`CJPowerLoraLoader.js`（画布自绘 widget，`computeSize` 在这里是正确用法）、
+`prompt_manage.js`（**文件本身解析不过**：第 4 行起是一整段 HTML，浏览器加载它会 SyntaxError，它的扩展根本不会注册——待日后决定修还是删）。
+
+### 面板状态同步：连线上游时 widget 值恒为空
+
+内嵌面板常用一个隐藏 widget 存面板状态（`prompt_builder.js` 的 `prompt_data`、`music_style_editor.js` 的 `替换状态`）。注意：
+
+- 输入 widget 一旦连线上游，**widget 自身的 value 恒为空**（真实值只在执行时到后端）；同步逻辑里不能把“空值”当成“用户清空了输入”，否则 undo/重载会把面板抹掉。判断用 `node.inputs.find(i => i.name === 'xxx')?.link != null`。
+- 前端拿真实输入值的唯一可靠通道是节点返回的 `ui` 载荷 + `onExecuted(output)`（1.52 在 `addApiUpdateHandlers` 里调用，`app.nodeOutputs[nodeId]` 也会存一份）；`widget.linkedUpstream` 只认“上游同名 widget/唯一非空 widget”，对纯 STRING 输出无效。
+
 ## 注意事项与已知坑
 
 - **必须安装 llama-cpp-python**（JamePeng 预编译版，按 Python 版本选），否则 aitools/llama-cpp 节点导入失败。已验证 0.3.49；**升级包后若顶层 import 失效，整个域节点连锁消失**，版本兼容/调试/显存细节见 `service/llama-cpp/AGENTS.md`。
@@ -125,6 +184,7 @@ CJ-Nodes/
 - 同一功能常有"双版本"（如 VideoRotate90 PIL 版 / Alt 张量版），修改时确认改的是哪一个，两者在 nodes.py 显示名已区分。
 - nodes.py 加载失败仅打印日志，节点"消失"先查启动日志，再查 CUSTOM_DISPLAY_NAMES 是否漏登记；若只挂一个功能域，优先怀疑该域 base 文件（如 llama-cpp/base.py、aitools/aitools_base.py）的顶层 import 被依赖升级破坏。
 - 前端 JS 引用 ComfyUI 内部模块用相对路径 `../../../../scripts/app.js`，目录层级不能变。
+- **内嵌 DOM 面板高度**：`addDOMWidget` 的 widget **千万别加 `computeSize`**（会被当固定高度、拿不到弹性空间，表现为“节点拉高面板不动”）→ 见「内嵌 DOM 面板高度跟随节点」。
 
 ## 热重载（"重载插件"按钮）
 

@@ -58,6 +58,40 @@ async def reload_nodes(request):
         traceback.print_exc()
         return web.json_response({'ok': False, 'error': str(e)}, status=500)
 
+
+def _style_node_class():
+    """取风格标签替换节点类（走全局映射 → 吃得到热重载，且不用碰 service/ 的 import 路径）"""
+    return comfy_nodes.NODE_CLASS_MAPPINGS.get('CJMusicStyleReplacer')
+
+
+@routes.get('/CJ-Nodes/api/music-style/vocab')
+async def music_style_vocab(request):
+    """风格标签替换面板的类别表（结构型类别 + style_tags/ 词表），改词表后刷新页面即生效"""
+    try:
+        node_class = _style_node_class()
+        if node_class is None:
+            return web.json_response({'error': '节点 CJMusicStyleReplacer 未注册'}, status=404)
+        return web.json_response(node_class.vocabulary_payload())
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'error': str(e)}, status=500)
+
+
+@routes.post('/CJ-Nodes/api/music-style/parse')
+async def music_style_parse(request):
+    """把风格串拆成行表（面板渲染用）：{style, delimiter} → {source, delimiter, rows, result}"""
+    try:
+        node_class = _style_node_class()
+        if node_class is None:
+            return web.json_response({'error': '节点 CJMusicStyleReplacer 未注册'}, status=404)
+        data = await request.json()
+        return web.json_response(node_class.parse_payload(
+            data.get('style', ''), data.get('delimiter', ', ')))
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'error': str(e)}, status=500)
+
+
 @routes.get('/CJ-Nodes')
 async def serve_cj_nodes_index(request):
     for filename in ['index.html', 'index.html']:

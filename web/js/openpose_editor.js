@@ -1270,7 +1270,7 @@ function buildUI(node) {
   wrap.style.cssText = "display:flex;flex-direction:column;gap:2px;width:100%;height:100%;overflow:hidden;";
 
   const cvWrap = document.createElement("div");
-  cvWrap.style.cssText = "position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;background:#1a1a1a;border:1px solid #333;border-radius:4px;touch-action:none;max-height:400px;";
+  cvWrap.style.cssText = "position:relative;width:100%;flex:1 1 auto;min-height:220px;overflow:hidden;background:#1a1a1a;border:1px solid #333;border-radius:4px;touch-action:none;";
   
   // Style canvas to fill container
   const style = document.createElement("style");
@@ -1374,7 +1374,8 @@ function buildUI(node) {
       if (st) loadData(st, v);
     }
   });
-  widget.computeSize = (w) => [w || 300, (w || 300) + 100];
+  // 高度跟随节点：不能给 DOM widget 写 computeSize（见 CJ-Nodes/AGENTS.md）
+  wrap.style.setProperty("--comfy-widget-min-height", "380px");
 
   node.setSize([Math.max(340, node.size[0]), Math.max(460, node.size[1])]);
 

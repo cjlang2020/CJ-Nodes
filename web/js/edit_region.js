@@ -10,7 +10,7 @@ function injectStyles() {
     const s = document.createElement("style");
     s.id = "cj-er-style";
     s.textContent = `
-        .cj-er{display:flex;flex-direction:column;gap:6px;padding:4px;font:12px sans-serif;color:#ccc;overflow-y:auto}
+        .cj-er{display:flex;flex-direction:column;gap:6px;padding:4px;font:12px sans-serif;color:#ccc;height:100%;min-height:0;box-sizing:border-box;overflow-y:auto}
         .cj-er-r{display:flex;align-items:center;gap:6px}
         .cj-er-l{width:60px;flex:0 0 auto;color:#aaa;font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .cj-er-i{flex:1;min-width:0;background:#1a1a1a;border:1px solid #444;border-radius:4px;color:#ddd;font:12px monospace;padding:3px 6px;outline:none}
@@ -389,6 +389,7 @@ function buildUI(node) {
     const cvWrap = buildCanvas(node);
     wrap.appendChild(cvWrap);
 
+    wrap.style.setProperty("--comfy-widget-min-height", "260px");   // 高度跟随节点
     node.addDOMWidget("er_panel", "Edit Region", wrap, {
         getValue: () => JSON.stringify(node._er),
         setValue: v => { try { const d = JSON.parse(v); Object.assign(node._er, d); rebuildAll(node); } catch(e) {} }
