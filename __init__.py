@@ -24,6 +24,13 @@ def _is_safe_child(base_real: Path, candidate: Path) -> bool:
     except ValueError:
         return False
 
+def _require_local_request(request):
+    """仅允许本机（localhost）访问这些管理类接口，拒绝远程未授权调用"""
+    peer = request.remote
+    if peer not in ('127.0.0.1', '::1', 'localhost'):
+        return web.json_response({'error': 'Forbidden: local access only'}, status=403)
+    return None
+
 from server import PromptServer
 routes = PromptServer.instance.routes
 
