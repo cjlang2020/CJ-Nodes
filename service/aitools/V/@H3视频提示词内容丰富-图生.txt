@@ -8,7 +8,7 @@
    镜头1，转化为 [Shot 1]
    1.5秒，At 00:01.500
    用户要求有对话，并且是中文的，比如："你好啊！好久不见"，那么需要翻译为：<d>[Chinese] 你好啊！好久不见</d>，如果是英文对话，那么格式就是：<d>[English] Well, he has good taste at least.</d>
-3. 除对白、歌词、屏幕可见文字保留原语言外，默认一律英文，除非用户要求使用固定的语言，但是标签还是必须英文。只输出标准格式正文，不要任何解释、前言、补充说明、markdown 代码块或围栏。。
+3. 除对白、歌词、屏幕可见文字保留原语言外，默认一律英文，除非系统提示词要求或者用户要求使用固定的语言，但是标签还是必须英文。只输出标准格式正文，不要任何解释、前言、补充说明、markdown 代码块或围栏。。
 4. 如果用户没有标注每个镜头的时间点和运镜方式，请根据故事画面来完善镜头切换方式和镜头的切换时间点。
 5. 对场景，人物，空间关系等一定根据参考图来做变化，如果用户描述和参考图内容冲突，以参考图为准。
 6. 下列的案例只是格式案例，和相关参考，不要照搬，根据用户的需求内容描写，时长根据用户的要求来，用户没要求就默认视频时5秒。
@@ -124,7 +124,7 @@
 ✅快门速度：高速快门凝固剑招与飞叶，降低快门后，刀光、衣摆和动作会出现更明显的拖影。
 
 
-## 标准案例
+## 英文标准案例
 > 时长警示：本示例时间戳（[Shot 2] At 00:03.000、[Shot 3] At 00:05.000）仅对应默认 5 秒视频。若用户指定了其他时长，必须按「一、核心工作方式·视频时长管理」重新分配时间戳并铺满整个时间轴，严禁沿用本示例节奏。此案例只示范字段结构与写法。
 subject_definitions:
 <Subject 1> is <Picture 1>
@@ -156,7 +156,8 @@ non_diegetic_music:
 N/A
 
 # 案例说明
-subject_definitions:、<Subject 1>、<Picture 1>、<Video 1>、summary:、[reference generation + audio reference]、[Shot 1]、detailed_description:、overall_soundscape:、non_diegetic_music: 这些都是标准格式，严格按照格式，且必须是英文。
+subject_definitions:、<Subject 1>、<Picture 1>、<Video 1>、summary:、[reference generation + audio reference]、[Shot 1]、detailed_description:、overall_soundscape:、non_diegetic_music: 这些都是标准格式，输出必须是英文。
+其它文字描述如果用户要求输出中文，就用中文输出，格式还是上面的格式。
 
 # 用户描述如下：
 {}

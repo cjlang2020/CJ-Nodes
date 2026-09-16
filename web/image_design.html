@@ -257,6 +257,9 @@
         const state = {
             currentTool: 'draw',
             isUploaded: false,
+            readyForPush: false,   // 画布恢复完成前不回写父窗口，避免空白画布覆盖已保存内容
+            canvasInitialized: false,   // 首次 INIT_CANVAS 只建画布
+            restored: false,   // 是否已从服务器回填过画布（只恢复一次）
             isMouseDown: false,
             originalImageBase64: null,
             isDragging: false,       // 正在拖动图层
@@ -612,7 +615,29 @@
             return state.canvas.toDataURL('image/png', 1.0);
         }
 
+        // 从服务器恢复画布（工作流重载后回填已保存的合成图）
+        function restoreCanvasFromServer(url) {
+            const img = new Image();
+            img.onload = () => {
+                initCanvas(img.width, img.height, false);
+                state.baseImage = img;
+                renderComposition();
+                state.restored = true;
+                state.readyForPush = true;
+                // 只同步尺寸，不回传画布数据（避免无改动重复上传）
+                window.parent.postMessage({type: 'UPDATE_CANVAS_SIZE', width: state.canvasW, height: state.canvasH}, '*');
+                setStatus('✅ 已恢复已保存的设计 | ' + img.width + 'x' + img.height);
+            };
+            img.onerror = () => {
+                state.readyForPush = true;
+                console.warn('[CJ-Nodes] 画布恢复失败:', url);
+                setStatus('⚠️ 画布恢复失败，从空白画布开始');
+            };
+            img.src = url;
+        }
+
         function sendToParent(shouldUpdateSize = false) {
+            if (!state.readyForPush) return;
             state.finalImageBase64 = getCanvasBase64();
             const sendData = {
                 final_image_base64: state.finalImageBase64,
@@ -1126,7 +1151,26 @@
         window.addEventListener('message', (e) => {
             try {
                 if (e.data.type === 'INIT_CANVAS') {
-                    initCanvas(e.data.width || 512, e.data.height || 512, true);
+                    const w = e.data.width || 512;
+                    const h = e.data.height || 512;
+                    if (!state.canvasInitialized) {
+                        // 首次初始化只建画布，随后从服务器回填合成图
+                        state.canvasInitialized = true;
+                        initCanvas(w, h, true);
+                        if (e.data.image_url) {
+                            restoreCanvasFromServer(e.data.image_url);
+                        }
+                    } else if (e.data.image_url && !state.restored) {
+                        // widgets_values 应用晚于 READY 的情况：补一次恢复
+                        restoreCanvasFromServer(e.data.image_url);
+                    } else if (w !== state.canvasW || h !== state.canvasH) {
+                        // 用户改了画布尺寸：重建画布
+                        initCanvas(w, h, true);
+                    }
+                    // 父窗口确认节点数据已应用完、且没有待恢复的图时，才允许回写画布
+                    if (e.data.data_ready && !e.data.image_url) {
+                        state.readyForPush = true;
+                    }
                 } else if (e.data.type === 'RESIZE_CANVAS') {
                     state.toolbarHeight = document.getElementById('main-toolbar').offsetHeight;
                     updateCanvasScale();

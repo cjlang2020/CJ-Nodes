@@ -1,5 +1,10 @@
 ( function () {
 
+	// 本文件是面板用的 three.js 插件库（openpose_editor.js 在 three.min.js 之后用 <script> 动态加载），
+	// 不是 ComfyUI 扩展。但前端会把 web/js 下所有 .js 当扩展模块 import，那时全局 THREE 还不存在，
+	// 直接求值会在模块顶层抛 ReferenceError 并中断扩展加载链（窗口按钮全部不出现），所以先挡一下。
+	if ( typeof THREE === 'undefined' ) return;
+
 	// Unlike TrackballControls, it maintains the "up" direction object.up (+Y by default).
 	//
 	//    Orbit - left mouse / touch: one-finger move

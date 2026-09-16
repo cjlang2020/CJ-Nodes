@@ -3,11 +3,43 @@ import numpy as np
 from PIL import Image
 import json
 import base64
+import os
 from io import BytesIO
 import logging
 
+import folder_paths
+
 # 配置日志
 logger = logging.getLogger(__name__)
+
+
+def _resolve_canvas_file(rel_path):
+    """解析前端上传的画布文件（input/cj_canvas/），并做路径包含校验"""
+    if not rel_path or ".." in rel_path:
+        return None
+    input_dir = folder_paths.get_directory_by_type("input")
+    if not input_dir:
+        return None
+    input_dir = os.path.abspath(input_dir)
+    path = os.path.abspath(os.path.join(input_dir, rel_path))
+    if os.path.commonpath((input_dir, path)) != input_dir or not os.path.isfile(path):
+        return None
+    return path
+
+
+def _payload_image(data, file_key, b64_key):
+    """优先读取上传的画布文件，旧工作流内嵌的 base64 仍然兼容"""
+    rel_path = data.get(file_key)
+    if rel_path:
+        path = _resolve_canvas_file(rel_path)
+        if path is None:
+            logger.warning(f"画布文件不存在，改用空白画布: {rel_path}")
+            return None
+        return Image.open(path).convert("RGB")
+    b64 = data.get(b64_key, "")
+    if b64:
+        return Image.open(BytesIO(base64.b64decode(b64.split(",")[1]))).convert("RGB")
+    return None
 
 class ImageEditNode:
     @classmethod
@@ -37,15 +69,12 @@ class ImageEditNode:
             if edit_data != "empty" and edit_data.strip():
                 try:
                     data = json.loads(edit_data)
-                    # 解析前端传递的最终编辑后Base64图片（核心）
-                    final_base64 = data.get("final_image_base64", "")
+                    # 优先使用上传到服务器的画布文件（新格式），旧工作流的内嵌 base64 仍兼容
                     crop_w = data.get("crop_width", canvas_width)
                     crop_h = data.get("crop_height", canvas_height)
-
-                    if final_base64:
-                        # 解码Base64并加载图片
-                        img_data = base64.b64decode(final_base64.split(",")[1])
-                        final_img = Image.open(BytesIO(img_data)).convert("RGB")
+                    loaded = _payload_image(data, "final_image", "final_image_base64")
+                    if loaded is not None:
+                        final_img = loaded
                         # 强制更新为实际编辑后的尺寸
                         canvas_width, canvas_height = crop_w, crop_h
 
@@ -103,13 +132,12 @@ class DrawPhotoNode:
             if edit_data != "empty" and edit_data.strip():
                 try:
                     data = json.loads(edit_data)
-                    final_base64 = data.get("final_image_base64", "")
+                    # 优先使用上传到服务器的画布文件（新格式），旧工作流的内嵌 base64 仍兼容
                     crop_w = data.get("crop_width", canvas_width)
                     crop_h = data.get("crop_height", canvas_height)
-
-                    if final_base64:
-                        img_data = base64.b64decode(final_base64.split(",")[1])
-                        final_img = Image.open(BytesIO(img_data)).convert("RGB")
+                    loaded = _payload_image(data, "final_image", "final_image_base64")
+                    if loaded is not None:
+                        final_img = loaded
                         canvas_width, canvas_height = crop_w, crop_h
 
                 except Exception as e:
@@ -171,19 +199,16 @@ class ImageDesign:
             if edit_data != "empty" and edit_data.strip():
                 try:
                     data = json.loads(edit_data)
-                    final_base64 = data.get("final_image_base64", "")
-                    orig_base64 = data.get("original_image_base64", "")
+                    # 优先使用上传到服务器的画布文件（新格式），旧工作流的内嵌 base64 仍兼容
                     crop_w = data.get("crop_width", canvas_width)
                     crop_h = data.get("crop_height", canvas_height)
-
-                    if final_base64:
-                        img_data = base64.b64decode(final_base64.split(",")[1])
-                        final_img = Image.open(BytesIO(img_data)).convert("RGB")
+                    loaded = _payload_image(data, "final_image", "final_image_base64")
+                    if loaded is not None:
+                        final_img = loaded
                         canvas_width, canvas_height = crop_w, crop_h
-
-                    if orig_base64:
-                        orig_data = base64.b64decode(orig_base64.split(",")[1])
-                        original_img = Image.open(BytesIO(orig_data)).convert("RGB")
+                    original = _payload_image(data, "original_image", "original_image_base64")
+                    if original is not None:
+                        original_img = original
 
                 except Exception as e:
                     logger.error(f"设计数据解析失败: {str(e)}")

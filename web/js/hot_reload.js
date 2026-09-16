@@ -1,4 +1,5 @@
 import { app } from "../../../../scripts/app.js";
+import "./cj_menu_style.js";
 
 app.registerExtension({
   name: "CJ-Nodes.HotReload",

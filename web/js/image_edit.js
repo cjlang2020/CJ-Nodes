@@ -1,4 +1,9 @@
 import { app } from "../../../../scripts/app.js";
+import { createCanvasStore } from "./canvas_upload.js";
+
+// 画布页会被浏览器启发式缓存（旧缓存条目不会因服务端 no-cache 而重新校验），
+// 带上“本次页面加载”的版本参数，保证刷新页面后一定拿到最新页面
+const PANEL_VERSION = Date.now();
 
 // 图片编辑界面HTML模板（裁剪应用按钮+精准对齐+液化正向）
 
@@ -72,7 +77,7 @@ app.registerExtension({
 
                 // 加载编辑界面
                 try {
-                    iframe.src = "/CJ-Nodes/image_edit.html";
+                    iframe.src = `/CJ-Nodes/image_edit.html?v=${PANEL_VERSION}`;
                 } catch (e) {
                     console.error("❌ 创建编辑面板失败:", e);
                     alert("图片编辑节点初始化失败: " + e.message);
@@ -91,6 +96,34 @@ app.registerExtension({
                         }
                     }
                 );
+                // 画布数据已由 edit_data 承载，这里不再重复序列化：
+                // 否则工作流/草稿会存两份 PNG base64，撑爆 localStorage 草稿配额（表现为“保存工作流草稿失败”）
+                canvasWidget.serialize = false;
+                canvasWidget.options.serialize = false;
+
+                // 画布 PNG 上传到服务器，edit_data 只保留文件名引用（见 canvas_upload.js）
+                const canvasStore = createCanvasStore(node, drawDataWidget, [
+                    { fileKey: "final_image", b64Key: "final_image_base64", suffix: "" },
+                ]);
+
+                // 加载工作流时 READY 与 widgets_values 应用的先后顺序不固定（READY 可能更早），
+                // 所以两处都尝试下发；dataReady=父窗口确认节点数据已应用完，iframe 据此才允许回写
+                this.sendInitCanvas = function(dataReady) {
+                    if (!this._drawCanvasReady || !iframe.contentWindow) return;
+                    iframe.contentWindow.postMessage({
+                        type: 'INIT_CANVAS',
+                        width: this.widthWidget?.value || 512,
+                        height: this.heightWidget?.value || 512,
+                        image_url: canvasStore.imageUrl("final_image", "final_image_base64"),
+                        data_ready: !!dataReady,
+                    }, '*');
+                };
+                const origOnConfigure = this.onConfigure;
+                this.onConfigure = function() {
+                    const r = origOnConfigure ? origOnConfigure.apply(this, arguments) : undefined;
+                    this.sendInitCanvas(true);
+                    return r;
+                };
 
                 // 高度跟随节点：不能给 DOM widget 写 computeSize（会退化成固定高度、拿不到弹性空间），
                 // 只给最小高度，剩余高度由前端弹性分配（通用做法见 CJ-Nodes/AGENTS.md）
@@ -119,15 +152,15 @@ app.registerExtension({
                     switch(data.type) {
                         case 'DRAW_CANVAS_READY':
                             this._drawCanvasReady = true;
-                            const w = this.widthWidget?.value || 512;
-                            const h = this.heightWidget?.value || 512;
-                            iframe.contentWindow.postMessage({type: 'INIT_CANVAS', width: w, height: h}, '*');
+                            this.sendInitCanvas(false);
+                            // 兜底：新建节点没有 widgets_values 可应用、不会触发 onConfigure，
+                            // 超时后放行回写，避免画布一直无法上传
+                            setTimeout(() => this.sendInitCanvas(true), 500);
                             setTimeout(() => this.initResizeObserver(), 1000);
                             break;
                         case 'DRAW_DATA_UPDATE':
                             this.drawData = data.data;
-                            if (drawDataWidget) drawDataWidget.value = this.drawData;
-                            canvasWidget.value = this.drawData;
+                            canvasStore.push(data.data);
                             this.flags = this.flags || {};
                             this.flags.dirty = true;
                             if (app && app.graph) app.graph.setDirtyCanvas(true, true);

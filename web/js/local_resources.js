@@ -1,14 +1,9 @@
 import { app } from "../../../../scripts/app.js";
+import "./cj_menu_style.js";
 
 app.registerExtension({
   name: "CJ-Nodes.LocalResources",
   setup() {
-    if (!document.getElementById('cj-menu-style')) {
-      const s = document.createElement('style');
-      s.id = 'cj-menu-style';
-      s.textContent = '.cj-menu-btn { background: #dc2626 !important; color: #fff !important; } .cj-menu-btn-green { background: #16a34a !important; color: #fff !important; }';
-      document.head.appendChild(s);
-    }
     const { ComfyButton } = window.comfyAPI.button;
     app.menu?.settingsGroup.append(
       new ComfyButton({

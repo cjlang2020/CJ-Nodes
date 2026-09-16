@@ -1,5 +1,6 @@
 import { app } from "../../../../scripts/app.js";
 import { api } from "../../../../scripts/api.js";
+import "./cj_menu_style.js";
 
 function showToast(msg) {
   let toast = document.querySelector(".cj-toast-save");

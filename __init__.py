@@ -24,6 +24,9 @@ def _is_safe_child(base_real: Path, candidate: Path) -> bool:
     except ValueError:
         return False
 
+# html/js 用协商缓存（未改动走 304），避免浏览器启迪式缓存旧页面
+_REVALIDATE_HEADERS = {"Cache-Control": "no-cache"}
+
 from server import PromptServer
 routes = PromptServer.instance.routes
 
@@ -54,6 +57,42 @@ async def reload_nodes(request):
         from . import nodes as cj_nodes
         count = cj_nodes.reload_all_nodes()
         return web.json_response({'ok': True, 'count': count})
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'ok': False, 'error': str(e)}, status=500)
+
+
+@routes.get('/CJ-Nodes/api/plugins')
+async def list_plugins_api(request):
+    """插件管理面板：列出 custom_nodes 下的插件及启用状态（不含 CJ-Nodes 自身）"""
+    try:
+        from .plugin_manager import list_plugins
+        return web.json_response({'ok': True, 'plugins': list_plugins()})
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'ok': False, 'error': str(e)}, status=500)
+
+
+@routes.post('/CJ-Nodes/api/plugins/set-enabled')
+async def set_plugin_enabled_api(request):
+    """启用/关闭某个插件：给目录（或 .py 文件）加或去掉 .disabled 后缀"""
+    try:
+        from .plugin_manager import set_enabled
+        data = await request.json()
+        result = set_enabled(str(data.get('id', '')), bool(data.get('enabled')))
+        return web.json_response({'ok': True, **result})
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'ok': False, 'error': str(e)}, status=400)
+
+
+@routes.post('/CJ-Nodes/api/plugins/reload')
+async def reload_plugins_api(request):
+    """重新加载 custom_nodes 下的所有插件（跳过 CJ-Nodes 自身与已禁用的）"""
+    try:
+        from .plugin_manager import reload_plugins
+        result = await reload_plugins()
+        return web.json_response({'ok': True, **result})
     except Exception as e:
         traceback.print_exc()
         return web.json_response({'ok': False, 'error': str(e)}, status=500)
@@ -97,7 +136,7 @@ async def serve_cj_nodes_index(request):
     for filename in ['index.html', 'index.html']:
         index_path = CJ_WEB_PATH / filename
         if index_path.exists():
-            return web.FileResponse(index_path)
+            return web.FileResponse(index_path, headers=_REVALIDATE_HEADERS)
     return web.Response(text="CJ-Nodes UI not found", status=404)
 
 @routes.get('/CJ-Nodes/{path:.*}')
@@ -112,10 +151,13 @@ async def serve_cj_nodes_static(request):
         for index_name in ['index.html']:
             index_path = file_path / index_name
             if index_path.exists():
-                return web.FileResponse(index_path)
+                return web.FileResponse(index_path, headers=_REVALIDATE_HEADERS)
 
     if file_path.exists() and file_path.is_file():
-        return web.FileResponse(file_path)
+        # 前端页改动后要能立即生效：FileResponse 只带 ETag/Last-Modified 会被浏览器
+        # 启发式缓存，出现“改了页面但 iframe 还是旧版”，所以 html/js 强制协商缓存
+        headers = _REVALIDATE_HEADERS if file_path.suffix.lower() in ('.html', '.js') else None
+        return web.FileResponse(file_path, headers=headers)
 
     return web.Response(text="File not found", status=404)
 
