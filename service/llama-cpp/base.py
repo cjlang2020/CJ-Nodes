@@ -342,6 +342,11 @@ class LLAMA_CPP_STORAGE:
             ) from e
 
 
+def chat_handler_mmproj(handler) -> Optional[str]:
+    """mmproj path of a chat handler (0.3.49 renamed the attribute clip_model_path -> mmproj_path)"""
+    return getattr(handler, "mmproj_path", None) or getattr(handler, "clip_model_path", None)
+
+
 # Model cleanup hook
 if not hasattr(mm, "unload_all_models_backup"):
     mm.unload_all_models_backup = mm.unload_all_models

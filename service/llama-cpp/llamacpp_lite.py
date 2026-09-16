@@ -9,7 +9,7 @@ if CURRENT_DIR not in sys.path:
 
 from base import (
     LLAMA_CPP_STORAGE, preset_prompts, preset_tags,
-    load_text_presets, image_to_base64_jpeg, cqdm, _MTMD, output_text, thinking_modes
+    load_text_presets, image_to_base64_jpeg, cqdm, _MTMD, output_text, thinking_modes, chat_handler_mmproj
 )
 
 _CACHE = {}
@@ -162,7 +162,7 @@ class llama_run_lite:
         out1 = ""
 
         if 图片 is not None and image_count > 0:
-            if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:
+            if not chat_handler_mmproj(llama_model.chat_handler):
                 raise ValueError("Image input detected, but the loaded model is not configured with a mmproj module.")
 
             if inference_mode == "one by one":

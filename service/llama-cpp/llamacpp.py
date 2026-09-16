@@ -15,7 +15,7 @@ import numpy as np
 from base import (
     LLAMA_CPP_STORAGE, any_type, chat_handlers, preset_prompts, preset_tags,
     load_text_presets, scale_image_tensor, tensor_to_numpy,
-    image_to_base64_jpeg, cqdm, draft_model_types, _MTMD, output_text, thinking_modes,
+    image_to_base64_jpeg, cqdm, draft_model_types, _MTMD, output_text, thinking_modes, chat_handler_mmproj,
     BASE_NODE_CLASS_MAPPINGS, BASE_NODE_DISPLAY_NAME_MAPPINGS
 )
 
@@ -226,7 +226,7 @@ class llama_run:
             user_content.append({"type": "text", "text": p})
 
         if 图片 is not None:
-            if not hasattr(llama_model.chat_handler, "clip_model_path") or llama_model.chat_handler.clip_model_path is None:
+            if not chat_handler_mmproj(llama_model.chat_handler):
                 raise ValueError("Image input detected, but the loaded model is not configured with a mmproj module.")
 
             frames = 图片

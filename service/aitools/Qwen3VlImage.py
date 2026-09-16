@@ -85,7 +85,7 @@ class ImageDeal(BaseModelManager):
 
         # 处理图像
         if images is not None:
-            if not hasattr(chat_handler, "clip_model_path"):
+            if not (getattr(chat_handler, "mmproj_path", None) or getattr(chat_handler, "clip_model_path", None)):
                 raise ValueError("未配置视觉模块（mmproj），请加载对应的mmproj_model文件！")
 
             frames = images

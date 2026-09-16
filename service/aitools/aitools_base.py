@@ -174,9 +174,9 @@ class BaseModelManager:
             print(f"[加载] mmproj from {mmproj_path}")
             handler = get_chat_handler(model_type)
             if handler and model_type == "Qwen3-VL":
-                chat_handler = handler(clip_model_path=mmproj_path, use_think_prompt=think_mode, verbose=False)
+                chat_handler = handler(mmproj_path=mmproj_path, force_reasoning=think_mode, verbose=False)
             elif handler:
-                chat_handler = handler(clip_model_path=mmproj_path, verbose=False)
+                chat_handler = handler(mmproj_path=mmproj_path, verbose=False)
 
         print(f"[加载] model from {model_path}")
 
