@@ -73,7 +73,7 @@ function buildDialog() {
         backdropFilter: "blur(2px)",
     });
     const box = el("div", {
-        width: "min(1040px, 94vw)", height: "min(700px, 88vh)", display: "flex", flexDirection: "column",
+        width: "min(1240px, 96vw)", height: "min(760px, 90vh)", display: "flex", flexDirection: "column",
         background: "var(--comfy-menu-bg, #1e1e1e)", color: "var(--fg-color, #ddd)",
         border: "1px solid var(--border-color, #444)", borderRadius: "14px", overflow: "hidden",
         boxShadow: "0 18px 50px rgba(0,0,0,0.55)", fontSize: "13px",
@@ -102,7 +102,7 @@ function buildDialog() {
     // ---- 网格 ----
     const grid = el("div", {
         flex: "1 1 auto", minHeight: "0", overflowY: "auto", padding: "16px 18px",
-        display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fill, minmax(228px, 1fr))",
+        display: "grid", gap: "10px", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
         alignContent: "start",
     });
 
@@ -175,6 +175,15 @@ function buildDialog() {
             }
             if (!plugin.is_dir) meta.append(el("span", { opacity: "0.55", fontSize: "11px" }, "单文件"));
             card.append(meta);
+
+            const summary = el("div", {
+                marginTop: "7px", fontSize: "12px", lineHeight: "1.45",
+                opacity: plugin.enabled ? "0.72" : "0.5",
+                display: "-webkit-box", WebkitLineClamp: "3", WebkitBoxOrient: "vertical",
+                overflow: "hidden", wordBreak: "break-all",
+            }, plugin.summary || "");
+            summary.title = plugin.summary || "";
+            card.append(summary);
 
             card.title = `点击${plugin.enabled ? "关闭" : "启用"} ${plugin.name}`;
             card.onmouseenter = () => {

@@ -2,6 +2,7 @@
 # 放在 CJ-Nodes 根目录而不是 service/ 下：service/ 里的文件会被节点加载器当节点扫描。
 import os
 import sys
+import json
 import logging
 
 import folder_paths
@@ -10,16 +11,44 @@ log = logging.getLogger("CJ-Nodes")
 
 SELF = "CJ-Nodes"
 DISABLED_SUFFIX = ".disabled"
+NO_SUMMARY_TEXT = "未分析功能"
+SUMMARY_CACHE_REL = os.path.join("default", "plugin_summaries.json")
 
 
-def comfy_nodes():
-    """ComfyUI 根目录的 nodes 模块。
-    不能直接 `import nodes`：CJ-Nodes 根目录下也有同名文件，可能被解析到。
-    """
-    mod = sys.modules.get("nodes")
-    if mod is None or not hasattr(mod, "LOADED_MODULE_DIRS"):
-        raise RuntimeError("未找到 ComfyUI 的 nodes 模块")
-    return mod
+def summaries_path():
+    """插件功能描述缓存文件：user/default/plugin_summaries.json（用户可自行维护/更新）"""
+    try:
+        user_dir = folder_paths.get_user_directory()
+    except Exception:
+        user_dir = None
+    if user_dir:
+        return os.path.join(user_dir, SUMMARY_CACHE_REL)
+    return os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        os.pardir, os.pardir, "user", SUMMARY_CACHE_REL))
+
+
+def load_summaries():
+    """读插件描述缓存；文件不存在/损坏时返回空 dict（面板显示“未分析功能”）"""
+    path = summaries_path()
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        log.warning("[CJ-Nodes] 插件描述缓存读取失败 %s: %s", path, exc)
+        return {}
+
+
+def _registered_counts():
+    """一次遍历算出每个插件当前注册了多少个节点（大对象上逐个 getattr 太浪费）"""
+    counts = {}
+    for cls in comfy_nodes().NODE_CLASS_MAPPINGS.values():
+        rel = getattr(cls, "RELATIVE_PYTHON_MODULE", None)
+        if rel and rel.startswith("custom_nodes."):
+            counts[rel] = counts.get(rel, 0) + 1
+    return counts
 
 
 def custom_node_dirs():
@@ -52,20 +81,11 @@ def _is_loadable(entry, full):
     return entry.lower().endswith(".py") or entry.lower().endswith(".py" + DISABLED_SUFFIX)
 
 
-def _registered_counts():
-    """一次遍历算出每个插件当前注册了多少个节点（大对象上逐个 getattr 太浪费）"""
-    counts = {}
-    for cls in comfy_nodes().NODE_CLASS_MAPPINGS.values():
-        rel = getattr(cls, "RELATIVE_PYTHON_MODULE", None)
-        if rel and rel.startswith("custom_nodes."):
-            counts[rel] = counts.get(rel, 0) + 1
-    return counts
-
-
 def list_plugins():
     """列出 custom_nodes 下的插件（不含 CJ-Nodes 自身与隐藏目录）"""
-    items = []
     counts = _registered_counts()
+    summaries = load_summaries()
+    items = []
     for base in custom_node_dirs():
         try:
             entries = os.listdir(base)
@@ -87,6 +107,8 @@ def list_plugins():
                 "is_dir": os.path.isdir(full),
                 "dir": base,
                 "node_count": counts.get("custom_nodes." + _module_name(entry), 0) if enabled else 0,
+                # 只认缓存文件；未命中显示“未分析功能”
+                "summary": summaries.get(name, NO_SUMMARY_TEXT),
             })
     return items
 
@@ -196,7 +218,7 @@ def _register_web_dirs(cn):
 
 
 async def reload_plugins():
-    """重新加载 custom_nodes 下的所有插件（跳过 CJ-Nodes 与已禁用的）"""
+    """重新加载 custom_nodes 下的所有插件（跳过 CJ-Nodes 自身与已禁用的）"""
     cn = comfy_nodes()
     protected = {name for name, cls in cn.NODE_CLASS_MAPPINGS.items()
                  if getattr(cls, "RELATIVE_PYTHON_MODULE", None) == "custom_nodes." + SELF
@@ -238,3 +260,13 @@ async def reload_plugins():
         "skipped": sorted(skipped),
         "web_added": sorted(web_added),
     }
+
+
+def comfy_nodes():
+    """ComfyUI 根目录的 nodes 模块。
+    不能直接 `import nodes`：CJ-Nodes 根目录下也有同名文件，可能被解析到。
+    """
+    mod = sys.modules.get("nodes")
+    if mod is None or not hasattr(mod, "LOADED_MODULE_DIRS"):
+        raise RuntimeError("未找到 ComfyUI 的 nodes 模块")
+    return mod

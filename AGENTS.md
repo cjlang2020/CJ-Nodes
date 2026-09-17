@@ -8,6 +8,7 @@
 CJ-Nodes/
 ├── __init__.py            # 插件入口：WEB_DIRECTORY、前端扩展注册、/CJ-Nodes 路由（web 静态页 + API）
 ├── nodes.py               # 核心：自动扫描加载 service/ 下所有节点 + 显示名映射
+├── plugin_manager.py      # custom_nodes 下插件的列举/开关（.disabled 后缀）/整体重载，服务 /CJ-Nodes/api/plugins*（必须放 service/ 之外，否则被当节点加载）
 ├── README.md              # 节点详细文档（参数表、功能说明）
 ├── service/               # 所有后端节点代码（按功能域分子目录，也散落少量根目录文件）
 │   ├── aitools/           # AI 推理节点（Qwen3 文本/视觉），aitools_base.py 共享基础，model_config.json 配置模型与提示词模板，T/ V/ 存提示词模板 txt
@@ -25,7 +26,9 @@ CJ-Nodes/
 │   ├── pose/              # 姿态编辑
 │   └── *.py               # 根目录散落节点：DualCLIPLoader、QwenMultiangleCameraNode、VisClipCopy、VramClean、QwenEditAddLlamaTemplate 等
 ├── web/                   # 独立功能页面（*.html，经 /CJ-Nodes/{path} 路由访问）
-│   └── js/                # ComfyUI 前端扩展（自动加载）+ fabric.min.js / OrbitControls.js 第三方库；hot_reload.js 为菜单栏"重载插件"按钮
+│   └── js/                # 前端扩展（自动加载）+ 第三方库（three.min.js / OrbitControls.js / fabric.min.js）。
+│                          #   顶栏按钮：hot_reload.js(重载插件) / local_resources.js(Output图片) / workflow_manager.js(Workflows目录) / plugin_manager.js(插件管理)，样式统一在 cj_menu_style.js
+│                          #   画布落盘共享模块：canvas_upload.js（ImageEditNode/DrawPhotoNode/ImageDesign 三个面板复用）
 ├── libs/                  # 内置/第三方库（如 libs/yue2 推理引擎）。必须在 service/ 之外，否则会被当作节点文件加载
 └── doc/                   # 空
 ```
@@ -114,7 +117,11 @@ CJ-Nodes/
 
 ## Web 前端
 
-- `web/js/*.js`：ComfyUI 前端扩展，`app.registerExtension` 注册，随插件自动加载（经 `EXTENSION_WEB_DIRS["CJ-Nodes"]`）。负责菜单按钮（本地资源/流程管理/重载插件）及节点内嵌 UI。
+- `web/js/*.js`：ComfyUI 前端扩展，`app.registerExtension` 注册，随插件自动加载（经 `EXTENSION_WEB_DIRS["CJ-Nodes"]`）。负责菜单按钮（本地资源/流程管理/重载插件/插件管理）及节点内嵌 UI。
+- **前端会把该目录下递归所有 `.js` 当扩展模块 import**（`server.py` 的 `get_extensions` 用 `glob('**/*.js')`）→ 库/共享模块必须**零副作用**。已踩过的两个坑：`OrbitControls.js` 顶层引用全局 `THREE` 在模块求值时抛错（已加 `typeof THREE === 'undefined'` 护栏）；被误删的 `viewer_inline.js` 仍被 `qwen_multiangle_light.js` import → “Failed to fetch dynamically imported module”。两者都会中断 `app.setup()`，现象是**顶栏所有插件按钮消失**。
+- **`window.app` 在这个前端构建里不是就绪标志**（`await app.setup()` 成功后才赋值；上面那种 import 失败就永远没有）。拿 app 用 `const { app } = await import('/scripts/app.js')`；查扩展是否加载看 `app.extensions` / `app.menu.settingsGroup.buttons`；单文件体检 `await import('/extensions/CJ-Nodes/js/xxx.js')`（重复导入报 "already registered" 说明它已加载）。
+- 顶栏按钮样式统一在 `web/js/cj_menu_style.js`（跟随 `--p-*` 主题变量、中性底色 + 主色图标，**别再写死的红/绿 `!important` 色块**）。ComfyButton 的图标渲染成 `<i class="mdi mdi-<icon>">`，给图标上色要用 `.mdi` 选择器。
+- **面板页缓存**：`/CJ-Nodes/*.html` 由插件自己的路由服务（不是 ComfyUI 的 `/extensions`，后者带 `no-store`）。已在 `__init__.py` 加 `_REVALIDATE_HEADERS`；同时 iframe `src` 必须带 `?v=${PANEL_VERSION}`（每次页面加载一个时间戳，见三个 `image_*.js`）——否则浏览器会沿用旧缓存条目（**服务端后来加 `no-cache` 对已缓存的旧响应无效**），现象是“改了 HTML 却不生效 / 画布恢复代码不存在”。
 - `web/*.html`：独立功能页（图片绘画/编辑、风格选择、镜头控制、姿态编辑等），节点通过 iframe/浏览器打开 `http://<host>:<port>/CJ-Nodes/<page>.html` 访问；`__init__.py` 的 `/CJ-Nodes/{path}` 路由做了路径穿越安全检查（`_is_safe_child`），新页面放 web/ 根目录即可被访问。
 - 后端 API 挂在 `__init__.py`（如 `POST /CJ-Nodes/api/open-directory`），新 API 同样加在该文件。
 
@@ -167,7 +174,7 @@ CJ-Nodes/
 | `music_style_editor.js` | wrap div（带 `fitNodeHeight` 自动补高） | 200px |
 
 不需要改的：`lora_loader_ui.js`（两行选择框的内容型小面板）、`CJPowerLoraLoader.js`（画布自绘 widget，`computeSize` 在这里是正确用法）、
-`prompt_manage.js`（**文件本身解析不过**：第 4 行起是一整段 HTML，浏览器加载它会 SyntaxError，它的扩展根本不会注册——待日后决定修还是删）。
+`prompt_manage.js`（**文件本身解析不过**：第 4 行起是一整段 HTML，浏览器加载它会 SyntaxError）→ 已改名 `web/js/prompt_manage.js.disabled` 归档（内容保留；要修需拆成独立 HTML 页面 + 正常扩展 JS）。
 
 ### 面板状态同步：连线上游时 widget 值恒为空
 
@@ -176,8 +183,27 @@ CJ-Nodes/
 - 输入 widget 一旦连线上游，**widget 自身的 value 恒为空**（真实值只在执行时到后端）；同步逻辑里不能把“空值”当成“用户清空了输入”，否则 undo/重载会把面板抹掉。判断用 `node.inputs.find(i => i.name === 'xxx')?.link != null`。
 - 前端拿真实输入值的唯一可靠通道是节点返回的 `ui` 载荷 + `onExecuted(output)`（1.52 在 `addApiUpdateHandlers` 里调用，`app.nodeOutputs[nodeId]` 也会存一份）；`widget.linkedUpstream` 只认“上游同名 widget/唯一非空 widget”，对纯 STRING 输出无效。
 
+## 画布数据落盘（图片类节点：ImageEditNode / DrawPhotoNode / ImageDesign）
+
+- **不要把画布 base64 塞进 widget**：工作流/草稿会把整份 JSON 存进前端 `localStorage`（实测可写上限 ~4MB），超限后 `saveDraft` 失败并 `markStorageUnavailable()` **锁死整个页面会话的草稿保存** → 反复弹“保存工作流草稿失败”，此后连小工作流也存不上（诊断特征：弹窗期间 draft 相关 `localStorage.setItem` 调用数为 **0**）。
+- **正确做法**（与核心 LoadImage / Painter 同款）：`POST /api/upload/image`（`type=input`、`subfolder=cj_canvas`、`overwrite=true`）先落盘，widget 只存 `cj_canvas/cj_canvas_<token>.png` 引用。共享实现 `web/js/canvas_upload.js` 的 `createCanvasStore()`；文件在 `ComfyUI/input/cj_canvas/`，每实例一个、改动原地覆盖（删节点不自动删文件）。
+- 后端读回：`ImageEditNode.py` 的 `_resolve_canvas_file()`（`folder_paths.get_directory_by_type('input')` + `commonpath` 包含校验，`..` 直接拒）+ `_payload_image()`（优先文件名，旧 `*_base64` 仍兼容）。
+- **DOM widget 会重复序列化**：`addDOMWidget` 的 value 同样进 `widgets_values`（面板数据常与隐藏 widget 重复一份，白白翻倍）→ 加 `widget.serialize = false; widget.options.serialize = false;`。LiteGraph 存取两侧都跳过 `serialize === false`（旧工作流安全），但**该 widget 必须是最后一个**，否则位置会错位。另：DOM widget 的 `setValue` 会回写隐藏 widget（`drawDataWidget.value = v`），所以父窗口别给 DOM widget 赋 base64（会瞬间写进工作流，草稿仍有配额风险）。
+- **两个前端时序**：`graphToPrompt` 会 `await widget.serializeValue`（排队执行前强制落盘），而工作流保存/草稿走**同步** `widget.value` → base64 必须在 `push()` 里同步剔除，不能等异步上传完成；`DRAW_CANVAS_READY` 可能早于 `widgets_values` 应用 → 父窗口在 `onConfigure` 也要下发 INIT（新建节点用 500ms 兜底）。
+- iframe 用 `state.readyForPush` 门控回写；**首次 INIT 必须不保留内容**（`initCanvas(w, h, true, false)`），否则 `initCanvas` 保留分支里的异步回写会晚于“从服务器恢复”，把空白画布推上去并**覆盖服务器上的图**。
+
+## 插件管理（顶栏“插件管理”按钮）
+
+- 前端 `web/js/plugin_manager.js`（点卡片即切换，绿=启用/灰=关闭，无“选中后确认”），后端 `plugin_manager.py` + 三个接口：`GET /CJ-Nodes/api/plugins`、`POST /CJ-Nodes/api/plugins/set-enabled`、`POST /CJ-Nodes/api/plugins/reload`。
+- 开关就是给 `custom_nodes/<包名>` 加/去 **`.disabled`**（`nodes.py:2369` 只看后缀、**大小写敏感**；`__pycache__`、`.` 开头、CJ-Nodes 自身都不进列表）。另可用启动参数 `--disable-all-custom-nodes --whitelist-custom-nodes`。
+- `/plugins/reload` 重扫并重导 custom_nodes 下除 CJ-Nodes 外的所有包（按 `cls.RELATIVE_PYTHON_MODULE` 归属卸载、`sys.modules` 键是“路径把点换成 `_x_`”），并补注册它们的 `/extensions` 静态目录；**带自定义 HTTP 路由/后台线程的包仍需重启**（重导只重建节点映射，不重跑 aiohttp 路由注册）。
+- 实测收益：2578 节点时 `/object_info` 约 10s，给不用的包加 `.disabled` 是最有效的降耗手段（按包节点数见 ComfyUI 根 AGENTS.md）。
+- **插件功能描述**存 `user/default/plugin_summaries.json`（键=目录名去 `.disabled`，值=≤100 字描述）；命中显示、未命中显示“未分析功能”。**用户自行维护此文件**（外部更新后刷新页面即生效，无需重启）；面板不做自动分析。
+- **`plugin_manager.py` 在 CJ-Nodes 根目录（不在 `service/`）→ 不在“重载插件”热重载范围**，改它必须整体重启 ComfyUI。
+
 ## 注意事项与已知坑
 
+- **视觉 handler 属性改名（0.3.49）**：`clip_model_path` → `mmproj_path`（旧名只作构造别名），`hasattr(h, "clip_model_path")` 恒为 False → 带图必报 "not configured with a mmproj module"，但 mtmd 其实已加载；判断统一走 `base.chat_handler_mmproj()`。同版本 `use_think_prompt` 已删除（改 `force_reasoning`）。详见 `service/llama-cpp/AGENTS.md`。
 - **必须安装 llama-cpp-python**（JamePeng 预编译版，按 Python 版本选），否则 aitools/llama-cpp 节点导入失败。已验证 0.3.49；**升级包后若顶层 import 失效，整个域节点连锁消失**，版本兼容/调试/显存细节见 `service/llama-cpp/AGENTS.md`。
 - `aitools_base.py` 顶层 `from llama_cpp import Llama`，该目录下任何文件被加载都会触发此导入——环境缺依赖时该域节点全部加载失败但不影响其他节点。
 - LLM 模型放 `models/LLM/`（代码通过 `folder_paths.folder_names_and_paths["LLM"]` 动态注册目录），支持 gguf。

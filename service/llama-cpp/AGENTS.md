@@ -3,8 +3,11 @@
 ## 版本兼容（llama-cpp-python，JamePeng fork）
 
 - 0.3.49 实测可用（支持 qwen35/qwen35moe 架构与 Qwen35ChatHandler）。升级包后 `llama_speculative.py` 删除了 `LlamaPromptLookupDecoding`（旧滑窗投机解码），只剩 `LlamaNGramMapDecoding`（构造签名 ngram_size/num_pred_tokens 兼容不变）。
+- **0.3.49 把视觉 handler 的实例属性 `clip_model_path` 改名 `mmproj_path`**（旧名只在构造参数里作弃用别名，实例上不再存在）。于是 `hasattr(handler, "clip_model_path")` 恒为 False：带图推理必报 `Image input detected, but the loaded model is not configured with a mmproj module.`，而日志里 `mtmd.dll` 其实已加载成功。判断视觉模块统一用 `base.chat_handler_mmproj()`；调用点：`llamacpp.py` / `llamacpp_image.py` / `llamacpp_lite.py` / `nodes.py`，aitools 域的 `Qwen3VlImage.py` 同理（不能直接 import 本 base）。
+- 同版本 `use_think_prompt` 构造参数已删除，`Qwen3-VL` 改用 `force_reasoning`；`aitools_base.py` 再传 `use_think_prompt=` 会直接 TypeError（该版 handler 对未知 kwargs 一律报错）。
+- 排障突破口：错误文案指向“模型没配 mmproj”，真因却是**属性名变更**——先看日志有无 `mtmd.dll`、再核对 `llama_multimodal.py` 里 MTMDChatHandler 实际写入的属性名。
 - `base.py` 是本目录全部 6 个 py 的公共依赖（其余文件 `from base import ...`）。**base.py 顶层 import 一失败，整个 llama-cpp 域所有节点连锁加载失败**（受 nodes.py 自动加载机制影响，见上级 AGENTS.md）。
-- 改投机解码相关代码必须同步改的文件：`base.py`（import + `draft_model_types` 列表 + 构造分支）+ `llamacpp.py` / `llamacpp_image.py` / `llamacpp_text.py` / `nodes.py` 中 `draft_model_type` 的 tooltip 文案（`llamacpp_lite.py` 复用列表变量无需改文案）。
+- 改投机解码相关代码必须同步改的文件：`base.py`（import + `draft_model_types` 列表 + 构造分支）+ `llamacpp.py` / `llamacpp_image.py` / `llamacpp_text.py` / `nodes.py` 中 `draft_model_type` 的 tooltip 文案（`llamacpp_lite.py` 已固定为 `None`，不受影响）。
 - `draft_model_types` 现为 `["None", "ngram-map"]`；旧工作流里存了 `prompt-lookup` 的节点重新打开会提示值无效，需手动改为 `ngram-map`。
 
 ## 思考模式（关闭思考 / reasoning budget）
@@ -17,9 +20,9 @@
 
 ## 系统提示词拼接（行为约定）
 
-- `llama_run_simple`（`系统角色提示词`）与 `llama_run`（`系统提示词`）：填写则优先使用，留空用节点内置默认角色/空，语言要求**始终**按 `中文回复` 追加。旧行为是“填写后不再追加语言指令”，会让 `中文回复` 静默失效，已修正。
+- `llama_run_simple`（`系统角色提示词`）与 `llama_run`（`系统提示词`）：填写则优先使用，留空用节点内置默认角色/空，语言要求**始终**按 `中文回复` 追加。旧行为是“填写后不再追加语言指令”，会让 `中文回复` 静默失效，已修正。`llama_run_lite` 现与 `llama_run_simple` 同款逻辑（同一份 system 拼接 + 默认角色）。
 - 副作用：`llama_run` 留空时现在也会生成一条只含语言要求的 system 消息（原来完全没有 system 消息）；`llama_run_simple` 拼接改用 `\n`，修掉了默认角色尾部 `。,\n` 的怪写法。
-- `llama_text_simple` 与 `llama_run_lite` 没有系统角色输入（硬编码固定 system），要统一需先给它们加输入项。
+- `llama_text_simple` 仍没有系统角色输入（硬编码固定 system），要统一需先给它加输入项。
 
 ## 调试："Failed to load model from file" 是误导性错误
 
@@ -35,6 +38,7 @@
 - **`存在惩罚` 在本机是空设**：`if _MTMD: parameters.pop("presence_penalty", None)`，而本机 `_MTMD=True`（装了 MTMDChatHandler），该值永远被丢弃（完整版/简化版行为一致）。
 - 参数排序规矩：按**使用频次**（模型/视觉模块/对话模板 → 提示词 → 常用行为 → 抽样微调 → 调试/加速项）；新加字段要插进对应档，不要一律追加到末尾。改顺序前先想清楚 `widgets_values` 位置化后果（见上级 AGENTS.md）。
 - **用户指定、不要再改回去的默认值/位置**（`llama_run_simple`）：`思考模式=off`、`启用推理=True`、`最大生成长度=4096`、`上下文长度=12800`；`使用缓存` 紧跟在 `中文回复` 下方、`上下文长度` 紧跟在 `最大生成长度` 上方。
+- **`llama_run_lite` 是 `llama_run_simple` 的"少旋钮版"**：只留 12 个输入（`模型`/`视觉模块`/`对话模板`/`预设提示词`/`自定义提示词`/`系统角色提示词`/`中文回复`/`分隔符`/`思考模式`/`上下文长度`/`推理模式`/`使用缓存`），其余 26 项固定为 `llama_run_simple` 的默认值并**写死在 `run()` 里**（见文件头注释）；输出 6 项与 simple 一致。改推理逻辑时必须两个文件同步改（simple 是基准），否则行为会分叉。
 
 ## 模型模板坑（实测）
 
