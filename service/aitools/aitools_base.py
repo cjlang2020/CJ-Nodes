@@ -69,9 +69,9 @@ def load_prompt_files(prompt_dir):
                 with open(file_abspath, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read().strip()
                 prompts[file_item] = content
-                print(f"[成功] 加载prompt文件：{file_item}")
             except Exception as e:
                 print(f"[警告] 读取prompt文件失败 {file_abspath} : {str(e)[:80]}")
+    print(f"[成功] 加载prompt文件：{os.path.basename(prompt_dir)} 共 {len(prompts)} 个")
     return prompts
 
 
@@ -208,6 +208,8 @@ class PromptManager:
     """统一的提示词管理"""
 
     def __init__(self, prompt_dir):
+        if not os.path.isabs(prompt_dir):
+            prompt_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), prompt_dir)
         self.prompts = {}
         self.prompt_dir = prompt_dir
         self._load_prompts()

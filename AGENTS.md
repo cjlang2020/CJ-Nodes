@@ -13,6 +13,7 @@ CJ-Nodes/
 ├── service/               # 所有后端节点代码（按功能域分子目录，也散落少量根目录文件）
 │   ├── aitools/           # AI 推理节点（Qwen3 文本/视觉），aitools_base.py 共享基础，model_config.json 配置模型与提示词模板，T/ V/ 存提示词模板 txt
 │   ├── llama-cpp/         # 本地 llama.cpp 推理（llamacpp*.py），support/ 辅助模块。依赖 llama-cpp-python；版本兼容与调试备忘见本目录 AGENTS.md
+│   │                      #   system_prompt/ 存 LuyTextGenerate（CLIP 文本生成，不依赖 llama-cpp-python）的预置系统提示词
 │   ├── llamacpplocal/     # llama.cpp 本地 HTTP API 方式调用
 │   ├── stringtools/       # 字符处理
 │   ├── prompttools/       # 提示词节点，prompt_options/ 等目录存词表 txt（每个 txt 生成一个下拉）
@@ -22,13 +23,13 @@ CJ-Nodes/
 │   ├── filetools/         # txt 读写
 │   ├── princepainter/     # Painter 系列视频生成（首尾帧/长视频/多帧/音频裁剪/Flux2 图编辑）
 │   ├── locateanything/    # 目标检测 + 裁剪
-│   ├── music/             # 音乐：YuE2 生成（yue2_music_nodes.py，3 节点）+ SheetSage2 扒谱（sheetsage2_music_nodes.py，2 节点）+ 风格标签 / 风格标签替换（music_style_nodes.py + style_tags/ 词表，2 节点）；yue2 引擎在 libs/yue2，详见本目录 AGENTS.md
+│   ├── music/             # 音乐：YuE2 生成（yue2_music_nodes.py，3 节点）+ SheetSage2 扒谱（sheetsage2_music_nodes.py，2 节点）+ 风格标签 / 风格标签替换 / 预制风格标签（music_style_nodes.py + style_tags/ 标签词表 + style_presets/ 预设 json，3 节点）；yue2 引擎在 libs/yue2，详见本目录 AGENTS.md
 │   ├── pose/              # 姿态编辑
 │   └── *.py               # 根目录散落节点：DualCLIPLoader、QwenMultiangleCameraNode、VisClipCopy、VramClean、QwenEditAddLlamaTemplate 等
 ├── web/                   # 独立功能页面（*.html，经 /CJ-Nodes/{path} 路由访问）
 │   └── js/                # 前端扩展（自动加载）+ 第三方库（three.min.js / OrbitControls.js / fabric.min.js）。
 │                          #   顶栏按钮：hot_reload.js(重载插件) / local_resources.js(Output图片) / workflow_manager.js(Workflows目录) / plugin_manager.js(插件管理)，样式统一在 cj_menu_style.js
-│                          #   画布落盘共享模块：canvas_upload.js（ImageEditNode/DrawPhotoNode/ImageDesign 三个面板复用）
+│                          #   画布落盘共享模块：canvas_upload.js（ImageEditNode/DrawPhotoNode/ImageDesign/VR360Crop 四个面板复用）
 ├── libs/                  # 内置/第三方库（如 libs/yue2 推理引擎）。必须在 service/ 之外，否则会被当作节点文件加载
 └── doc/                   # 空
 ```
@@ -65,6 +66,7 @@ CJ-Nodes/
 | ShowAnything | 任意类型显示 | ShowAnythingNode.py |
 | **AI 大模型** | | |
 | MultiFunAINode / Qwen3Deal / ImageDeal | AI 多功能 / Qwen3 文本 / Qwen3-VL 图片反推（本地 llama-cpp） | aitools/MultiFunAINode.py, Qwen3Chat.py, Qwen3VlImage.py |
+| LuyTextGenerate | CLIP 文本生成（编码器当 LLM：提示词扩写/多图反推；system_prompt/ 预置系统提示词） | llama-cpp/LuyTextGenerate.py |
 | LlamaCppAPINode / LlamaCppAPIRefreshPrompts | llama.cpp HTTP API 调用/刷新模板 | llamacpplocal/llamacpp_api_node.py |
 | llama_cpp_model_loader / _parameters / _instruct_adv | llama.cpp 本地推理三件套 | llama-cpp/nodes.py |
 | llama_run_lite / llama_run_simple | 反推 Lite / 简化版 | llama-cpp/llamacpp_lite.py / llamacpp_image.py |
@@ -98,6 +100,7 @@ CJ-Nodes/
 | CJSheetSage2Transcribe / CJSheetSage2Unload | SheetSage2 音频扒谱：音频→两版 ABC/MIDI/调性/和弦/曲式+风格底稿；卸载 | sheetsage2_music_nodes.py |
 | CJMusicStyleTags | 音乐风格标签：分类多选（356 选项，中英对照、输出英文）→ 接生成的 style | music_style_nodes.py（词表 style_tags/） |
 | CJMusicStyleReplacer | 风格标签替换：扒谱 style 拆成一行一个标签，前端面板逐行换（下拉/点选/手输）后拼回；状态存隐藏 widget，过期则原样透传 | music_style_nodes.py + web/js/music_style_editor.js（路由 /CJ-Nodes/api/music-style/*） |
+| CJMusicStylePreset | 预制风格标签：预设下拉（style_presets/*.json，20 个风格）+ **变体下拉**（style_presets/_variants.json，10 种演绎：标准/快歌/慢歌/悲伤/欢快/浪漫/燃向/梦幻/治愈/暗黑，自带 bpm_scale）+ 前端面板逐类别微调，**只输出一路 风格(style)**；200 种「预设×变体」行表由后端预存在 payload 里；状态存隐藏 widget（preset+variant+rows+base），与选择不一致则用预设+变体原样 | music_style_nodes.py + web/js/music_style_preset.js（路由 /CJ-Nodes/api/music-style/presets） |
 
 ## 设计约定（新增/修改节点必读）
 
@@ -162,6 +165,28 @@ CJ-Nodes/
 
 参考实现：`web/js/music_style_editor.js`（`fitNodeHeight` / `naturalContentHeight` / `--comfy-widget-min-height`）。
 
+### 反过来：想让某个 widget 固定高度（不随节点拉伸）
+
+多行 STRING 字段在新前端会走 `addMultilineWidget` → `addDOMWidget`（有 `computeLayoutSize`）→ **节点拉高它就跟着长**。
+想让某个输入框固定 N 行，就给它装 `computeSize`（与上面“面板不要 computeSize”相反，因为这里要的正是固定）：
+
+```js
+const w = node.widgets?.find((x) => x.name === name);
+w.computeSize = () => [node.size?.[0] ?? 0, h];   // _arrangeWidgets 里 computeSize 优先于 computeLayoutSize
+Object.assign(w.options, { getMinHeight: () => h, getMaxHeight: () => h, getHeight: () => h });
+```
+
+- `_arrangeWidgets` 实际判定顺序：`if (w.computeSize) { computedHeight = computeSize()[1] + 4 } else if (w.computeLayoutSize) { 进 distributeSpace }`
+  （已在前端 1.52 打包产物 `settingStore-*.js` 里核对）。**注意它调 `computeSize()` 不带参数**，所以函数里不要依赖入参。
+- `DOMWidgetImpl.computeLayoutSize` 会优先读 `options.getMinHeight/getMaxHeight/getHeight`，其次才读 CSS 变量
+  `--comfy-widget-min-height/-max-height/-height` → 想固定高度两个入口都堵上最稳。
+- **坑：DOM 控件的可视高度 = `computedHeight − 2 × BaseDOMWidgetImpl.DEFAULT_MARGIN`（= 20px）**。
+  实测把 2 行文本框设成 `computeSize()[1] = 34` 后，可视区只剩 14+4 ≈ **半行**。要真给 N 行，
+  `computeSize()[1]` 得再加 20（或干脆用 CSS 变量给足）。
+- **首选做法：能单行的就别用多行** —— 后端 `INPUT_TYPES` 不加 `"multiline": True`，前端就用原生 canvas
+  单行文本框（`addWidget("text", …)`），固定高度、不走 DOM 层、没有拉伸与边距问题，也不需要任何 JS。
+  `Luy-预制风格标签` 的 `补充标签` 就是这么处理的（先试了 2 行方案，因边距只剩半行而放弃）。
+
 已按此改造的面板（2026-09 一次性清掉写死的 `computeSize`；改这些文件时别再加回去）：
 
 | 面板 | 元素 | 最小高度 |
@@ -172,6 +197,7 @@ CJ-Nodes/
 | `edit_region.js` / `prompt_builder.js` | wrap div（本来就没写 computeSize，补了 `height:100%` + 最小高度） | 260 / 300px |
 | `openpose_editor.js` | wrap div（3D 视口从 `aspect-ratio:1/1 + max-height:400px` 改成 `flex:1 1 auto`，跟着节点长） | 380px |
 | `music_style_editor.js` | wrap div（带 `fitNodeHeight` 自动补高） | 200px |
+| `music_style_preset.js` | wrap div（带 `fitNodeHeight` 自动补高；CSS 前缀 `.cj-msp-`，**不能复用 `.cj-ms-`**） | 320px |
 
 不需要改的：`lora_loader_ui.js`（两行选择框的内容型小面板）、`CJPowerLoraLoader.js`（画布自绘 widget，`computeSize` 在这里是正确用法）、
 `prompt_manage.js`（**文件本身解析不过**：第 4 行起是一整段 HTML，浏览器加载它会 SyntaxError）→ 已改名 `web/js/prompt_manage.js.disabled` 归档（内容保留；要修需拆成独立 HTML 页面 + 正常扩展 JS）。
@@ -183,14 +209,24 @@ CJ-Nodes/
 - 输入 widget 一旦连线上游，**widget 自身的 value 恒为空**（真实值只在执行时到后端）；同步逻辑里不能把“空值”当成“用户清空了输入”，否则 undo/重载会把面板抹掉。判断用 `node.inputs.find(i => i.name === 'xxx')?.link != null`。
 - 前端拿真实输入值的唯一可靠通道是节点返回的 `ui` 载荷 + `onExecuted(output)`（1.52 在 `addApiUpdateHandlers` 里调用，`app.nodeOutputs[nodeId]` 也会存一份）；`widget.linkedUpstream` 只认“上游同名 widget/唯一非空 widget”，对纯 STRING 输出无效。
 
-## 画布数据落盘（图片类节点：ImageEditNode / DrawPhotoNode / ImageDesign）
+## 画布数据落盘（图片类节点：ImageEditNode / DrawPhotoNode / ImageDesign / VR360Crop）
 
 - **不要把画布 base64 塞进 widget**：工作流/草稿会把整份 JSON 存进前端 `localStorage`（实测可写上限 ~4MB），超限后 `saveDraft` 失败并 `markStorageUnavailable()` **锁死整个页面会话的草稿保存** → 反复弹“保存工作流草稿失败”，此后连小工作流也存不上（诊断特征：弹窗期间 draft 相关 `localStorage.setItem` 调用数为 **0**）。
 - **正确做法**（与核心 LoadImage / Painter 同款）：`POST /api/upload/image`（`type=input`、`subfolder=cj_canvas`、`overwrite=true`）先落盘，widget 只存 `cj_canvas/cj_canvas_<token>.png` 引用。共享实现 `web/js/canvas_upload.js` 的 `createCanvasStore()`；文件在 `ComfyUI/input/cj_canvas/`，每实例一个、改动原地覆盖（删节点不自动删文件）。
-- 后端读回：`ImageEditNode.py` 的 `_resolve_canvas_file()`（`folder_paths.get_directory_by_type('input')` + `commonpath` 包含校验，`..` 直接拒）+ `_payload_image()`（优先文件名，旧 `*_base64` 仍兼容）。
+- 后端读回：`ImageEditNode.py` 的 `_resolve_canvas_file()`（`folder_paths.get_directory_by_type('input')` + `commonpath` 包含校验，`..` 直接拒）+ `_payload_image()`（优先文件名，旧 `*_base64` 仍兼容）；`VR360Crop.py` 同款（`_resolve_input_file()`，读 `image_file`，兼容旧 `image_base64`）。
 - **DOM widget 会重复序列化**：`addDOMWidget` 的 value 同样进 `widgets_values`（面板数据常与隐藏 widget 重复一份，白白翻倍）→ 加 `widget.serialize = false; widget.options.serialize = false;`。LiteGraph 存取两侧都跳过 `serialize === false`（旧工作流安全），但**该 widget 必须是最后一个**，否则位置会错位。另：DOM widget 的 `setValue` 会回写隐藏 widget（`drawDataWidget.value = v`），所以父窗口别给 DOM widget 赋 base64（会瞬间写进工作流，草稿仍有配额风险）。
 - **两个前端时序**：`graphToPrompt` 会 `await widget.serializeValue`（排队执行前强制落盘），而工作流保存/草稿走**同步** `widget.value` → base64 必须在 `push()` 里同步剔除，不能等异步上传完成；`DRAW_CANVAS_READY` 可能早于 `widgets_values` 应用 → 父窗口在 `onConfigure` 也要下发 INIT（新建节点用 500ms 兜底）。
 - iframe 用 `state.readyForPush` 门控回写；**首次 INIT 必须不保留内容**（`initCanvas(w, h, true, false)`），否则 `initCanvas` 保留分支里的异步回写会晚于“从服务器恢复”，把空白画布推上去并**覆盖服务器上的图**。
+
+### 液化（Liquify）必须用「位移场 + 原始快照」，不要逐帧重采样画布
+
+`image_edit.html` / `image_draw.html` 的液化工具曾用「每帧 `getImageData` 当前画布 → 对笔刷圆内像素按鼠标增量做逆映射 `putImageData`」。因为源是上一帧已被插值过的结果，一次拖动 40~120 个 mousemove 就对同一批像素做 40~120 次双线性插值，**累积插值导致变形区域越来越糊**（实测硬边缘过渡 1px → 3px → 8px）。
+
+正确做法（已实现）：
+- 笔画开始（`mousedown` 的 liquify 分支）调 `liquifyBeginStroke()` 存一张 `state.liquifySource`（`ImageData` 原始快照）+ 清零 `state.liquifyField`（`Float32Array(w*h*2)` 每像素 `(ox, oy)` 采样偏移）；`mouseup` 调 `liquifyEndStroke()` 释放；`initCanvas`/`execUndo`/`execCrop`/`execClear` 也要释放。
+- `execLiquify` 每帧只**累加位移场**（沿鼠标路径插值 `steps`，径向衰减用 smoothstep 且边缘严格归零，避免笔刷边界硬接缝），再按外接矩形从**原始快照**采样一次（`field==0` 的像素直接原样拷贝）。**渲染源永远是原始快照**，因此不累积失真；同一次变形只被插值一次。
+- 采样用 `sampleBicubic`（Catmull-Rom，a=-0.5）而非双线性：整数偏移下精确等于原像素，亚像素偏移下比双线性锐利。
+- 采样源改变了符号约定：`输出(x,y) = source(x - field.ox, y - field.oy)`，不要改回「读当前画布当源」。
 
 ## 插件管理（顶栏“插件管理”按钮）
 

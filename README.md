@@ -53,6 +53,7 @@
 | **Luy-YuE2音乐生成** | 风格 + 歌词（可外接 ABC 乐谱锁旋律）→ **48kHz 立体声**；full / melody / off 三种生成模式 |
 | **Luy-音乐风格标签** | 15 类 370+ 标签点选拼 style：界面全中文，输出纯英文，按类别固定顺序、结果可复现 |
 | **Luy-风格标签替换** | 把扒谱风格串拆成一行一个标签，前端面板逐项替换（调性/速度/和声/曲式…17 类），实时预览拼回 |
+| **Luy-预制风格标签** | 20 个预制风格（城市流行 / 华语流行 / 港乐 / 治愈民谣 / 钢琴抒情 / Lo-fi / 赛博合成波 / Progressive House / 日系摇滚 / 朋克 / 体育场摇滚 / 交响金属 / 史诗管弦 / 国风古风 / 乡村民谣 / 拉丁弗拉门戈 / 爵士 / 灵魂放克 / 说唱 Trap / 可爱 K-Pop）× 10 种演绎变体（标准/快歌/慢歌/悲伤/欢快/浪漫/燃向/梦幻/治愈/暗黑，速度自动缩放），前端面板再对每个类别单独微调，**只输出一路纯英文 style** |
 
 ### 🎯 Luy-LocateAnything 目标检测 —— 一句话框出画面里的一切
 
@@ -95,8 +96,8 @@ llama.cpp 驱动的轻量 VLM 节点：**一个节点完成模型加载 + 图片
 
 | 分类 | 节点数 | 代表节点 | 菜单位置 |
 |---|:---:|---|---|
-| 🤖 AI 大模型 | 21 | AI反推Lite、Qwen3-VL图片反推、llama.cpp 三件套 | `luy/AI` `luy/llama-cpp` |
-| 🎵 音乐 | 7 | SheetSage2扒谱、YuE2音乐生成、风格标签 | `luy/音乐` |
+| 🤖 AI 大模型 | 22 | AI反推Lite、Qwen3-VL图片反推、llama.cpp 三件套、CLIP 文本生成 | `luy/AI` `luy/llama-cpp` |
+| 🎵 音乐 | 8 | SheetSage2扒谱、YuE2音乐生成、风格标签、预制风格 | `luy/音乐` |
 | 🎬 视频生成 | 13 | Painter首尾帧、长视频增强、SVIPlus | `luy/视频生成` 等 |
 | 🎥 镜头/光照/姿态 | 5 | 镜头视角控制、多角度光照、姿态编辑 | `luy/镜头控制` `luy/姿态` |
 | 🖼️ 图片处理 | 20 | 图片绘画/编辑/设计、遮罩五件套、360全景裁剪 | `luy/图片处理` |
@@ -126,6 +127,17 @@ llama.cpp 驱动的轻量 VLM 节点：**一个节点完成模型加载 + 图片
 | **Luy-AI多功能语言大模型** | 从 `T/` 目录选功能模板（视频提示词、JSON 提示词、翻译…20+ 预设） |
 | **Luy-LlamaCpp本地API** | 连接外部 llama.cpp HTTP 服务（OpenAI 兼容），支持图片输入 |
 | **Luy-刷新提示词模板** | 重载 API 节点的预设提示词列表 |
+
+### 编码器文本生成（不走 llama.cpp）
+
+直接用 ComfyUI 的文本编码器（需带 LLM 头的 LTX-2 `gemma3/gemma4` 等）生成文本，典型用途是**提示词扩写**与**图片反推**。
+
+| 节点 | 说明 |
+|---|---|
+| **Luy-文本生成(CLIP)** | `clip` + 提示词 → 生成文本。系统提示词从 `service/llama-cpp/system_prompt/` 扫描成下拉（`1-名称.txt` 可控顺序，加 txt 即加选项），可再被「自定义系统提示词」覆盖；选 `默认` 走编码器自带模板。支持 **IMAGE 批次多图参考**、视频帧（按帧率子采样到 1FPS）、音频。采样参数平铺（on/off 贪心）、`mtp`、思考模式。输出 `生成文本 / 实际提示词` |
+
+- **多图反推**：`image` 接 IMAGE 批次即可（如核心 `Batch Images` 节点把多张图合成一个批次）。gemma4 每张图一组 soft token（原生多图）；gemma3 只有一个 `<image_soft_token>` 占位，整批会被拼成一段连续图像 token。
+- 与核心 `TextGenerate` 的差异：多出系统提示词下拉/自定义、去思考块、空结果回退原提示词，并把采样参数从 DynamicCombo 改成平铺控件。
 
 ### 进阶组合型（llama.cpp 三件套）
 
@@ -176,8 +188,11 @@ llama_cpp_parameters（采样参数）───┼──► llama_cpp_instruct_a
 |---|---|
 | **Luy-音乐风格标签** | 15 个分类下拉共 370+ 标签（语种/流派/人声/乐器/情绪/节奏/年代），`风格 / 人声 / 乐器 / 情绪 / 其他 / 补充 / 速度` 7 路输出支持分组替换实验 |
 | **Luy-风格标签替换** | 前端面板把风格串拆行，逐行「类别下拉 + 取值 + 手输 + 常用点选」替换后拼回，底部实时预览 |
+| **Luy-预制风格标签** | 预设下拉（20 个预制风格）+ 变体下拉（10 种演绎：标准/快歌/慢歌/悲伤/欢快/浪漫/燃向/梦幻/治愈/暗黑，BPM 自动按倍率缩放）+ 前端面板按类别（语种/流派/人声/音色/唱法/乐器/情绪/节奏/年代）逐项微调，共 **200 种「风格×演绎」组合**；**只输出一路「风格」** |
 
 > 词表在 `service/music/style_tags/*.txt`：一行一条 `中文 | English`，**加文件即加分类**，文件名中文部分就是界面控件名。
+> 预制风格在 `service/music/style_presets/*.json`（`{label, note, bpm, style}`）：**加文件即加预设**，`style` 里写词表的英文原文即可，`bpm` 是推荐速度（选预设自动写入 BPM 框，可手改/改回 0）；
+> 演绎变体在 `service/music/style_presets/_variants.json`（`{label, bpm_scale, note, tags}`）：每个变体按**情绪/节奏/速度感/唱法**整体替换预设的对应类别，其余类别照旧，**加一条即多一种演绎**。改完 F5 生效。
 
 ---
 
@@ -408,6 +423,7 @@ llama_cpp_parameters（采样参数）───┼──► llama_cpp_instruct_a
 | Ideogram4 提示词构建 | Luy-Ideogram4提示词 |
 | 区域编辑标注 | Luy-图片区域编辑提示词 |
 | 音乐风格替换 | Luy-风格标签替换 |
+| 音乐预制风格 | Luy-预制风格标签 |
 
 ---
 
@@ -461,7 +477,7 @@ Luy-加载图片 ──► Luy-AI反推Lite（分隔符=","）──► 输出�
 ## ⚠️ 注意事项
 
 - **提示词词表**：`service/prompttools/prompt_options/` 等目录的 txt 文件即词表，加文件 = 加下拉分类，改完刷新页面生效
-- **音乐词表**：`service/music/style_tags/` 同理，文件名中文部分就是界面控件名
+- **音乐词表**：`service/music/style_tags/` 同理，文件名中文部分就是界面控件名；预制风格在 `service/music/style_presets/*.json`，加 json 即加预设
 - **显存建议**：LocateAnything 8GB 卡输入最长边 ≤640；SheetSage2 默认转写完自动释放显存；YuE2 与 SheetSage2 已做互斥卸载避免 OOM
 - **改代码热重载**：`service/` 下的改动用顶栏「重载插件」+ F5；改 `__init__.py` / `nodes.py` / `plugin_manager.py` 需重启
 - **视频生成节点**（Painter 系列）需配合 Wan2.2 / InfiniteTalk / Flux2 模型使用

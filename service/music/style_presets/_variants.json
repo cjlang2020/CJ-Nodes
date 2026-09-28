@@ -1,0 +1,111 @@
+{
+  "note": "演绎变体表：同一种风格下的 10 种演绎。bpm_scale 乘预设 BPM；tags 里属于演绎轴（mood/rhythm/tempo_feel/delivery）的类别整体替换，其余类别追加（不抹掉预设特征）。tags 请用 style_tags/ 的英文原文。",
+  "variants": [
+    {
+      "label": "标准",
+      "bpm_scale": 1.0,
+      "note": "预设原样，不加料",
+      "tags": []
+    },
+    {
+      "label": "快歌",
+      "bpm_scale": 1.3,
+      "note": "提速 30%：推进鼓点 + 上扬情绪",
+      "tags": [
+        "upbeat",
+        "driving drums",
+        "energetic",
+        "uplifting"
+      ]
+    },
+    {
+      "label": "慢歌",
+      "bpm_scale": 0.72,
+      "note": "降速：慢板 + 简配器 + 柔情",
+      "tags": [
+        "slow ballad",
+        "stripped back",
+        "tender",
+        "wistful"
+      ]
+    },
+    {
+      "label": "悲伤",
+      "bpm_scale": 0.85,
+      "note": "悲情系：伤感、孤独、低落",
+      "tags": [
+        "sad",
+        "melancholic",
+        "sorrowful",
+        "lonely"
+      ]
+    },
+    {
+      "label": "欢快",
+      "bpm_scale": 1.15,
+      "note": "阳光系：跳跃、童趣、明亮",
+      "tags": [
+        "joyful",
+        "cheerful",
+        "playful",
+        "upbeat"
+      ]
+    },
+    {
+      "label": "浪漫",
+      "bpm_scale": 0.9,
+      "note": "贴身浪漫：亲密、柔软、倾诉感",
+      "tags": [
+        "romantic",
+        "intimate",
+        "tender",
+        "sentimental"
+      ]
+    },
+    {
+      "label": "燃向",
+      "bpm_scale": 1.1,
+      "note": "燃：史诗、呐喊、副歌冲击",
+      "tags": [
+        "epic",
+        "anthemic",
+        "intense",
+        "triumphant",
+        "driving drums"
+      ]
+    },
+    {
+      "label": "梦幻",
+      "bpm_scale": 0.95,
+      "note": "梦境感：飘、空灵、神秘",
+      "tags": [
+        "dreamy",
+        "mystical",
+        "ethereal"
+      ]
+    },
+    {
+      "label": "治愈",
+      "bpm_scale": 0.92,
+      "note": "治愈系：松弛、平静、留白",
+      "tags": [
+        "peaceful",
+        "serene",
+        "hopeful",
+        "warm",
+        "gentle"
+      ]
+    },
+    {
+      "label": "暗黑",
+      "bpm_scale": 0.85,
+      "note": "暗黑系：压迫、诡谲、神秘",
+      "tags": [
+        "dark",
+        "haunting",
+        "ominous",
+        "mysterious"
+      ]
+    }
+  ]
+}

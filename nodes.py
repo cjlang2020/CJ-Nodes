@@ -39,6 +39,7 @@ CUSTOM_DISPLAY_NAMES = {
     "ImageDeal":"Luy-Qwen3-VL图片反推",
     "ChatDeal":"Luy-GPT语言大模型",
     "Qwen3Deal":"Luy-Qwen3语言大模型",
+    "LuyTextGenerate":"Luy-文本生成(CLIP)",
     "MultiFunAINode":"Luy-AI多功能语言大模型",
     "StringJoinDeal":"Luy-字符串处理",
     "StringSplitDeal":"Luy-字符串拆分",
@@ -93,6 +94,7 @@ CUSTOM_DISPLAY_NAMES = {
     "CJSheetSage2Unload": "Luy-SheetSage2卸载模型",
     "CJMusicStyleTags": "Luy-音乐风格标签",
     "CJMusicStyleReplacer": "Luy-风格标签替换",
+    "CJMusicStylePreset": "Luy-预制风格标签",
     "ImageGridCrop": "Luy-图片网格裁切",
 }
 

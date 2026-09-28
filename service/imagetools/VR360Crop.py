@@ -1,10 +1,27 @@
 from __future__ import annotations
+import os
 import torch
 import numpy as np
 from PIL import Image
 import json
 import base64
 from io import BytesIO
+
+import folder_paths
+
+
+def _resolve_input_file(rel_path):
+    """解析前端上传的截图文件（input/cj_canvas/），并做路径包含校验（同 ImageEditNode._resolve_canvas_file）"""
+    if not rel_path or ".." in rel_path:
+        return None
+    input_dir = folder_paths.get_directory_by_type("input")
+    if not input_dir:
+        return None
+    input_dir = os.path.abspath(input_dir)
+    path = os.path.abspath(os.path.join(input_dir, rel_path))
+    if os.path.commonpath((input_dir, path)) != input_dir or not os.path.isfile(path):
+        return None
+    return path
 
 
 class VR360Crop:
@@ -36,12 +53,26 @@ class VR360Crop:
         if crop_data != "empty" and crop_data.strip():
             try:
                 data = json.loads(crop_data)
-                final_base64 = data.get("image_base64", "")
-                if final_base64:
-                    img_data = base64.b64decode(final_base64.split(",")[-1])
-                    final_img = Image.open(BytesIO(img_data)).convert("RGB")
-                    if final_img.size != (output_width, output_height):
-                        final_img = final_img.resize((output_width, output_height), Image.LANCZOS)
+                # 优先使用上传到服务器的截图文件（新格式，widget 不再持久化 base64），
+                # 旧工作流内嵌的 image_base64 仍兼容
+                img = None
+                file_ref = data.get("image_file")
+                if file_ref:
+                    path = _resolve_input_file(file_ref)
+                    if path is None:
+                        print(f"[VR360Crop] 截图文件不存在，改用中心裁剪: {file_ref}")
+                    else:
+                        with Image.open(path) as im:
+                            img = im.convert("RGB")
+                else:
+                    final_base64 = data.get("image_base64", "")
+                    if final_base64:
+                        img_data = base64.b64decode(final_base64.split(",")[-1])
+                        img = Image.open(BytesIO(img_data)).convert("RGB")
+                if img is not None:
+                    if img.size != (output_width, output_height):
+                        img = img.resize((output_width, output_height), Image.LANCZOS)
+                    final_img = img
             except Exception as e:
                 print(f"[VR360Crop] crop_data解析失败: {e}")
                 if image is not None:

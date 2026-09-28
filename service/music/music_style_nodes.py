@@ -689,11 +689,430 @@ class CJMusicStyleReplacer:
         }
 
 
+# ═════════════════ 预制风格（预设下拉 + 前端逐类别微调） ═════════════════
+#
+# 「先选一个现成风格，再单独改某一类」：`预制风格` 是**普通 COMBO widget**（可见、可存、
+# 没前端 JS 也能选，输出预设原样风格），下方 DOM 面板按类别给出下拉，可逐项微调。
+#
+# 三条硬约束（与 CJMusicStyleReplacer 同款，勿改）：
+# 1) **预设原文可复现**：预设 style 串逐段 `_extract_english` 归一化（去中文/去重）后按段顺序
+#    输出；没动面板时输出 == 预设文件内容（归一化后），不掺任何猜测。
+# 2) 面板微调存隐藏 widget `调整状态`（JSON: {preset, rows}）；后端**只在 preset 与本次
+#    `预制风格` 完全一致时才采用**，过期/坏 JSON 一律退回预设原样。
+# 3) 解析/分类/候选项全在 Python（复用词表与 `_classify_tag`），前端只是渲染器；
+#    面板/路由挂了本节点仍可用（预设下拉是原生 widget）。
+#
+# 预设词表：`style_presets/*.json`（{label, note, bpm, style}，按文件名排序）。取值请用
+# `style_tags/` 里的英文原文，这样面板下拉能直接命中选项（未命中的会显示为「预设: xxx」）。
+# `bpm` = 推荐速度（0/缺省 = 不写速度）；**由前端面板在选中预设时写进原生 `BPM` widget**
+# （所以后端仍只看 BPM widget 的值，逻辑不变）——用户想不要速度就把 BPM 改回 0。
+
+_PRESETS_DIR = os.path.join(_HERE, "style_presets")
+_VARIANTS_PATH = os.path.join(_PRESETS_DIR, "_variants.json")     # `_` 开头：不是预设，是演绎变体表
+PRESET_CUSTOM = "（自定义）"
+VARIANT_DEFAULT = "标准"
+_PRESET_CACHE = {}
+_VARIANT_CACHE = {}
+
+# 演绎轴：变体里这几个类别**整体替换**（这才叫“换个演绎”）；其余类别（音色/年代/乐器…）**追加**，
+# 不抹掉预设自身特征。值与风格标签节点同词表（style_tags/），分类走 _classify_tag。
+_VARIANT_AXES = ("mood", "rhythm", "tempo_feel", "delivery")
+
+# 输出类别顺序（与 CJMusicStyleTags 同思路：顺序由类别决定，不受点击/变体插入顺序影响）
+_CATEGORY_ORDER = ("language", "genre", "vocal_type", "timbre", "delivery", "instruments",
+                   "mood", "rhythm", "tempo_feel", "era")
+
+
+def _preset_stamp():
+    if not os.path.isdir(_PRESETS_DIR):
+        return ()
+    stamp = []
+    for name in sorted(os.listdir(_PRESETS_DIR)):
+        if not name.lower().endswith(".json") or name.startswith("_"):    # `_variants.json` 不算预设
+            continue
+        try:
+            stat = os.stat(os.path.join(_PRESETS_DIR, name))
+        except OSError:
+            continue
+        stamp.append((name, stat.st_mtime_ns, stat.st_size))
+    return tuple(stamp)
+
+
+def _variant_stamp():
+    try:
+        stat = os.stat(_VARIANTS_PATH)
+    except OSError:
+        return ()
+    return (stat.st_mtime_ns, stat.st_size)
+
+
+def _as_float(raw, low=0.0, high=1e9, default=0.0):
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return default
+    return max(low, min(high, value))
+
+
+def _variant_list():
+    """→ [{'label', 'note', 'bpm_scale', 'tags'}]；按 json 的 mtime/大小缓存。"""
+    stamp = _variant_stamp()
+    if _VARIANT_CACHE.get("stamp") == stamp and "items" in _VARIANT_CACHE:
+        return _VARIANT_CACHE["items"]
+    items = []
+    try:
+        with open(_VARIANTS_PATH, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError) as exc:
+        print("[Luy-预制风格] 读取变体表失败 %s: %s" % (_VARIANTS_PATH, exc), flush=True)
+        data = None
+    for entry in (data or {}).get("variants", []) if isinstance(data, dict) else []:
+        if not isinstance(entry, dict):
+            continue
+        label = str(entry.get("label") or "").strip()
+        if not label:
+            continue
+        tags = [str(tag).strip() for tag in (entry.get("tags") or []) if str(tag).strip()]
+        items.append({"label": label, "note": str(entry.get("note") or "").strip(),
+                      "bpm_scale": _as_float(entry.get("bpm_scale"), 0.05, 5.0, 1.0),
+                      "tags": tags})
+    if not items:
+        items = [{"label": VARIANT_DEFAULT, "note": "预设原样（未找到 _variants.json）",
+                  "bpm_scale": 1.0, "tags": []}]
+    _VARIANT_CACHE.update({"stamp": stamp, "items": items})
+    return items
+
+
+def _variant_by_label(label):
+    for item in _variant_list():
+        if item["label"] == label:
+            return item
+    return _variant_list()[0]
+
+
+def _variant_bpm(preset_bpm, variant):
+    """变体速度：预设 BPM × bpm_scale（无预设 BPM 时不猜，返 0）。"""
+    if not variant or preset_bpm <= 0:
+        return 0.0
+    return float(int(round(preset_bpm * _as_float(variant.get("bpm_scale"), 0.05, 5.0, 1.0))))
+
+
+def _apply_variant(base_rows, variant):
+    """预设行 + 演绎变体 → 行表。
+
+    - 变体为「标准」/空 → **原样返回**（保证预设 style 逐字可复现）；
+    - 演绎轴（mood/rhythm/tempo_feel/delivery）在**它原本的位置整体替换**（不把整个风格重排）；
+    - 其余类别（音色/年代/乐器…）**追加**在同类后面（不抹掉预设自身特征）；
+    - 变体带来新类别时按类别顺序插到合适位置；最后跨类别去重（保留首次出现，与 _preset_rows 同规则）。
+    """
+    if not variant or not variant.get("tags"):
+        return [dict(row) for row in base_rows]
+    replace, append = {}, []
+    for raw in variant["tags"]:
+        english = _extract_english(raw) or str(raw).strip()
+        if not english:
+            continue
+        category = _classify_tag(english)
+        if category in _VARIANT_AXES:
+            replace.setdefault(category, []).append(english)
+        else:
+            append.append((category, english))
+
+    out, replaced = [], set()
+    for row in base_rows:
+        category = row["category"]
+        if category in replace:
+            if category in replaced:
+                continue                              # 该类已整体换掉，丢掉后续旧值
+            replaced.add(category)
+            out.extend({"category": category, "value": value} for value in replace[category])
+            continue
+        out.append(dict(row))
+
+    order = {key: index for index, key in enumerate(_category_order())}
+    grouped = {}
+    for category, english in append:
+        if category not in grouped:
+            grouped[category] = []
+        grouped[category].append(english)
+    for category in list(replace) + list(grouped):            # 变体带的类别若 base 没有 → 也要插
+        values = replace.get(category) if category in replace and category not in replaced else None
+        if values is not None:
+            grouped[category] = list(values)
+    fresh = [key for key in grouped if key not in {row["category"] for row in out}]
+    fresh.sort(key=lambda key: order.get(key, len(order)))
+    for category in fresh:                                     # 新类别：按类别顺序插到合适位置
+        position = len(out)
+        for index, row in enumerate(out):
+            if order.get(row["category"], len(order)) > order.get(category, len(order)):
+                position = index
+                break
+        out[position:position] = [{"category": category, "value": value}
+                                  for value in grouped.pop(category)]
+    for category, values in grouped.items():                   # 已有类别：追加在同类最后一行之后
+        position = 0
+        for index, row in enumerate(out):
+            if row["category"] == category:
+                position = index + 1
+        out[position:position] = [{"category": category, "value": value} for value in values]
+
+    rows, seen = [], set()
+    for row in out:
+        low = row["value"].lower()
+        if low in seen:
+            continue
+        seen.add(low)
+        rows.append(row)
+    return rows
+
+
+def _category_order():
+    """输出类别顺序（与 CJMusicStyleTags 同思路）：顺序由类别决定，不受变体插入顺序影响。"""
+    known = [key for _, key, _, _, _ in _scan_categories()]
+    return list(_CATEGORY_ORDER) + [key for key in known if key not in _CATEGORY_ORDER]
+
+
+def _preset_variants(preset):
+    """某个预设下的 10 个演绎（rows 已按变体算好，前端只渲染）：[{label, bpm, rows}]。"""
+    preset_bpm = _as_float((preset or {}).get("bpm"), 0.0, 400.0, 0.0)
+    base_rows = (preset or {}).get("rows", [])
+    return [{"label": item["label"], "bpm": _variant_bpm(preset_bpm, item),
+             "rows": _apply_variant(base_rows, item)} for item in _variant_list()]
+
+
+def _preset_rows(style):
+    """预设 style 串 → [{'category', 'value'}]：逐段取英文、跨类别去重、保持段顺序。"""
+    rows, seen = [], set()
+    for segment in _split_segments(style):
+        english = _extract_english(segment)
+        if not english:
+            continue
+        key = english.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append({"category": _classify_tag(english), "value": english})
+    return rows
+
+
+def _preset_bpm(raw):
+    """预设推荐速度：0 = 不写（面板会把它写进原生 BPM widget，后端不参与）。"""
+    return _as_float(raw, 0.0, 400.0, 0.0)
+
+
+def _preset_list():
+    """→ [{'label', 'note', 'style', 'rows'}]，按文件名排序；按 json 的 mtime/大小缓存。"""
+    stamp = _preset_stamp()
+    if _PRESET_CACHE.get("stamp") == stamp and "items" in _PRESET_CACHE:
+        return _PRESET_CACHE["items"]
+    items = []
+    for name, _mtime, _size in stamp:
+        path = os.path.join(_PRESETS_DIR, name)
+        try:
+            with open(path, encoding="utf-8") as handle:
+                data = json.load(handle)
+        except (OSError, ValueError) as exc:
+            print("[Luy-预制风格] 读取预设失败 %s: %s" % (name, exc), flush=True)
+            continue
+        if not isinstance(data, dict):
+            print("[Luy-预制风格] 预设格式不对（应为 JSON 对象）: %s" % name, flush=True)
+            continue
+        style = str(data.get("style") or "").strip()
+        if not style:
+            print("[Luy-预制风格] 预设缺少 style 字段: %s" % name, flush=True)
+            continue
+        items.append({"label": str(data.get("label") or os.path.splitext(name)[0]).strip(),
+                      "note": str(data.get("note") or "").strip(),
+                      "bpm": _preset_bpm(data.get("bpm")),
+                      "style": style, "rows": _preset_rows(style)})
+    _PRESET_CACHE.update({"stamp": stamp, "items": items})
+    return items
+
+
+def _preset_by_label(label):
+    for item in _preset_list():
+        if item["label"] == label:
+            return item
+    return None
+
+
+def _read_preset_state(raw):
+    """解析隐藏 widget `调整状态`；空/坏 JSON/结构不对 → None（→ 退回预设原样）。"""
+    if not raw:
+        return None
+    try:
+        state = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(state, dict) or not isinstance(state.get("preset"), str):
+        return None
+    entries = state.get("rows")
+    if not isinstance(entries, list):
+        return None
+    rows = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        value = str(entry.get("value") or "").strip()
+        if not value:
+            continue
+        rows.append({"category": str(entry.get("category") or _FREE_KEY), "value": value})
+    return {"preset": state["preset"], "variant": str(state.get("variant") or ""), "rows": rows}
+
+
+class CJMusicStylePreset:
+    @classmethod
+    def INPUT_TYPES(cls):
+        labels = [item["label"] for item in _preset_list()]
+        variant_labels = [item["label"] for item in _variant_list()]
+        return {
+            "required": {
+                "预制风格": ([PRESET_CUSTOM] + labels, {
+                    "tooltip": "选一个现成风格（词表：service/music/style_presets/*.json，加文件即加预设）。"
+                               "选完后可在下方面板里对每个类别单独调；不会调就直接用预设原样。"
+                               "「（自定义）」= 不用预设，完全按面板 / 「补充标签」拼",
+                }),
+                "变体": (variant_labels, {
+                    "tooltip": "同一种风格下的 10 种演绎（变体表：style_presets/_variants.json）："
+                               "标准/快歌/慢歌/悲伤/欢快/浪漫/燃向/梦幻/治愈/暗黑。"
+                               "演绎轴（情绪/节奏/速度感/唱法）整体替换，其余类别照旧；BPM 自动按倍率缩放"
+                               "（面板会写进 BPM 框，可手改）",
+                }),
+            },
+            "optional": {
+                "补充标签": ("STRING", {
+                    "default": "",
+                    "tooltip": "追加在预设之后（对应 extra_tags），可连上游；逗号分隔，单独走「补充」输出。"
+                               "**单行输入**（不加 multiline）→ 原生控件固定高度，不会因节点拉高而变形",
+                }),
+                "分隔符": ("STRING", {
+                    "default": ", ",
+                    "tooltip": "标签分隔符（对应 delimiter）；支持字面量 \\n 换行",
+                }),
+                "BPM": ("FLOAT", {
+                    "default": 0.0, "min": 0.0, "max": 400.0, "step": 1.0,
+                    "tooltip": "末尾输出的速度标签（0=不输出）。**选预设/变体时面板会写进这里**"
+                               "（预设 BPM × 变体倍率，快歌 1.3× / 慢歌 0.72×），可手改；"
+                               "与扒谱 style_hint 合用时改回 0，避免出现两个 BPM",
+                }),
+                "调整状态": ("STRING", {
+                    "default": "", "multiline": True,
+                    "tooltip": "前端面板维护的逐类别微调 JSON（{preset, rows}），**不用手改**；"
+                               "为空 / 损坏 / 与「预制风格」不一致时，本节点输出预设原样",
+                }),
+            },
+        }
+
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("风格",)
+    FUNCTION = "build"
+    CATEGORY = "luy/音乐"
+    OUTPUT_NODE = False
+    DESCRIPTION = (
+        "预制风格标签：先选一个现成风格（预设下拉）与一种演绎（变体下拉：标准/快歌/慢歌/悲伤/欢快/"
+        "浪漫/燃向/梦幻/治愈/暗黑），再用前端面板对每个类别（语种/流派/人声/音色/唱法/乐器/情绪/节奏/年代）"
+        "单独微调，**只输出一路纯英文 style**（直接接 YuE2 生成节点的风格）。\n"
+        "预设来自 service/music/style_presets/*.json（一个 json 一个预设：label/note/bpm/style，加文件即加预设）；"
+        "变体表在 style_presets/_variants.json（bpm_scale + tags：演绎轴 情绪/节奏/速度感/唱法 整体替换，"
+        "其余类别追加）；面板按 style_tags/ 词表生成下拉。三者改完 F5 即生效。\n"
+        "微调存在隐藏框「调整状态」里，后端只在它与本次「预制风格 + 变体」一致时才采用，否则输出预设+变体"
+        "原样 → 面板没加载 / 状态过期都不会改坏风格。\n"
+        "「补充标签」追加在预设之后；BPM 面板会自动按变体倍率填（可手改，0=不输出）。"
+    )
+
+    @classmethod
+    def presets_payload(cls):
+        """前端面板数据（词表类别 + 预设 + 每个预设的变体行表），改 json 后刷新页面即生效。"""
+        return {
+            "custom": PRESET_CUSTOM,
+            "variant_default": VARIANT_DEFAULT,
+            "slot_limit": _MAX_SLOTS,
+            "categories": style_categories(),
+            "variants": [{"label": item["label"], "note": item["note"],
+                          "bpm_scale": item["bpm_scale"], "tags": item["tags"]}
+                         for item in _variant_list()],
+            "custom_variants": _preset_variants(None),
+            "presets": [{"label": item["label"], "note": item["note"], "bpm": item["bpm"],
+                          "style": item["style"], "rows": item["rows"],
+                          "variants": _preset_variants(item)}
+                         for item in _preset_list()],
+        }
+
+    def build(self, 预制风格, 变体=VARIANT_DEFAULT, 补充标签="", 分隔符=", ", BPM=0.0, 调整状态=""):
+        preset_name = str(预制风格 or "").strip() or PRESET_CUSTOM
+        variant_name = str(变体 or "").strip() or VARIANT_DEFAULT
+        delimiter = _normalize_delimiter(分隔符)
+        preset = None if preset_name == PRESET_CUSTOM else _preset_by_label(preset_name)
+        variant = _variant_by_label(variant_name)
+        base = _apply_variant(preset["rows"] if preset else [], variant)
+
+        state = _read_preset_state(调整状态)
+        use_state = bool(state) and state["preset"] == preset_name \
+            and state.get("variant", "") == variant_name and bool(state["rows"])
+        rows = state["rows"] if use_state else base
+        if state and not use_state:
+            print("[Luy-预制风格] 面板调整状态与本次预设/变体不一致（已换或状态过期），用预设+变体原样",
+                  flush=True)
+        elif preset_name != PRESET_CUSTOM and preset is None:
+            print("[Luy-预制风格] 未找到预设「%s」（style_presets/*.json 里没有这个 label）" % preset_name,
+                  flush=True)
+
+        picked, seen, pairs = [], set(), []
+
+        def push(category_key, raw):
+            english = _extract_english(raw)
+            if not english:
+                return
+            key = english.lower()
+            if key in seen:                     # 跨类别也去重，保留首次出现
+                return
+            seen.add(key)
+            picked.append((str(category_key or _FREE_KEY), english))
+            if str(raw).strip().lower() != key:
+                pairs.append("%s→%s" % (str(raw).split("|")[0].strip(), english))
+
+        for row in rows:
+            push(row.get("category"), row.get("value"))
+        for chunk in re.split(r"[,\n;，、]+", str(补充标签 or "")):
+            push("extra", chunk)
+
+        bpm_text = ""
+        try:
+            bpm_value = float(BPM or 0)
+        except (TypeError, ValueError):
+            bpm_value = 0.0
+        if bpm_value > 0:
+            bpm_text = "%g BPM" % bpm_value
+
+        style = delimiter.join(value for _key, value in picked)
+        if bpm_text:
+            style = ("%s%s%s" % (style, delimiter, bpm_text)) if style else bpm_text
+
+        if pairs:
+            print("[Luy-预制风格] 中英对照: %s" % " | ".join(pairs), flush=True)
+        print("[Luy-预制风格] 预设=%s 变体=%s ｜ %s ｜ style = %s" % (
+            preset_name, variant["label"], "使用面板微调" if use_state else "预设+变体原样",
+            style or "(空)"), flush=True)
+        return {
+            "ui": {
+                "msp_preset": [preset_name],
+                "msp_variant": [variant["label"]],
+                "msp_result": [style],
+                "msp_used_state": [use_state],
+                "msp_rows": [{"category": key, "value": value} for key, value in picked],
+                "msp_bpm": [bpm_text],
+            },
+            "result": (style,),
+        }
+
+
 NODE_CLASS_MAPPINGS = {
     "CJMusicStyleTags": CJMusicStyleTags,
     "CJMusicStyleReplacer": CJMusicStyleReplacer,
+    "CJMusicStylePreset": CJMusicStylePreset,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "CJMusicStyleTags": "Luy-音乐风格标签",
     "CJMusicStyleReplacer": "Luy-风格标签替换",
+    "CJMusicStylePreset": "Luy-预制风格标签",
 }

@@ -51,9 +51,9 @@ class llama_run_lite:
         load_text_presets("T")
         return {
             "required": {
-                "模型": (model_list, {"default": "Qwen3.5\\4B\\Qwen3.5-4B-Q4_K_S.gguf"}),
-                "视觉模块": (mmproj_list, {"default": "Qwen3.5\\4B\\mmproj-BF16.gguf"}),
-                "对话模板": (chat_handlers, {"default": "Qwen3.5"}),
+                "模型": (model_list, {"default": "gemma-4-12b-it-GGUF\\gemma-4-12b-it-Q4_K_S.gguf"}),
+                "视觉模块": (mmproj_list, {"default": "gemma-4-12b-it-GGUF\\mmproj-BF16.gguf"}),
+                "对话模板": (chat_handlers, {"default": "Gemma4"}),
                 "预设提示词": (preset_tags, {"default": preset_tags[1]}),
                 "自定义提示词": ("STRING", {"default": "", "multiline": True, "placeholder": 'user_prompt'}),
                 "系统角色提示词": ("STRING", {"default": "", "multiline": True, "placeholder": '为空则使用内置默认角色；语言要求统一由“中文回复”决定'}),

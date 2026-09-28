@@ -32,9 +32,9 @@ class llama_run:
         load_text_presets("V")
         return {
             "required": {
-                "模型": (model_list,{"default": "Qwen3.5\\4B\\Qwen3.5-4B-Q4_K_S.gguf"}),
-                "视觉模块": (mmproj_list, {"default": "Qwen3.5\\4B\\mmproj-BF16.gguf"}),
-                "对话模板": (chat_handlers, {"default": "Qwen3.5"}),
+                "模型": (model_list,{"default": "gemma-4-12b-it-GGUF\\gemma-4-12b-it-Q4_K_S.gguf"}),
+                "视觉模块": (mmproj_list, {"default": "gemma-4-12b-it-GGUF\\mmproj-BF16.gguf"}),
+                "对话模板": (chat_handlers, {"default": "Gemma4"}),
                 "上下文长度": ("INT", {
                     "default": 8192,
                     "min": 2000, "max": 327680, "step": 128,

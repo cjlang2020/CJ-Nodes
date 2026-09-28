@@ -32,9 +32,9 @@ class llama_cpp_model_loader:
         mmproj_list = ["None"]+[f for f in all_llms if "mmproj" in f.lower()]
 
         return {"required": {
-            "模型": (model_list,),
-            "视觉模块": (mmproj_list, {"default": "None"}),
-            "对话模板": (chat_handlers, {"default": "None"}),
+            "模型": (model_list, {"default": "gemma-4-12b-it-GGUF\\gemma-4-12b-it-Q4_K_S.gguf"}),
+            "视觉模块": (mmproj_list, {"default": "gemma-4-12b-it-GGUF\\mmproj-BF16.gguf"}),
+            "对话模板": (chat_handlers, {"default": "Gemma4"}),
             "上下文长度": ("INT", {
                 "default": 8192,
                 "min": 1024, "max": 327680, "step": 128,

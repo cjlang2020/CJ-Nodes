@@ -1,4 +1,5 @@
 import { app } from "../../../../scripts/app.js";
+import { createCanvasStore } from "./canvas_upload.js";
 
 app.registerExtension({
     name: "luy.vr360crop",
@@ -21,6 +22,12 @@ app.registerExtension({
                     cropDataWidget.hidden = true;
                     cropDataWidget.value = this.cropData;
                 }
+
+                // 截图 PNG 上传到服务器，crop_data 只保留文件名引用（见 canvas_upload.js）——
+                // 禁止把 base64 持久化进工作流/草稿，否则撑爆 localStorage 草稿配额（“保存工作流草稿失败”）
+                const canvasStore = createCanvasStore(node, cropDataWidget, [
+                    { fileKey: "image_file", b64Key: "image_base64", suffix: "" },
+                ]);
 
                 this.widthWidget = this.widgets.find(w => w.name === "output_width");
                 this.heightWidget = this.widgets.find(w => w.name === "output_height");
@@ -80,6 +87,10 @@ app.registerExtension({
                     }
                 );
 
+                // 画布数据已由 crop_data 承载，DOM widget 不再序列化（否则工作流里存两份）
+                canvasWidget.serialize = false;
+                canvasWidget.options.serialize = false;
+
                 // 高度跟随节点：不能给 DOM widget 写 computeSize（会退化成固定高度、拿不到弹性空间），
                 // 只给最小高度，剩余高度由前端弹性分配（通用做法见 CJ-Nodes/AGENTS.md）
                 iframe.style.setProperty("--comfy-widget-min-height", "380px");
@@ -124,8 +135,9 @@ app.registerExtension({
                             setTimeout(() => this.initResizeObserver(), 500);
                             break;
                         case 'CROP_DATA_UPDATE':
-                            node.cropData = data.data;
-                            if (cropDataWidget) cropDataWidget.value = node.cropData;
+                            // push() 同步剥离 base64 并防抖上传，crop_data 始终只存文件名引用
+                            canvasStore.push(data.data);
+                            node.cropData = cropDataWidget.value;
                             canvasWidget.value = node.cropData;
                             node.flags = node.flags || {};
                             node.flags.dirty = true;

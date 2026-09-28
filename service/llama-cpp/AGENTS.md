@@ -38,12 +38,26 @@
 - **`存在惩罚` 在本机是空设**：`if _MTMD: parameters.pop("presence_penalty", None)`，而本机 `_MTMD=True`（装了 MTMDChatHandler），该值永远被丢弃（完整版/简化版行为一致）。
 - 参数排序规矩：按**使用频次**（模型/视觉模块/对话模板 → 提示词 → 常用行为 → 抽样微调 → 调试/加速项）；新加字段要插进对应档，不要一律追加到末尾。改顺序前先想清楚 `widgets_values` 位置化后果（见上级 AGENTS.md）。
 - **用户指定、不要再改回去的默认值/位置**（`llama_run_simple`）：`思考模式=off`、`启用推理=True`、`最大生成长度=4096`、`上下文长度=12800`；`使用缓存` 紧跟在 `中文回复` 下方、`上下文长度` 紧跟在 `最大生成长度` 上方。
+- **默认模型 = gemma-4-12B（用户指定）**，5 个文件同步：`llamacpp_image.py` / `llamacpp.py` / `llamacpp_lite.py` / `nodes.py`（`llama_cpp_model_loader`）都设 `模型=gemma-4-12b-it-GGUF\gemma-4-12b-it-Q4_K_S.gguf` + `视觉模块=gemma-4-12b-it-GGUF\mmproj-BF16.gguf` + `对话模板=Gemma4`；`llamacpp_text.py`（`llama_text_simple`）只改 `模型`，它的 `mmproj`/`chat_handler` 硬编码为 `"None"`。**三件套必须一起改**，否则会报下面那条 `mmproj_path is required`。改完用 `剧情编辑\_build\verify_defaults.py` 校验（它顺带做 INPUT_TYPES↔`run()` 签名比对）。
 - **`llama_run_lite` 是 `llama_run_simple` 的"少旋钮版"**：只留 12 个输入（`模型`/`视觉模块`/`对话模板`/`预设提示词`/`自定义提示词`/`系统角色提示词`/`中文回复`/`分隔符`/`思考模式`/`上下文长度`/`推理模式`/`使用缓存`），其余 26 项固定为 `llama_run_simple` 的默认值并**写死在 `run()` 里**（见文件头注释）；输出 6 项与 simple 一致。改推理逻辑时必须两个文件同步改（simple 是基准），否则行为会分叉。
 
 ## 模型模板坑（实测）
 
 - **MiniCPM-5 系列不支持列表式 content**：节点一律传 `[{"type":"text","text":…}]`，而 MiniCPM5 的 GGUF 模板把列表渲染成空 → 提示词静默丢失（现象：模型胡答/反问）。逐模型实测只有 MiniCPM-5 系列受影响（GLM-OCR/Hy-MT2/MiniCPM-V-4.6/Qwen3-VL/gemma-4/omnicoder 均正常）。验证方法：`Jinja2ChatFormatter(template="<从 GGUF 读的 tokenizer.chat_template>").render` 后看 prompt 里还有没有用户文本。
 - **MiniCPM-V-4.6 handler 重复推理必崩**：同一 Llama 实例上第二次 `create_chat_completion` 报 `RuntimeError: sampling index is outside the most recent decode output batch: token_index=173`；对照实验证明与 `reasoning_budget` 无关（不传也崩）→ 是 fork 层面的 bug。`nodes.py` 里已有的 Qwen3.5 专用重置（`n_tokens=0` + `_ctx.memory_clear(True)` + is_hybrid 时清 `_hybrid_cache_mgr`）能绕过（实测两次均成功），但 hack 的 handler 名单目前只列了 Qwen3.5。
+
+## ★ VLM handler 强制要 mmproj：纯文本必须 `对话模板=None`
+
+`base.py` 的 `get_chat_handler()` 把 `Qwen3.5` / `Gemma4` 等映射到 VLM handler，而 0.3.49 fork 的 `Qwen35ChatHandler.__init__` / `Gemma4ChatHandler.__init__` 把 `mmproj_path` 设为**必填**（`clip_model_path` 只作弃用别名）。所以「`视觉模块=None` + `对话模板=Qwen3.5`（或 `Gemma4`）」会在**加载期**直接抛：
+
+```
+ValueError: Qwen35ChatHandler(__init__): `mmproj_path` is required.
+ValueError: Gemma4ChatHandler(__init__): `mmproj_path` is required.
+```
+
+- **纯文本**：`视觉模块=None` + `对话模板=None`（`get_chat_handler` 返回 `None`，走 GGUF 自带 `tokenizer.chat_template`），既省 167~900MB 显存又不会报错。`llamacpp_text.py` 就是这么硬编码的。
+- **图文两用**：必须把 mmproj 一起选上。`Gemma4` + `gemma-4-12b-it-GGUF\mmproj-BF16.gguf` 组合已实测可用（`llama_run_simple` 用全套默认值跑图生：18.4s / 1487 字符 / 中文 91% / 六段齐全）。
+- 排查手段：报错文案指向「模型没配 mmproj」，但真因也可能只是 handler 选错；先看 `对话模板` 与 `视觉模块` 是否配套。
 
 ## 测试配方（无需启 ComfyUI UI）
 
@@ -56,8 +70,25 @@
 - `ggml-cuda.dll` 依赖 `python_embeded/Lib/site-packages/torch/lib/` 下的 `cudart64_13.dll` / `cublas64_13.dll`（CUDA 13）。独立 Python 进程中它**静默**加载失败（backend registry 只有 CPU，`n_gpu_layers=-1` 也全跑 CPU，不报错）；只有进程内已 import torch 后 CUDA 后端才注册成功。
 - 独立测试 GPU 加载必须先 `import torch` 或 `os.add_dll_directory(.../torch/lib)`。后端加载机制源码在 `site-packages/llama_cpp/llama.py` 的 `Llama.__init__`（`ggml_backend_load_all_from_path`），日志看 "Loaded ggml backend registry count"。
 
+## CLIP 文本生成（LuyTextGenerate，本目录唯一不依赖 llama-cpp-python 的节点）
+
+`LuyTextGenerate.py` = 核心 `comfy_extras/nodes_textgen.py` 的 `TextGenerate` 加强版：拿带 LLM 头的文本编码器（LTX-2 的 gemma3/gemma4）当 LLM 生成文本（提示词扩写/图片反推）。只依赖 ComfyUI 本体，不 import `base.py`，所以 llama-cpp-python 挂了它也能加载。
+
+- **系统提示词**：`system_prompt/` 目录（`.txt`/`.md`）扫成下拉，`1-名称.txt` 的数字前缀只用于排序并从显示名里去掉；下拉值 `默认` = `skip_template=False` 走编码器自带模板，其余值 = 读文件内容当 system 提示词并**手拼对话模板**（`skip_template=True`）。文件里含 `{prompt}`/`{text}` 则整份当完整模板（需自备媒体占位符，否则代码会打印提示）。读文件顺序 utf-8-sig → gbk → 替换解码（中文 txt 常是 GBK）。
+- **手拼模板的实测依据**（2026-09，用本机 safetensors 里的 `tokenizer_json`/`spiece_model` 直接构造 tokenizer 验证，不需要加载 12B 权重）：
+  - gemma4：一段媒体 = 一个连续占位符块（`<|image><|image|><image|>`，视频是 `<|image><|video|><image|>`），**图片批次 B 张就要 B 块**；块与块之间必须有 `\n\n\n\n` 之类非占位符 token，否则 `_replace_placeholders` 会把连续占位符合并成 1 个（实测 1 块 + 2 张图 → 只挂上 1 张）。
+  - gemma4 音频：占位符个数 = `tokenizer._audio_token_count(num_samples)`（按 16k 重采样后的采样数；E2B/E4B 与 unified 变体公式不同，所以必须调内层 tokenizer 实例的方法，不能硬编码）。
+  - gemma3（LTX-2.0/2.3）：`image` 整批只挂到**唯一**那个 `<image_soft_token>` 上（实测 3 张图 → 1 个 embed，data 形状 `[3,776,1035,3]`），batch 维在 `sd1_clip.process_tokens` 里被 `emb.view(1,-1,D)` 拉平；所以 gemma3 分支只放一个占位符，多图也能用但没有图间隔。
+  - `_inner_tokenizer()`：`clip.tokenizer.clip_name` 指向内层 SDTokenizer 的属性名（如 `clip.tokenizer.gemma4`）。
+- **坑（跟核心一致，别当成本节点 bug）**：
+  - `mtp` 只有 qwen35 真实现（`MTPHead`）；`gemma4.py` / `lt.py` 的 `generate` 收了 `mtp` 但不往下传 → 对 LTX 场景是空设。
+  - `min_length=1` 对 gemma3 无效（`lt.Gemma3_Tokenizer.tokenize_with_weights` 调 `super()` 时**没转发 kwargs**，min_length 绑在 1024）；gemma4 有效。
+  - `thinking` 只对 gemma4 有意义（gemma3 tokenizer 吞掉该 kwargs）。
+  - 编码器不支持生成时（`cond_stage_model` 没有 `generate`）抛中文 RuntimeError，比核心的 AttributeError 好定位。
+
 ## 模型资产与本机环境
 
 - 本机模型：`models/LLM/Qwen3.5/{0.8B,4B,9B}/`（9B 为 `Qwen3.5-9B-UD-Q4_K_XL.gguf` + `mmproj-BF16.gguf`）、`models/LLM/MiniCPM-5/`（1B/2B 文本 + 思维模型，GGUF `general.architecture=llama`，模板不认列表 content，见上）、`models/LLM/MiniCPM-V-4.6/`（+`mmproj-F16.gguf`，handler 重复推理会崩）、`models/LLM/gemma-4-E4B-it/`（head_dim=512，同样上下文 KV 比同类大4倍）；`LLM` 目录由 base.py 经 `folder_paths.folder_names_and_paths["LLM"]` 动态注册。
-- 显卡 RTX 4060 Laptop 8GB；ComfyUI python 环境在 `D:\AI\ComfyUI-Dev\python_embeded`（Python 3.13），测试脚本直接用它跑。
+- 显卡 **RTX 4060 Laptop，实测 16303 MiB（≈ 15.9 GiB）—— 旧记录写的 8GB 不准**；ComfyUI python 环境在 `D:\AI\ComfyUI-Dev\python_embeded`（Python 3.13），测试脚本直接用它跑。
+- **gemma-4-12B 显存实测**（`gemma-4-12b-it-Q4_K_S.gguf` 6.30 GiB + `mmproj-BF16.gguf` 167 MiB，`Gemma4` handler，`vram_limit=-1`，加载仅 3.5s）：n_ctx 12800 → 占 ≈14.7 GiB（几乎贴顶）；8192 → ≈9.4 GiB；6144 → ≈8.8 GiB；4096 → ≈8.1 GiB。日志有 `llama_kv_cache_iswa: using full-size SWA cache`，gemma 的 SWA 没被利用（head_dim=512），KV 按全尺寸算。**同跑 ComfyUI 的 SD 模型时 12800 有 OOM 风险，优先降到 8192。**
 - base.py 的 `Llama()` 现带 try/except 诊断包装（抛出 Free VRAM + 模型大小 + 修复建议），别再改回裸调用 `verbose=False`。

@@ -1,11 +1,14 @@
 # CJ-Nodes 音乐服务（service/music）
 
-两个节点文件、5 个节点：YuE2 音乐生成（3 个）+ SheetSage2 音频扒谱（2 个）+ 音乐风格标签（1 个）。
+三个节点文件、8 个节点：YuE2 音乐生成（3 个）+ SheetSage2 音频扒谱（2 个）+ 音乐风格标签（1 个）
++ 风格标签替换（1 个）+ 预制风格标签（1 个）。
 
 ## 文件职责
 
-- `music_style_nodes.py` —— 风格标签选择器（1 个节点类 + `style_tags/` 词表目录）。
-  纯 os/re 实现，**不依赖 torch/folder_paths**，可脱离 ComfyUI 单测（`python -c` 直接调 `build()`）。
+- `music_style_nodes.py` —— 音乐风格三个节点（风格标签选择器 `CJMusicStyleTags`、风格标签替换
+  `CJMusicStyleReplacer`、预制风格标签 `CJMusicStylePreset`）+ 两个词表目录（`style_tags/` 标签词表、
+  `style_presets/` 预制风格 json）。纯 os/re/json 实现，**不依赖 torch/folder_paths**，可脱离 ComfyUI 单测
+  （`python -c` 直接调 `build()`）。
 - `yue2_music_nodes.py` —— YuE2 生成（引擎封装 + 3 个节点类）。
   - 引擎位置：`CJ-Nodes/libs/yue2/` —— **内置引擎快照**（从 `D:\AI\Yue3B\src\yue2` 复制的 yue2 包，v0.1.6，14 个 .py）。
   - 节点默认 `_YUE2_SRC = <CJ-Nodes>/libs`，可用环境变量 `YUE2_SRC` 覆盖。
@@ -14,7 +17,7 @@
 - `sheetsage2_music_nodes.py` —— SheetSage2 扒谱（2 个节点类）。**无需内置引擎**：推理代码由 transformers 的
   `trust_remote_code` 从模型目录（`models/YuE2/models/SheetSage2/`）动态加载，节点本体只依赖 torch/numpy/folder_paths。
 - 显示名注册在 `CJ-Nodes/nodes.py` 的 `CUSTOM_DISPLAY_NAMES`（模块内的 `NODE_DISPLAY_NAME_MAPPINGS` 会被节点加载器忽略）。
-- 5 个节点的 `CATEGORY` 统一为 `luy/音乐`（本项目惯例：`luy/中文分类`，如 `luy/模型加载`、`luy/图片处理`）。
+- 本目录所有节点的 `CATEGORY` 统一为 `luy/音乐`（本项目惯例：`luy/中文分类`，如 `luy/模型加载`、`luy/图片处理`）。
 
 ## 模型目录（全部相对路径，无硬编码绝对路径）
 
@@ -335,6 +338,8 @@ ComfyUI 原生 COMBO 是单选，多点选只有三条路：① N 个槽位下�
 
 - `GET  /CJ-Nodes/api/music-style/vocab` → 17 个类别（7 结构型 + 9 词表 + other）+ 每类 chips
 - `POST /CJ-Nodes/api/music-style/parse` → `{style, delimiter}` → `{rows, result, source, delimiter}`
+- `GET  /CJ-Nodes/api/music-style/presets` → 预制风格面板数据 `{custom, slot_limit, categories, presets}`
+  （`presets[i].rows` 已由后端解析好，前端不重复实现分类）
 
 两个 handler 都通过 `comfy_nodes.NODE_CLASS_MAPPINGS['CJMusicStyleReplacer']` 拿类调 classmethod
 （`vocabulary_payload` / `parse_payload`）——**不吃 service/ 的 import 路径坑，且吃得到热重载**。
@@ -360,6 +365,92 @@ JS 侧同步入口：`onNodeCreated` / `onConfigure` / 源 widget callback / `on
   `--comfy-widget-min-height: 200px` + `.cj-ms{height:100%}` + 行列表 `flex:1 1 auto;overflow-y:auto`。
 - `fitNodeHeight()` 只做“内容装不下时按缺口补高”（`need - wrap.clientHeight`），`_msFitted` 防止
   把用户手动缩小抢回去；拿不到 `clientHeight` 时下一帧重试（限 8 次）。
+
+---
+
+# 预制风格标签（service/music/music_style_nodes.py · CJMusicStylePreset + web/js/music_style_preset.js）
+
+「先选一个现成风格（预设），再选一种演绎（变体），再单独改某一类」：跟「音乐风格标签」同词表，
+但风格来源是**预设文件 + 变体表**，只输出**一路 `风格`**（不再分 人声/乐器/情绪/其他/补充/速度），
+并且有一个逐类别下拉的前端面板。
+
+## 三条硬约束（改代码前必读）
+
+1. **预设原文可复现**：预设 `style` 串逐段 `_extract_english` 归一化（去中文、去重）后按段顺序输出；
+   变体选「标准」/面板未动时输出 == 预设文件内容（归一化后）；变体只在原位替换演绎轴，不重排风格。
+2. **面板微调存隐藏 widget `调整状态`**（JSON `{preset, variant, rows, base}`），后端**只在
+   `preset` + `variant` 与本次两个下拉完全一致且 rows 非空时才采用**；否则（空/坏 JSON/换了预设或变体）
+   退回预设+变体原样（`_apply_variant`）。
+3. **前端只是渲染器**：预设/变体的解析、分类、行表合并、候选项全在 Python（`_preset_rows` /
+   `_apply_variant` / `_classify_tag`），每个「预设×变体」的行表与 BPM 由后端预存在 payload 里；
+   且 `预制风格`/`变体` 是**原生 COMBO widget**（可见、能存、能选）→ 面板/路由挂了本节点依然可用。
+
+## 面板形态与同步（与替换节点不同的地方）
+
+- `预制风格` + `变体` **都是原生 COMBO widget**（可见、能存、能选），面板里**不再重复两个下拉**；
+  面板只给「状态行 + ↺ 重载预设 + 清空/自定义 + 逐类别下拉 + 输出预览」。
+- `补充标签` 是**单行输入**（后端 `INPUT_TYPES` 不加 `"multiline": True`）→ 走前端原生单行文本框，
+  高度固定、不会被节点拉高拉伸。曾经试过「多行 + `computeSize` 固定 2 行」：DOM 控件可视高度 =
+  `computedHeight − 2×10(DEFAULT_MARGIN)`，结果只剩半行，已改回单行。多出的空间全给面板（面板保持弹性）。
+- 面板固定渲染**词表类别**（9 类 + 其他）；预设/变体里若带了结构型类别（如 `upbeat` 被分到 `tempo_feel`）
+  会额外补一行。每类默认 N 个下拉（N = 当前该类标签数，至少 1 个空位），`+` / `✕` 增删槽位。
+- 词表里没有的取值会作为「预设: xxx」的临时选项显示（可换成词表项，但不会被吞掉）。
+- 同步规则（`syncPanel`）：`force`（换预设/变体 / 点「↺ 重载预设」）→ 预设+变体原样；面板已是当前
+  来源 → 保持现状；否则若 `调整状态` 里的 `preset`+`variant` 与当前一致 → 恢复微调；都没有 → 预设+变体原样。
+- **面板只做渲染**：每个「预设×变体」的行表与 BPM 都由后端算好放在 `presets[i].variants[j]`（
+  `{label, bpm, rows}`），前端不重复实现合并逻辑；自定义模式用 `custom_variants`。
+- 状态 `{preset, variant, rows, base}`：`base` 是当前选择的**未微调行表**（供“已调 N 类”对比用），
+  后端忽略 `base`，只用 `preset`/`variant`/`rows`；旧状态（无 `variant`）一律当过期 → 退回预设+变体原样。
+- **别把「清空」做成只清 rows**：rows 空了后端会判定“没在用面板”而退回预设，所以「清空」必须同时把
+  `预制风格` 切成 `（自定义）`（并把 `变体` 归为默认、BPM 归 0）。
+- `onExecuted` 只在“执行用的预设/变体 ≠ 面板上的”时重载（否则会把用户的微调抹掉）。
+- CSS 前缀 `.cj-msp-` / style id `cj-msp-style`，**不要复用 `.cj-ms-`**（两个节点可能同时在画布上）。
+
+## 预制词表（加 json 即加预设 / 加变体）
+
+- 目录：`service/music/style_presets/`，一个预设一个 `{数字}-xxx.json`：`{label, note, bpm, style}`，按文件名排序。
+  **以 `_` 开头的 json 不算预设**（`_variants.json` = 演绎变体表）。
+- `style` 里的标签**请用 `style_tags/` 的英文原文**，这样面板下拉能直接命中选项（未命中会显示为「预设: xxx」）。
+- `bpm` = 推荐速度（0/缺省 = 不写速度）。**它由前端面板写入原生 `BPM` widget**（未选变体的倍率时
+  就是预设值），后端仍旧只看 `BPM` widget 的值 → 用户想不要速度（例如接了扒谱 `style_hint`，
+  里面已有准确 BPM）就把 BPM 改回 0；点「↺ 重载预设」会按当前变体重算 BPM。输出仍只有 `风格` 这一路。
+- `label` 既显示也存储 → **改 label = 旧工作流的预设回落默认值**（与改 widget 名同理），新增预设别改旧的 label。
+- 改 json / 词表后：Python 侧按 `(mtime, size)` 缓存失效，**F5 刷新页面即生效**，不用重启也不用点重载。
+
+## 演绎变体（style_presets/_variants.json）
+
+- 格式：`{"variants": [{"label", "bpm_scale", "note", "tags": [英文标签…]}]}`（默认第一条 = 标准 = 原样）。
+- **替换规则（勿改）**：`tags` 里属于**演绎轴** `_VARIANT_AXES = (mood, rhythm, tempo_feel, delivery)`
+  的类别 → 在**它原本的位置整体替换**（不重排整个风格）；其余类别（音色/年代/乐器…）→ 追加在同类后面，
+  不抹掉预设自身特征；变体带来新类别时按 `_CATEGORY_ORDER` 插到合适位置；最后跳类别去重。
+  `标准`/`tags` 为空 → **原样返回预设行**（保证预设 style 逐字可复现，有断言）。
+- 分类不用手写：`tags` 是**平铺列表**，每条走 `_classify_tag`（例：`upbeat` 归 tempo_feel、
+  `warm` 归 timbre），避免作者把类别写错。所以变体里塞一个乐器标签也合法（就变成追加）。
+- **BPM**：`变体 bpm = 预设 bpm × bpm_scale`（四舍五入；预设 bpm=0 时不猜、返 0），由 `_variant_bpm()` 算，
+  前端写进 BPM widget。自定义模式没有预设 → 变体 BPM 一律 0（手填）。
+- 实测：20 预设 × 10 变体 = 200 组合均有值、无中文残留、输出顺序不被重排（断言已写进离线自检）。
+
+## 初始 20 个预设（括号内为自带 bpm）
+
+**流行/华语**：城市流行 80s(112) / 华语流行 Mandarin(108) / 90年代港乐(96) / 可爱 K-Pop(120) /
+治愈民谣(78) / 钢琴抒情(68)　**电子**：Lo-fi(76) / 赛博合成波(104) / Progressive House(126)
+**摇滚/金属**：燃系日系摇滚(172) / 朋克摇滚(168) / 体育场摇滚(138) / 交响金属(140)
+**器乐/民族**：史诗管弦(92) / 国风古风(72) / 乡村民谣(92) / 拉丁弗拉门戈(108)
+**其他**：爵士酒吧(96) / 灵魂放克(100) / 说唱陷阱 Trap(140)
+
+添加新预设：按 `21-xxx.json` 命名放同目录（`label` 要唯一、后面不再改），`style` 用词表英文原文，
+`bpm` 给推荐速度——**10 种演绎自动对所有预设生效，不用为新预设重写变体**（当前 payload ≈ 290KB，
+一次拉取、前端只做渲染；预设数到几十个时再考虑改成按需拉取）。
+
+## 10 个演绎变体（倍率）
+
+标准(1.00) / 快歌(1.30) / 慢歌(0.72) / 悲伤(0.85) / 欢快(1.15) / 浪漫(0.90) / 燃向(1.10) /
+梦幻(0.95) / 治愈(0.92) / 暗黑(0.85)。
+
+## 面板高度
+
+同「风格标签替换」：**不给 DOM widget 加 `computeSize`**，只设 `--comfy-widget-min-height: 320px` +
+统一套用 `fitNodeHeight()`（只补缺口，不抢用户手动缩小）。
 
 ---
 

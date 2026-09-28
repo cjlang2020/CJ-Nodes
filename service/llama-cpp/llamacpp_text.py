@@ -28,7 +28,7 @@ class llama_text_simple:
         load_text_presets("T")
         return {
             "required": {
-                "模型": (model_list,{"default": "Qwen3-VL-4B-Instruct-abliterated-Q5_K_M.gguf"}),
+                "模型": (model_list,{"default": "gemma-4-12b-it-GGUF\\gemma-4-12b-it-Q4_K_S.gguf"}),
                 "上下文长度": ("INT", {
                     "default": 8192,
                     "min": 2000, "max": 327680, "step": 128,

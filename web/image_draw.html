@@ -458,6 +458,11 @@
             // 液化状态
             liquifyStrength: 0.5,
             lastLiquifyPos: null,
+            // 液化位移场：笔画期间保存原始快照 + 累积位移，避免逐帧重采样导致累积模糊
+            liquifySource: null,   // 笔画开始时的原始像素快照 (ImageData)
+            liquifyField: null,    // Float32Array(w*h*2)，每像素采样偏移 (ox, oy)
+            liquifyW: 0,
+            liquifyH: 0,
             // 形状工具状态
             shapeStartX: 0,
             shapeStartY: 0,
@@ -489,6 +494,8 @@
         // 初始化Canvas（支持保留并缩放现有内容）
         // ==============================================
         function initCanvas(w, h, saveInitial = true, preserveContent = true) {
+            // 画布重建：废弃进行中的液化笔画快照
+            liquifyEndStroke();
             // 保存当前画布内容（如果需要）
             let savedImage = null;
             let oldW = state.canvasW;
@@ -651,6 +658,7 @@ state.canvas.style.width = dispW + 'px';
         // ==============================================
         function execUndo() {
             if (state.undoStack.length === 0) return;
+            liquifyEndStroke();
             const entry = state.undoStack.pop();
 
             const sizeChanged = entry.width !== state.canvasW || entry.height !== state.canvasH;
@@ -894,6 +902,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         // ==============================================
         function execCrop() {
             if (!state.isCropSelected) return;
+            liquifyEndStroke();
             saveCanvasState();
             // 保证裁剪区域有效（最小10px，避免空裁剪）
             const x1 = Math.max(0, Math.min(state.canvasW, state.cropX1));
@@ -945,6 +954,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         // 清除功能：完全清除画布上的所有内容（包括上传的图片）
         // ==============================================
         function execClear() {
+            liquifyEndStroke();
             saveCanvasState();
             // 完全清空画布，填充默认背景色
             state.ctx.fillStyle = '#EEEEEE';
@@ -1248,63 +1258,165 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
         }
 
         // ==============================================
-        // 液化工具：逐帧推移（类似Photoshop Forward Warp）
-        // 每帧从当前画布快照采样，对画笔区域内像素施加鼠标位移偏移
-        // 像素自然累积推移，形成推拉变形效果
+        // Catmull-Rom 双三次插值采样（比双线性更锐利，减少变形后的发虚）
         // ==============================================
+        function cubicWeight(t) {
+            const a = -0.5;
+            const at = t < 0 ? -t : t;
+            if (at <= 1) return ((a + 2) * at - (a + 3)) * at * at + 1;
+            if (at < 2) return (((at - 5) * at + 8) * at - 4) * a;
+            return 0;
+        }
+
+        function sampleBicubic(pixels, w, h, x, y) {
+            const x0 = Math.floor(x);
+            const y0 = Math.floor(y);
+            const fx = x - x0;
+            const fy = y - y0;
+            // 4 个 x 方向权重（对应采样点 x0-1, x0, x0+1, x0+2）
+            const wx0 = cubicWeight(fx + 1);
+            const wx1 = cubicWeight(fx);
+            const wx2 = cubicWeight(fx - 1);
+            const wx3 = cubicWeight(fx - 2);
+            let r = 0, g = 0, b = 0, a = 0, wsum = 0;
+            for (let m = 0; m < 4; m++) {
+                let yy = y0 - 1 + m;
+                if (yy < 0) yy = 0; else if (yy >= h) yy = h - 1;
+                const wy = cubicWeight(fy - (m - 1));
+                const rowBase = yy * w;
+                for (let n = 0; n < 4; n++) {
+                    let xx = x0 - 1 + n;
+                    if (xx < 0) xx = 0; else if (xx >= w) xx = w - 1;
+                    const ww = wy * (n === 0 ? wx0 : n === 1 ? wx1 : n === 2 ? wx2 : wx3);
+                    const i = (rowBase + xx) * 4;
+                    r += pixels[i] * ww;
+                    g += pixels[i + 1] * ww;
+                    b += pixels[i + 2] * ww;
+                    a += pixels[i + 3] * ww;
+                    wsum += ww;
+                }
+            }
+            if (wsum !== 0) { r /= wsum; g /= wsum; b /= wsum; a /= wsum; }
+            return [r, g, b, a];
+        }
+
+        // ==============================================
+        // 液化工具：位移场累积 + 原始快照一次采样（类似 Photoshop 向前变形）
+        // 关键点：笔画开始时保存一张「原始像素快照」，每帧只累加位移场，
+        // 渲染时始终从原始快照采样一次；未发生位移的像素直接原样拷贝，
+        // 因此不会因为逐帧重复插值而累积发虚。
+        // ==============================================
+        function liquifyBeginStroke() {
+            if (!state.canvas || !state.ctx) return;
+            const w = state.canvasW;
+            const h = state.canvasH;
+            state.liquifySource = state.ctx.getImageData(0, 0, w, h);
+            state.liquifyField = new Float32Array(w * h * 2);
+            state.liquifyW = w;
+            state.liquifyH = h;
+        }
+
+        function liquifyEndStroke() {
+            state.liquifySource = null;
+            state.liquifyField = null;
+            state.liquifyW = 0;
+            state.liquifyH = 0;
+        }
+
         function execLiquify(x, y) {
             if (!state.canvas || !state.lastLiquifyPos) return;
+
+            // 首次进入（或画布尺寸变化）时建立原始快照与零位移场
+            if (!state.liquifySource || !state.liquifyField ||
+                state.liquifyW !== state.canvasW || state.liquifyH !== state.canvasH) {
+                liquifyBeginStroke();
+                if (!state.liquifySource) return;
+            }
+
             const size = state.drawSize;
             const strength = state.liquifyStrength;
             const width = state.canvasW;
             const height = state.canvasH;
+            const srcPixels = state.liquifySource.data;
+            const field = state.liquifyField;
 
             const dxMove = x - state.lastLiquifyPos.x;
             const dyMove = y - state.lastLiquifyPos.y;
             const moveDist = Math.sqrt(dxMove * dxMove + dyMove * dyMove);
             if (moveDist < 0.5) return;
 
-            // 读取当前画布作为本次位移的源（每帧更新，位移自然累积）
-            const srcData = state.ctx.getImageData(0, 0, width, height);
-            const srcPixels = srcData.data;
-
-            // 目标缓冲区
-            const dstData = state.ctx.getImageData(0, 0, width, height);
-            const dstPixels = dstData.data;
-
             const radius = size;
             const radiusSq = radius * radius;
-            const sigma = radius / 2.5;
-            const sigmaSq2 = 2 * sigma * sigma;
-            const bx = Math.floor(x);
-            const by = Math.floor(y);
+            // 沿笔画路径插值，避免快速拖动时留下断点
+            const steps = Math.max(1, Math.ceil(moveDist / Math.max(1, radius * 0.25)));
+            const stepX = dxMove / steps;
+            const stepY = dyMove / steps;
 
-            // 对画笔范围内的每个像素进行逆映射位移
-            for (let dy = -radius; dy <= radius; dy++) {
-                for (let dx = -radius; dx <= radius; dx++) {
-                    const distSq = dx * dx + dy * dy;
-                    if (distSq > radiusSq) continue;
-                    const px = bx + dx;
+            let minX = width, minY = height, maxX = -1, maxY = -1;
+
+            for (let s = 1; s <= steps; s++) {
+                const cx = state.lastLiquifyPos.x + dxMove * (s / steps);
+                const cy = state.lastLiquifyPos.y + dyMove * (s / steps);
+                const bx = Math.floor(cx);
+                const by = Math.floor(cy);
+                for (let dy = -radius; dy <= radius; dy++) {
                     const py = by + dy;
-                    if (px < 0 || px >= width || py < 0 || py >= height) continue;
-
-                    // 高斯衰减
-                    const gaussWeight = Math.exp(-distSq / sigmaSq2);
-                    // 位移量 = 鼠标增量 × 衰减 × 强度
-                    const offX = dxMove * gaussWeight * strength;
-                    const offY = dyMove * gaussWeight * strength;
-
-                    // 逆映射：从源图 (px - offX, py - offY) 采样
-                    const dstIdx = (py * width + px) * 4;
-                    const s = sampleBilinear(srcPixels, width, height, px - offX, py - offY);
-                    dstPixels[dstIdx]     = s[0];
-                    dstPixels[dstIdx + 1] = s[1];
-                    dstPixels[dstIdx + 2] = s[2];
-                    dstPixels[dstIdx + 3] = s[3];
+                    if (py < 0 || py >= height) continue;
+                    const dySq = dy * dy;
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const distSq = dx * dx + dySq;
+                        if (distSq > radiusSq) continue;
+                        const px = bx + dx;
+                        if (px < 0 || px >= width) continue;
+                        // 平滑径向衰减（边缘严格归零，避免笔刷边界出现硬接缝）
+                        const t = 1 - distSq / radiusSq;
+                        const weight = t * t * (3 - 2 * t);
+                        const fi = (py * width + px) * 2;
+                        field[fi]     += stepX * weight * strength;
+                        field[fi + 1] += stepY * weight * strength;
+                    }
                 }
+                if (bx - radius < minX) minX = bx - radius;
+                if (by - radius < minY) minY = by - radius;
+                if (bx + radius > maxX) maxX = bx + radius;
+                if (by + radius > maxY) maxY = by + radius;
             }
 
-            state.ctx.putImageData(dstData, 0, 0);
+            if (maxX < minX || maxY < minY) { state.lastLiquifyPos = {x, y}; return; }
+            minX = Math.max(0, minX); minY = Math.max(0, minY);
+            maxX = Math.min(width - 1, maxX); maxY = Math.min(height - 1, maxY);
+            const rw = maxX - minX + 1;
+            const rh = maxY - minY + 1;
+            if (rw <= 0 || rh <= 0) { state.lastLiquifyPos = {x, y}; return; }
+
+            // 只重绘受影响的外接矩形：从「原始快照」按位移场采样一次
+            const out = state.ctx.createImageData(rw, rh);
+            const outPx = out.data;
+            let oi = 0;
+            for (let yy = 0; yy < rh; yy++) {
+                const py = minY + yy;
+                const rowBase = (py * width + minX) * 2;
+                for (let xx = 0; xx < rw; xx++, oi += 4) {
+                    const fi = rowBase + xx * 2;
+                    const ox = field[fi];
+                    const oy = field[fi + 1];
+                    if (ox === 0 && oy === 0) {
+                        // 未位移像素：原样拷贝，保证完全不发虚
+                        const si = (py * width + minX + xx) * 4;
+                        outPx[oi]     = srcPixels[si];
+                        outPx[oi + 1] = srcPixels[si + 1];
+                        outPx[oi + 2] = srcPixels[si + 2];
+                        outPx[oi + 3] = srcPixels[si + 3];
+                    } else {
+                        const s = sampleBicubic(srcPixels, width, height, minX + xx - ox, py - oy);
+                        outPx[oi]     = s[0];
+                        outPx[oi + 1] = s[1];
+                        outPx[oi + 2] = s[2];
+                        outPx[oi + 3] = s[3];
+                    }
+                }
+            }
+            state.ctx.putImageData(out, minX, minY);
             state.lastLiquifyPos = {x, y};
         }
 
@@ -1785,6 +1897,7 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         break;
                     case 'liquify':
                         saveCanvasState();
+                        liquifyBeginStroke();
                         state.lastLiquifyPos = {x, y};
                         break;
                     case 'smudge':
@@ -1821,8 +1934,11 @@ state.cropRect.style.left = Math.min(x1, x2) + 'px';
                         // 裁剪工具松开鼠标仅更新裁剪框，不执行裁剪
                         updateCropRect();
                         break;
-                    case 'draw':
                     case 'liquify':
+                        liquifyEndStroke();
+                        sendToParent(false); // 发送编辑后数据，不更新尺寸
+                        break;
+                    case 'draw':
                     case 'smudge':
                     case 'erase':
                         sendToParent(false); // 发送编辑后数据，不更新尺寸

@@ -103,6 +103,11 @@ def _style_node_class():
     return comfy_nodes.NODE_CLASS_MAPPINGS.get('CJMusicStyleReplacer')
 
 
+def _preset_style_node_class():
+    """取预制风格节点类（同上，走全局映射 → 吃得到热重载）"""
+    return comfy_nodes.NODE_CLASS_MAPPINGS.get('CJMusicStylePreset')
+
+
 @routes.get('/CJ-Nodes/api/music-style/vocab')
 async def music_style_vocab(request):
     """风格标签替换面板的类别表（结构型类别 + style_tags/ 词表），改词表后刷新页面即生效"""
@@ -126,6 +131,22 @@ async def music_style_parse(request):
         data = await request.json()
         return web.json_response(node_class.parse_payload(
             data.get('style', ''), data.get('delimiter', ', ')))
+    except Exception as e:
+        traceback.print_exc()
+        return web.json_response({'error': str(e)}, status=500)
+
+
+@routes.get('/CJ-Nodes/api/music-style/presets')
+async def music_style_presets(request):
+    """预制风格面板数据：{custom, slot_limit, categories(17 类), presets[{label,note,style,rows}]}
+
+    词表 / style_presets/*.json 改完 F5 即生效（后端按 mtime 缓存失效）。
+    """
+    try:
+        node_class = _preset_style_node_class()
+        if node_class is None:
+            return web.json_response({'error': '节点 CJMusicStylePreset 未注册'}, status=404)
+        return web.json_response(node_class.presets_payload())
     except Exception as e:
         traceback.print_exc()
         return web.json_response({'error': str(e)}, status=500)
