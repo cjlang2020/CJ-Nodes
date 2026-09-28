@@ -42,7 +42,7 @@ CJ-Nodes/
 4. **导入方式**：文件所在目录及其父目录（service/）会插入 `sys.path`，所以跨文件用 `from aitools_base import ...` 这类顶层导入，**不要用相对导入**。
 5. 加载异常只 print 不中断，排查节点没注册时看 ComfyUI 启动日志的 "❌ 加载文件" 输出。
 6. **包目录不能放进 service/**：递归遍历不区分包与普通目录，包内的 `.py` 会被逐个当节点模块执行（`__package__=None`），带相对导入的包必定报 `attempted relative import with no known parent package`。内置库/引擎请放 `CJ-Nodes/libs/`。（已存在例外：`service/llama-cpp/__init__.py`，其内部模块均用顶层导入所以无害。）
-7. **调试/临时脚本绝不能放在 service/ 下**：加载器只排除 `__` 开头的文件，`_check_xxx.py` 这种单下划线开头的**也会被 import**（模块级代码会真的执行，例如加载模型）。临时脚本写到 ComfyUI 根目录，用完即删。
+7. **调试/临时脚本绝不能放在 service/ 下**：加载器只排除 `__` 开头的文件，`_check_xxx.py` 这种单下划线开头的**也会被 import**（模块级代码会真的执行，例如加载模型）。临时脚本写到 ComfyUI 根目录，用完即删
 
 ## 节点清单（按功能域）
 
