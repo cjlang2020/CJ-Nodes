@@ -10,7 +10,11 @@ import requests
 import numpy as np
 import torch
 from PIL import Image
+from urllib.parse import urlparse
 import folder_paths
+
+# 禁止访问的敏感地址（云元数据服务等，不应作为llama.cpp服务端点）
+BLOCKED_HOSTS = {"169.254.169.254", "metadata.google.internal", "metadata"}
 
 
 # 提示词模板目录（T目录：文本模板，V目录：视觉模板）
@@ -260,6 +264,13 @@ class LlamaCppAPINode:
 
         if seed >= 0:
             payload["seed"] = seed
+
+        # 校验URL格式，仅允许http/https协议，并禁止访问云元数据等敏感地址
+        parsed_url = urlparse(url.strip())
+        if parsed_url.scheme not in ("http", "https") or not parsed_url.hostname:
+            return ("错误：URL格式不正确，仅支持http/https协议", system_prompt, full_prompt)
+        if parsed_url.hostname.lower() in BLOCKED_HOSTS:
+            return ("错误：不允许访问该地址", system_prompt, full_prompt)
 
         # 确保URL格式正确
         api_url = url.rstrip('/')
